@@ -5,6 +5,7 @@ import { useMediaStore } from "@/stores/media";
 import { useFavorite } from "@/composables/useFavorite";
 import { usePlaylistPicker } from "@/composables/usePlaylistPicker";
 import { useTrackMenu } from "@/composables/useTrackMenu";
+import { useDownload } from "@/composables/useDownload";
 import * as player from "@/core/player";
 import { formatTime } from "@/utils/time";
 import IconFavorite from "~icons/material-symbols/favorite-rounded";
@@ -33,9 +34,11 @@ const {
 } = usePlaylistPicker();
 
 /** 歌曲菜单 */
+const { enqueue: enqueueDownload } = useDownload();
 const { items: menuItems, handleSelect: onMenuSelect } = useTrackMenu(toRef(media, "track"), {
   hidePlayActions: true,
   onAddToPlaylist: (track) => openPicker([track]),
+  onDownload: (track, quality) => void enqueueDownload(track, { quality }),
 });
 </script>
 

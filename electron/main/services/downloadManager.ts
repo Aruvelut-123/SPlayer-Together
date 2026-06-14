@@ -1,0 +1,370 @@
+/**
+ * 下载管理服务
+ *
+ * 渲染层解析好 URL/封面/歌词后交给本服务：拉流落盘到下载目录、按文件名模板命名、
+ * 再用原生 writeTrackTags 内嵌封面/元信息/歌词、可选写 .lrc。任务权威态在此（持久化到
+ * download_tasks 表），进度/状态经 broadcast 推送给渲染层镜像。
+ *
+ * 下载骨架参照 songCache.ts（fetch + AbortController + 临时文件 + MIME/首字节校验），但落到
+ * 用户下载目录、命名规范、附加写标签，且不做缓存/LRU 语义。队列严格串行：一次只下一首。
+ * 临时 .part 写在 app 缓存的 downloads-tmp 下，避免崩溃残留污染用户目录；完成时移动到目标。
+ */
+
+import fs from "node:fs";
+import fsp, { type FileHandle } from "node:fs/promises";
+import path from "node:path";
+import { app } from "electron";
+import { store } from "@main/store";
+import { getDownloadDir, getCoverCacheDir, getAppCacheDir } from "@main/utils/config";
+import { broadcast } from "@main/utils/broadcast";
+import { downloadLog } from "@main/utils/logger";
+import { getEngine } from "@main/services/engine";
+import { fetchBytes } from "@main/utils/fetchBytes";
+import { renderFileBase, dedupePath, resolveExtension } from "@main/utils/filename";
+import * as db from "@main/database/downloads";
+import { ErrorCode } from "@shared/types/errors";
+import type { JsTagWriteRequest } from "@splayer/audio-engine";
+import type { DownloadRequest, DownloadTask, EnqueueResult } from "@shared/types/download";
+
+/** 进度推送节流间隔 */
+const PROGRESS_INTERVAL_MS = 250;
+/** 保留的历史任务上限（防无界增长） */
+const MAX_HISTORY = 200;
+
+/** 拒绝的响应 Content-Type 前缀（命中即非音频） */
+const REJECTED_MIME_PREFIXES = ["text/html", "application/json", "application/xml", "text/xml"];
+
+const isRejectedMime = (mime: string | null): boolean =>
+  !!mime && REJECTED_MIME_PREFIXES.some((prefix) => mime.toLowerCase().startsWith(prefix));
+
+/** 首字节是否像音频（挡 HTML/JSON 错误页冒充音频） */
+const looksLikeAudio = async (filePath: string): Promise<boolean> => {
+  let fd: FileHandle | null = null;
+  try {
+    fd = await fsp.open(filePath, "r");
+    const buf = Buffer.alloc(4);
+    const { bytesRead } = await fd.read(buf, 0, 4, 0);
+    if (bytesRead === 0) return false;
+    return buf[0] !== 0x3c && buf[0] !== 0x7b && buf[0] !== 0x5b;
+  } catch {
+    return false;
+  } finally {
+    if (fd) await fd.close().catch(() => {});
+  }
+};
+
+interface Pending {
+  req: DownloadRequest;
+  task: DownloadTask;
+  controller: AbortController;
+  dedupeKey: string;
+  /** 已被删除：收尾的状态广播应被丢弃，避免删行后又被写回 */
+  removed?: boolean;
+}
+
+/** 全部未结束任务（排队中 + 进行中），按 taskId */
+const tasks = new Map<string, Pending>();
+/** 等待下载的 taskId，FIFO */
+const queue: string[] = [];
+/** 当前正在下载的 taskId；null 表示空闲 */
+let active: string | null = null;
+
+/** 临时分片目录（与用户下载目录隔离） */
+const tmpDir = (): string => path.join(getAppCacheDir(), "downloads-tmp");
+
+/** 去重键：同一首歌同一档位只下一次 */
+const dedupeKeyOf = (req: DownloadRequest): string =>
+  `${req.track.source}:${req.track.id}:${req.qualityLevel}`;
+
+/** 合并艺术家名 */
+const artistString = (req: DownloadRequest): string =>
+  req.track.artists.map((artist) => artist.name).join("/");
+
+const broadcastState = (task: DownloadTask): void => {
+  // 已删除的任务：收尾态（如中断产生的 canceled）不再写回 DB / 推送，否则会在删行后复活
+  if (tasks.get(task.taskId)?.removed) return;
+  db.upsert(task);
+  broadcast("download:state", task);
+};
+
+/** 跨盘安全移动 */
+const moveFile = async (src: string, dest: string): Promise<void> => {
+  try {
+    await fsp.rename(src, dest);
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === "EXDEV") {
+      await fsp.copyFile(src, dest);
+      await fsp.unlink(src);
+    } else {
+      throw err;
+    }
+  }
+};
+
+/**
+ * 把流写到临时文件并按节流推进度
+ * @returns 已接收字节数
+ */
+const streamToFile = async (
+  body: ReadableStream<Uint8Array>,
+  partPath: string,
+  taskId: string,
+  total: number,
+  signal: AbortSignal,
+): Promise<number> => {
+  const fileStream = fs.createWriteStream(partPath);
+  const reader = body.getReader();
+  let received = 0;
+  let lastTs = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (signal.aborted) throw new DOMException("aborted", "AbortError");
+      if (!fileStream.write(value)) {
+        await new Promise<void>((resolve) => fileStream.once("drain", resolve));
+      }
+      received += value.length;
+      const now = Date.now();
+      if (now - lastTs >= PROGRESS_INTERVAL_MS) {
+        lastTs = now;
+        broadcast("download:progress", { taskId, received, total }, true);
+      }
+    }
+  } finally {
+    fileStream.end();
+    await new Promise<void>((resolve, reject) => {
+      fileStream.on("finish", () => resolve());
+      fileStream.on("error", reject);
+    });
+  }
+  return received;
+};
+
+/** 写入标签（封面/元信息/歌词）；失败返回 false 但不影响音频文件 */
+const applyTags = async (req: DownloadRequest, filePath: string): Promise<boolean> => {
+  const { tagOptions } = req;
+  const writeRequest: JsTagWriteRequest = { path: filePath };
+  let hasWrite = false;
+  if (tagOptions.embedMeta) {
+    writeRequest.title = req.track.title;
+    writeRequest.artist = artistString(req);
+    if (req.track.album?.name) writeRequest.album = req.track.album.name;
+    hasWrite = true;
+  }
+  if (tagOptions.embedLyric && req.lyricText) {
+    writeRequest.lyrics = req.lyricText;
+    hasWrite = true;
+  }
+  if (tagOptions.embedCover && req.coverUrl) {
+    const cover = await fetchBytes(req.coverUrl, { requireImage: true });
+    if (cover) {
+      writeRequest.cover = cover;
+      hasWrite = true;
+    } else {
+      downloadLog.warn(`封面下载失败，跳过封面: ${req.coverUrl}`);
+    }
+  }
+  if (!hasWrite) return true;
+  try {
+    const results = await getEngine().writeTrackTags([writeRequest], getCoverCacheDir());
+    return results[0]?.success === true;
+  } catch (err) {
+    downloadLog.warn(`写标签失败 ${filePath}:`, err);
+    return false;
+  }
+};
+
+/** 写同名 .lrc（仅行级 LRC） */
+const writeLrcFile = async (req: DownloadRequest, audioPath: string): Promise<void> => {
+  if (!req.tagOptions.writeLrc || !req.lyricText) return;
+  if (req.lyricFormat && req.lyricFormat !== "lrc") return;
+  const lrcPath = `${audioPath.slice(0, audioPath.length - path.extname(audioPath).length)}.lrc`;
+  try {
+    await fsp.writeFile(lrcPath, req.lyricText, "utf-8");
+  } catch (err) {
+    downloadLog.warn(`写 .lrc 失败 ${lrcPath}:`, err);
+  }
+};
+
+/** 实际下载 + 落盘 + 写标签 */
+const runTask = async (
+  req: DownloadRequest,
+  task: DownloadTask,
+  controller: AbortController,
+): Promise<void> => {
+  const partPath = path.join(tmpDir(), `${req.taskId}.part`);
+
+  try {
+    const downloadDir = getDownloadDir();
+    const baseRel = renderFileBase(store.get("download.fileTemplate"), {
+      artist: artistString(req),
+      title: req.track.title,
+      album: req.track.album?.name ?? "",
+    });
+    const targetDir = path.join(downloadDir, path.dirname(baseRel));
+    const baseName = path.basename(baseRel);
+    const finalNoExt = path.join(targetDir, baseName);
+    const policy = store.get("download.overwritePolicy");
+
+    // skip 策略：用预估扩展名提前命中已存在文件则跳过
+    const guessExt = resolveExtension(req.declaredFormat, null, req.url);
+    if (policy === "skip" && fs.existsSync(`${finalNoExt}${guessExt}`)) {
+      task.status = "done";
+      task.filePath = `${finalNoExt}${guessExt}`;
+      task.finishedAt = Date.now();
+      broadcastState(task);
+      return;
+    }
+
+    await fsp.mkdir(tmpDir(), { recursive: true });
+    await fsp.mkdir(targetDir, { recursive: true });
+
+    const response = await fetch(req.url, { signal: controller.signal });
+    if (!response.ok || !response.body) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    const mime = response.headers.get("content-type");
+    if (isRejectedMime(mime)) throw new Error(`rejected mime ${mime}`);
+    const total = Number(response.headers.get("content-length")) || req.declaredSize || 0;
+
+    const received = await streamToFile(
+      response.body as ReadableStream<Uint8Array>,
+      partPath,
+      req.taskId,
+      total,
+      controller.signal,
+    );
+    if (received === 0) throw new Error("empty body");
+    if (!(await looksLikeAudio(partPath))) throw new Error("not audio");
+
+    const ext = resolveExtension(req.declaredFormat, mime, req.url);
+    const finalPath = policy === "rename" ? dedupePath(finalNoExt, ext) : `${finalNoExt}${ext}`;
+    await moveFile(partPath, finalPath);
+
+    await writeLrcFile(req, finalPath);
+    const tagOk = await applyTags(req, finalPath);
+
+    task.status = "done";
+    task.received = received;
+    task.total = total || received;
+    task.filePath = finalPath;
+    task.tagWarning = !tagOk;
+    task.finishedAt = Date.now();
+    broadcastState(task);
+    downloadLog.info(`完成 ${req.track.title} → ${finalPath}`);
+  } catch (err) {
+    await fsp.unlink(partPath).catch(() => {});
+    if (controller.signal.aborted) {
+      task.status = "canceled";
+    } else {
+      task.status = "failed";
+      task.errorCode = ErrorCode.UNKNOWN;
+      downloadLog.error(`失败 ${req.track.title}:`, err);
+    }
+    task.finishedAt = Date.now();
+    broadcastState(task);
+  }
+};
+
+/** 串行处理队列：一次只下一首，下完再取下一个 */
+const pump = async (): Promise<void> => {
+  if (active !== null) return;
+  const taskId = queue.shift();
+  if (taskId === undefined) return;
+  const pending = tasks.get(taskId);
+  if (!pending) return void pump();
+  active = taskId;
+  pending.task.status = "downloading";
+  broadcastState(pending.task);
+  try {
+    await runTask(pending.req, pending.task, pending.controller);
+  } finally {
+    tasks.delete(taskId);
+    active = null;
+    db.pruneFinished(MAX_HISTORY);
+    void pump();
+  }
+};
+
+/** 入队下载（start / retry 共用，按 taskId 覆盖任务行） */
+export const enqueue = (req: DownloadRequest): EnqueueResult => {
+  if (tasks.has(req.taskId)) return { ok: false, reason: "queued" };
+  const dedupeKey = dedupeKeyOf(req);
+  for (const pending of tasks.values()) {
+    if (pending.dedupeKey === dedupeKey) return { ok: false, reason: "queued" };
+  }
+  // 已下载过同曲同音质且文件仍在 → 拦下
+  const downloaded = db
+    .listCompletedByQuality(req.qualityLevel)
+    .find((task) => task.track.source === req.track.source && task.track.id === req.track.id);
+  if (downloaded?.filePath && fs.existsSync(downloaded.filePath)) {
+    return { ok: false, reason: "downloaded" };
+  }
+  const task: DownloadTask = {
+    taskId: req.taskId,
+    status: "queued",
+    track: req.track,
+    qualityLevel: req.qualityLevel,
+    received: 0,
+    total: req.declaredSize ?? 0,
+    createdAt: Date.now(),
+  };
+  tasks.set(req.taskId, { req, task, controller: new AbortController(), dedupeKey });
+  queue.push(req.taskId);
+  broadcastState(task);
+  void pump();
+  return { ok: true };
+};
+
+/** 取消任务：进行中则中断，排队中则移出并置为已取消 */
+export const cancel = (taskId: string): void => {
+  const pending = tasks.get(taskId);
+  if (!pending) return;
+  if (active === taskId) {
+    pending.controller.abort();
+    return;
+  }
+  const idx = queue.indexOf(taskId);
+  if (idx !== -1) queue.splice(idx, 1);
+  tasks.delete(taskId);
+  pending.task.status = "canceled";
+  pending.task.finishedAt = Date.now();
+  broadcastState(pending.task);
+};
+
+/** 删除一条任务记录：进行中则中断、排队中则丢弃，且不留下取消态记录 */
+export const remove = (taskId: string): void => {
+  const pending = tasks.get(taskId);
+  if (pending) {
+    pending.removed = true;
+    if (active === taskId) {
+      // 进行中：中断即可，收尾的 canceled 广播会被 removed 守卫拦掉，行随后由 db.remove 删除
+      pending.controller.abort();
+    } else {
+      const idx = queue.indexOf(taskId);
+      if (idx !== -1) queue.splice(idx, 1);
+      tasks.delete(taskId);
+    }
+  }
+  db.remove(taskId);
+};
+
+/** 清空已结束任务 */
+export const clearFinished = (): void => db.clearFinished();
+
+/** 列出全部任务 */
+export const list = (): DownloadTask[] => db.listAll();
+
+/** 启动初始化 */
+export const init = async (): Promise<void> => {
+  db.markInterrupted();
+  const dir = tmpDir();
+  try {
+    const entries = await fsp.readdir(dir);
+    await Promise.all(entries.map((name) => fsp.unlink(path.join(dir, name)).catch(() => {})));
+  } catch {}
+  app.on("before-quit", () => {
+    for (const pending of tasks.values()) pending.controller.abort();
+  });
+};

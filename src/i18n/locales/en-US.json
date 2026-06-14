@@ -166,6 +166,7 @@
     "library": "Library",
     "liked": "Liked Songs",
     "history": "Play History",
+    "download": "Downloads",
     "favorites": "Favorites",
     "cloud": "My Cloud",
     "streaming": "Streaming",
@@ -459,6 +460,7 @@
       "showInExplorer": "Open Location",
       "copyPath": "Copy File Path",
       "editTags": "Edit Metadata",
+      "download": "Download Song",
       "deleteFile": "Delete File",
       "searchSame": "Search by Name",
       "more": "More",
@@ -471,6 +473,7 @@
       "selected": "{count} selected",
       "invert": "Invert",
       "addToQueue": "Add to Queue",
+      "download": "Download",
       "exit": "Exit"
     },
     "delete": {
@@ -535,6 +538,40 @@
     "clear": "Clear history",
     "clearConfirmTitle": "Clear Play History",
     "clearConfirmContent": "Clear all play history? This cannot be undone."
+  },
+  "download": {
+    "title": "Downloads",
+    "activeCount": "{count} in progress",
+    "clearFinished": "Clear finished",
+    "clearConfirmTitle": "Clear finished tasks",
+    "clearConfirmContent": "This removes all completed and failed task records from the list. Downloaded files on disk are kept. Continue?",
+    "tabAll": "All",
+    "tabActive": "Downloading",
+    "tabError": "Errors",
+    "tabDone": "Completed",
+    "colStatus": "Status",
+    "colSize": "Size",
+    "empty": "No download tasks",
+    "emptyDone": "No completed downloads yet",
+    "qualityDefault": "Follow Default",
+    "cancel": "Cancel",
+    "retry": "Retry",
+    "openFolder": "Show in folder",
+    "remove": "Remove",
+    "tagWarning": "Failed to write tags; file saved",
+    "resolveFailed": "Cannot download: {title}",
+    "alreadyQueued": "Already in the download queue",
+    "alreadyDownloaded": "Already downloaded",
+    "started": "Added to downloads: {title}",
+    "enqueued": "Added {count} to downloads",
+    "status": {
+      "queued": "Queued",
+      "downloading": "Downloading",
+      "done": "Done",
+      "failed": "Failed",
+      "canceled": "Canceled",
+      "interrupted": "Interrupted"
+    }
   },
   "daily": {
     "title": "Daily Recommend",
@@ -617,6 +654,9 @@
       "pluginsList": "Installed Plugins",
       "streaming": "Streaming",
       "songCache": "Song Cache",
+      "downloadLocation": "Download Location",
+      "downloadGeneral": "Download Options",
+      "downloadTags": "What to Write",
       "cache": "Caches",
       "database": "Database",
       "backupReset": "Backup & Reset",
@@ -1406,6 +1446,45 @@
     "songCacheSizeLimit": {
       "label": "Size Limit",
       "description": "When the limit is reached, entries are evicted automatically; ∞ means unlimited"
+    },
+    "downloadDir": {
+      "label": "Download Folder",
+      "change": "Change"
+    },
+    "downloadQuality": {
+      "label": "Download Quality",
+      "description": "Preferred quality for downloads; actual availability depends on platform and account"
+    },
+    "downloadUsePlayback": {
+      "label": "Simulate Playback for Download",
+      "description": "Use the playback link as the audio source when downloading"
+    },
+    "downloadFileTemplate": {
+      "label": "Filename Format",
+      "description": "How downloaded files are named; use / to create subfolders"
+    },
+    "downloadOverwrite": {
+      "label": "Duplicate Handling",
+      "description": "What to do when the target file already exists",
+      "rename": "Keep both (add number)",
+      "overwrite": "Overwrite",
+      "skip": "Skip"
+    },
+    "downloadEmbedCover": {
+      "label": "Embed Cover",
+      "description": "Write the cover into the downloaded audio file"
+    },
+    "downloadEmbedMeta": {
+      "label": "Embed Metadata",
+      "description": "Write title, artist, and album into file tags"
+    },
+    "downloadEmbedLyric": {
+      "label": "Embed Lyrics",
+      "description": "Write lyrics into file tags"
+    },
+    "downloadWriteLrc": {
+      "label": "Save .lrc File",
+      "description": "Also save a matching .lrc lyric file alongside the audio"
     },
     "cacheCategoryClear": {
       "label": "Clear",

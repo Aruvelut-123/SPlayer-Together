@@ -4,7 +4,9 @@ import { useMediaStore } from "@/stores/media";
 import { useSettingsStore } from "@/stores/settings";
 import { usePlaybackTime } from "@/composables/usePlaybackTime";
 import { getCurrentTime } from "@/services/playback";
+import type { QualityLevel } from "@/utils/quality";
 import { useFavorite } from "@/composables/useFavorite";
+import { useDownload, buildDownloadQualityItems } from "@/composables/useDownload";
 import { usePlaylistPicker } from "@/composables/usePlaylistPicker";
 import Lyrics from "@/components/player/Lyrics/index.vue";
 import PlaylistPickerDialog from "@/components/modals/PlaylistPickerDialog.vue";
@@ -15,11 +17,14 @@ import { openExternal } from "@/utils/url";
 import IconFavorite from "~icons/material-symbols/favorite-rounded";
 import IconFavoriteOutline from "~icons/material-symbols/favorite-outline-rounded";
 import IconLucideListPlus from "~icons/lucide/list-plus";
+import IconLucideDownload from "~icons/lucide/download";
 
 const status = useStatusStore();
 const media = useMediaStore();
 const settings = useSettingsStore();
 const fav = useFavorite();
+const { enqueue: enqueueDownload } = useDownload();
+const { t } = useI18n();
 const {
   isPlaying,
   isLoading,
@@ -82,6 +87,20 @@ const onBeforeLeave = () => {
 };
 
 const hasTrack = computed(() => !!media.track);
+
+/** 当前歌曲是否可下载 */
+const canDownload = computed(() => !!media.track && media.track.source !== "local");
+
+/** 下载音质菜单项 */
+const downloadQualityItems = computed(() =>
+  buildDownloadQualityItems(t("download.qualityDefault")),
+);
+
+/** 选择音质后下载（空 key 表示用设置中的默认音质） */
+const onDownloadSelect = (key: string): void => {
+  if (!media.track) return;
+  void enqueueDownload(media.track, key ? { quality: key as QualityLevel } : {});
+};
 
 /** 当前曲目是否有可显示的歌词 */
 const hasLyric = computed(() => media.parsedLyric.length > 0 || media.lyricLoading);
@@ -431,6 +450,20 @@ const toggleLyric = (): void => {
             >
               <template #icon><IconLucideListPlus /></template>
             </SButton>
+            <SDropdownMenu
+              v-if="canDownload"
+              :items="downloadQualityItems"
+              cover
+              side="top"
+              align="start"
+              @select="onDownloadSelect"
+            >
+              <template #trigger>
+                <SButton type="cover" variant="ghost" size="large" circle>
+                  <template #icon><IconLucideDownload /></template>
+                </SButton>
+              </template>
+            </SDropdownMenu>
           </div>
           <div class="shrink-0 flex flex-col items-center gap-1 w-[clamp(360px,35%,480px)]">
             <div class="flex items-center gap-3">

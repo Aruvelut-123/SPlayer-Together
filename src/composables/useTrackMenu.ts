@@ -1,15 +1,18 @@
 import type { Ref } from "vue";
 import type { Track } from "@shared/types/player";
+import type { QualityLevel } from "@/utils/quality";
 import type { CollectionType } from "@/types/collection";
 import type { DropdownMenuItem } from "@/components/ui/SDropdownMenu.vue";
 import * as player from "@/core/player";
 import { useCopyText } from "@/composables/useCopyText";
+import { buildDownloadQualityItems } from "@/composables/useDownload";
 import { getShareUrl } from "@/utils/format/shareUrl";
 import IconPlay from "~icons/lucide/play";
 import IconListEnd from "~icons/lucide/list-end";
 import IconListPlus from "~icons/lucide/list-plus";
 import IconFolderOpen from "~icons/lucide/folder-open";
 import IconSquarePen from "~icons/lucide/square-pen";
+import IconDownload from "~icons/lucide/download";
 import IconCopy from "~icons/lucide/copy";
 import IconTrash2 from "~icons/lucide/trash-2";
 import IconListMinus from "~icons/lucide/list-minus";
@@ -32,6 +35,8 @@ export interface TrackMenuOptions {
   onDeleteFile?: (track: Track) => void;
   /** 编辑元数据回调 */
   onEditTags?: (track: Track) => void;
+  /** 下载回调；quality 为空表示用设置中的默认音质 */
+  onDownload?: (track: Track, quality?: QualityLevel) => void;
   /** 从云盘删除回调 */
   onRemoveFromCloud?: (track: Track) => void;
 }
@@ -94,6 +99,14 @@ export const useTrackMenu = (
         show: isLocal && !!options.onEditTags,
       },
       {
+        key: "download",
+        label: t("songList.context.download"),
+        icon: markRaw(IconDownload),
+        separator: true,
+        show: !isLocal && !!options.onDownload,
+        children: buildDownloadQualityItems(t("download.qualityDefault"), "download:"),
+      },
+      {
         key: "removeFromCollection",
         label: t("collection.removeFrom", { type: t("collection.playlist") }),
         icon: markRaw(IconListMinus),
@@ -150,6 +163,12 @@ export const useTrackMenu = (
   const handleSelect = async (key: string): Promise<void> => {
     const current = track.value;
     if (!current) return;
+    // 下载子菜单：download:<音质>，空音质表示默认
+    if (key.startsWith("download:")) {
+      const quality = key.slice("download:".length);
+      options.onDownload?.(current, quality ? (quality as QualityLevel) : undefined);
+      return;
+    }
     switch (key) {
       case "play":
         player.playNow(current);

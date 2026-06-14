@@ -1,4 +1,4 @@
-import type { PluginsConfig } from "./plugin";
+import type { PluginsConfig, PluginQuality } from "./plugin";
 import type { HotkeyConfig } from "./hotkey";
 
 /** 支持的语言代码 */
@@ -265,6 +265,28 @@ export interface CacheSettings {
   songCache: SongCacheSettings;
 }
 
+/** 下载配置 */
+export interface DownloadSettings {
+  /** 下载目录；null 使用系统下载目录下的应用子目录 */
+  dir: string | null;
+  /** 下载音质 */
+  quality: PluginQuality;
+  /** 模拟播放下载：网易云用播放接口替代下载接口，避免占用每日下载次数 */
+  usePlaybackForDownload: boolean;
+  /** 文件名模板，支持 {artist} {title} {album} {index} */
+  fileTemplate: string;
+  /** 重名处理策略 */
+  overwritePolicy: "rename" | "overwrite" | "skip";
+  /** 内嵌封面 */
+  embedCover: boolean;
+  /** 内嵌标题/艺术家/专辑等元信息 */
+  embedMeta: boolean;
+  /** 内嵌歌词到标签 */
+  embedLyric: boolean;
+  /** 额外写同名 .lrc 文件 */
+  writeLrc: boolean;
+}
+
 /** 主窗口几何 */
 export interface MainWindowState {
   width: number;
@@ -333,6 +355,8 @@ export interface SystemConfig {
   localLyric: LocalLyricSettings;
   /** 缓存配置 */
   cache: CacheSettings;
+  /** 下载配置 */
+  download: DownloadSettings;
   /** 流媒体总开关 */
   streaming: StreamingSettings;
   /** Last.fm 集成配置 */

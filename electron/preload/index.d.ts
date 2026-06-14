@@ -6,6 +6,7 @@ import { NowPlayingApi } from "@shared/types/nowPlaying";
 import { PluginsApi } from "@shared/types/plugin";
 import { ApisApi } from "@shared/types/apis";
 import { LyricsApi } from "@shared/types/lyrics";
+import { DownloadApi } from "@shared/types/download";
 import {
   WindowApi,
   DesktopLyricApi,
@@ -51,6 +52,7 @@ declare global {
       plugins: PluginsApi;
       apis: ApisApi;
       lyrics: LyricsApi;
+      download: DownloadApi;
       theme: {
         pickBackgroundImage: () => Promise<string | null>;
         clearBackgroundImages: () => Promise<void>;

@@ -7,7 +7,7 @@ export type QualityLevel = "hi-res" | "lossless" | "hq" | "sq" | "lq";
 const LOSSLESS_CODECS = new Set(["flac", "alac", "ape", "wav", "aiff", "wavpack", "tta"]);
 
 /** 等级短码文案 */
-const QUALITY_LABELS: Record<QualityLevel, string> = {
+export const QUALITY_LABELS: Record<QualityLevel, string> = {
   "hi-res": "Hi-Res",
   lossless: "Lossless",
   hq: "HQ",

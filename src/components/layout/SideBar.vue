@@ -6,6 +6,7 @@ import { useSettingsStore } from "@/stores/settings";
 import { useStatusStore } from "@/stores/status";
 import { usePlaylistStore } from "@/stores/playlist";
 import { useUserStore } from "@/stores/user";
+import { useDownloadStore } from "@/stores/download";
 import { useHeartMode } from "@/composables/useHeartMode";
 import * as player from "@/core/player";
 import IconLucideHome from "~icons/lucide/home";
@@ -18,6 +19,7 @@ import IconLucideListMusic from "~icons/lucide/list-music";
 import IconMaterialSymbolsFavoriteOutline from "~icons/material-symbols/favorite-outline-rounded";
 import IconLucideStar from "~icons/lucide/star";
 import IconLucideHistory from "~icons/lucide/history";
+import IconLucideDownload from "~icons/lucide/download";
 import IconLucideCloud from "~icons/lucide/cloud";
 import IconLucidePlus from "~icons/lucide/plus";
 import IconLucideChevronDown from "~icons/lucide/chevron-down";
@@ -32,6 +34,7 @@ const { appearance, system: systemSettings } = useSettingsStore();
 const status = useStatusStore();
 const playlistStore = usePlaylistStore();
 const userStore = useUserStore();
+const downloadStore = useDownloadStore();
 const { enterHeartMode } = useHeartMode();
 
 /** 心动模式 */
@@ -39,19 +42,6 @@ const toggleHeartMode = useThrottleFn((): void => {
   if (status.heartMode) player.exitHeartMode();
   else void enterHeartMode();
 }, 800);
-
-const renderHeartTrailing = () =>
-  h(
-    SButton,
-    {
-      type: status.heartMode ? "primary" : "default",
-      variant: "tertiary",
-      size: "tiny",
-      round: true,
-      onClick: toggleHeartMode,
-    },
-    { icon: () => h(IconSpHeartMode) },
-  );
 
 const sourceOptions = computed<SSelectOption[]>(() => [
   { value: "local", label: t("collection.localPlaylist") },
@@ -102,7 +92,7 @@ const renderMyHeader = () =>
     ),
     h(
       SButton,
-      { variant: "tertiary", size: "tiny", round: true, onClick: handleCreate },
+      { variant: "tertiary", size: 26, round: true, onClick: handleCreate },
       { icon: () => h(IconLucidePlus, { class: "size-3.5" }) },
     ),
   ]);
@@ -164,10 +154,44 @@ const menuItems = computed<SMenuItem[]>(() => [
     key: "/liked",
     label: t("nav.liked"),
     icon: markRaw(IconMaterialSymbolsFavoriteOutline),
-    trailing: renderHeartTrailing,
+    trailing: () =>
+      h(
+        SButton,
+        {
+          type: status.heartMode ? "primary" : "default",
+          variant: "tertiary",
+          size: 26,
+          iconSize: 16,
+          round: true,
+          onClick: toggleHeartMode,
+        },
+        { icon: () => h(IconSpHeartMode) },
+      ),
   },
   { key: "/favorites", label: t("nav.favorites"), icon: markRaw(IconLucideStar) },
   { key: "/cloud", label: t("nav.cloud"), icon: markRaw(IconLucideCloud) },
+  {
+    key: "/download",
+    label: t("nav.download"),
+    icon: markRaw(IconLucideDownload),
+    ...(downloadStore.activeCount > 0
+      ? {
+          trailing: () =>
+            h(
+              SButton,
+              {
+                type: "primary",
+                variant: "secondary",
+                size: "tiny",
+                round: true,
+                class: "font-medium tabular-nums",
+                onClick: () => router.push("/download"),
+              },
+              () => String(downloadStore.activeCount),
+            ),
+        }
+      : {}),
+  },
   ...(systemSettings.streaming.enabled
     ? ([
         { key: "/streaming", label: t("nav.streaming"), icon: markRaw(IconLucideServer) },
@@ -213,6 +237,7 @@ const onSelect = (key: string) => {
 
 onMounted(() => {
   if (!playlistStore.initialized) playlistStore.load();
+  void downloadStore.init();
 });
 </script>
 

@@ -102,6 +102,17 @@ export const defaultSystemConfig: SystemConfig = {
       sizeLimitGb: 10,
     },
   },
+  download: {
+    dir: null,
+    quality: "lossless",
+    usePlaybackForDownload: false,
+    fileTemplate: "{artist} - {title}",
+    overwritePolicy: "rename",
+    embedCover: true,
+    embedMeta: true,
+    embedLyric: true,
+    writeLrc: true,
+  },
   streaming: {
     enabled: true,
   },

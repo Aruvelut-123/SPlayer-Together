@@ -116,6 +116,21 @@ export const initDatabase = (): void => {
       track_json TEXT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_favorite_history_at ON favorite_history(at);
+
+    CREATE TABLE IF NOT EXISTS download_tasks (
+      task_id TEXT PRIMARY KEY,
+      track_json TEXT NOT NULL,
+      quality_level TEXT NOT NULL,
+      status TEXT NOT NULL,
+      received INTEGER NOT NULL DEFAULT 0,
+      total INTEGER NOT NULL DEFAULT 0,
+      file_path TEXT,
+      error_code TEXT,
+      tag_warning INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL,
+      finished_at INTEGER
+    );
+    CREATE INDEX IF NOT EXISTS idx_download_tasks_created ON download_tasks(created_at);
   `);
   migrate(db);
   libraryLog.info(`数据库已初始化: ${dbPath}`);
