@@ -178,16 +178,13 @@ const menuItems = computed<SMenuItem[]>(() => [
       ? {
           trailing: () =>
             h(
-              SButton,
+              "span",
               {
-                type: "primary",
-                variant: "secondary",
-                size: "tiny",
-                round: true,
-                class: "font-medium tabular-nums",
+                class:
+                  "inline-flex items-center justify-center h-6 min-w-8.5 px-1.5 rounded-full bg-primary/16 text-primary text-xs font-medium tabular-nums leading-none cursor-pointer",
                 onClick: () => router.push("/download"),
               },
-              () => String(downloadStore.activeCount),
+              String(downloadStore.activeCount),
             ),
         }
       : {}),

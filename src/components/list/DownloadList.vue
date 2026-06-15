@@ -5,6 +5,7 @@ import { useMediaStore } from "@/stores/media";
 import { useStatusStore } from "@/stores/status";
 import { useDownloadStore } from "@/stores/download";
 import { useDownload } from "@/composables/useDownload";
+import { dialog } from "@/composables/useDialog";
 import { isLosslessQuality, getQualityLabel } from "@/utils/quality";
 import { formatTime } from "@/utils/time";
 import { formatFileSize } from "@/utils/format";
@@ -100,6 +101,16 @@ const openFolder = (task: DownloadTask): void => {
   if (task.filePath) window.api.system.showInExplorer(task.filePath);
 };
 
+/** 二次确认后删除已下载的本地文件并移除记录 */
+const confirmDelete = async (task: DownloadTask): Promise<void> => {
+  const confirmed = await dialog.confirm({
+    title: t("download.deleteConfirmTitle"),
+    content: t("download.deleteConfirmContent"),
+    type: "warning",
+  });
+  if (confirmed) downloadStore.remove(task.taskId);
+};
+
 /** 播放全部已完成（供下载页顶栏调用） */
 const playAll = (): void => {
   if (playableTasks.value.length > 0) {
@@ -125,7 +136,7 @@ defineExpose({ playAll });
         <div class="flex items-center gap-3 pl-3 pr-6 mx-3 h-10 text-sm text-on-surface-variant/60">
           <div class="w-8 shrink-0 flex items-center justify-center"><span>#</span></div>
           <div class="flex-1 min-w-0 px-1.5">{{ t("songList.title") }}</div>
-          <div class="flex-1 min-w-0">{{ t("download.colStatus") }}</div>
+          <div class="w-32 shrink-0">{{ t("download.colStatus") }}</div>
           <div class="w-20 shrink-0 text-center">{{ t("download.colSize") }}</div>
           <div class="w-16 shrink-0 text-center">{{ t("songList.duration") }}</div>
           <div class="w-20 shrink-0 text-center">{{ t("songList.actions") }}</div>
@@ -209,7 +220,7 @@ defineExpose({ playAll });
             </div>
           </div>
           <!-- 进度 / 状态 -->
-          <div class="flex-1 min-w-0">
+          <div class="w-32 shrink-0">
             <div v-if="item.status === 'downloading'" class="flex flex-col gap-1.5">
               <div class="h-1.5 w-full rounded-full bg-on-surface/10 overflow-hidden">
                 <div
@@ -217,7 +228,7 @@ defineExpose({ playAll });
                   :style="{ width: `${percent(item)}%` }"
                 />
               </div>
-              <span class="text-xs text-on-surface-variant/60 tabular-nums text-center">
+              <span class="text-xs text-on-surface-variant/60 tabular-nums text-left">
                 {{ percent(item) }}%
               </span>
             </div>
@@ -273,22 +284,19 @@ defineExpose({ playAll });
                 variant="ghost"
                 circle
                 size="small"
-                :title="t('songList.context.play')"
-                @click="onIndexClick(item)"
+                :title="t('download.openFolder')"
+                @click="openFolder(item)"
               >
-                <template #icon>
-                  <IconLucidePause v-if="isPlaying(item) && status.isPlaying" />
-                  <IconLucidePlay v-else />
-                </template>
+                <template #icon><IconLucideFolderOpen /></template>
               </SButton>
               <SButton
                 variant="ghost"
                 circle
                 size="small"
-                :title="t('download.openFolder')"
-                @click="openFolder(item)"
+                :title="t('download.deleteFile')"
+                @click="confirmDelete(item)"
               >
-                <template #icon><IconLucideFolderOpen /></template>
+                <template #icon><IconLucideTrash2 /></template>
               </SButton>
             </template>
           </div>

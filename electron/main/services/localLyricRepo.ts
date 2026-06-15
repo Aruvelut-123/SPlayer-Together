@@ -4,7 +4,7 @@
  * 用户指定一个目录作为 TTML 歌词仓库。按需扫描目录下所有 .ttml，解析 AMLL
  * `<amll:meta>` 头（musicName / artists / ncmMusicId / qqMusicId）建立索引：
  * - 平台 id（网易云 / QQ）→ 文件路径（精确命中）
- * - 归一化「标题|首艺术家」→ 文件路径（模糊命中）
+ * - 归一化标题 → 候选列表
  * 命中返回文件原文，交由渲染层 parseTTML 解析。
  *
  * 索引以（目录, 目录 mtime）为缓存边界：目录或其 mtime 变化（增删文件）时重建。
@@ -15,13 +15,22 @@ import { readdir, readFile, stat } from "node:fs/promises";
 import { join, extname } from "node:path";
 import { store } from "@main/store";
 import { normalize } from "@main/apis/common/lyric/utils";
+import { buildFingerprint, getMatchedId } from "@main/database/lyricMatchCache";
 import { coreLog } from "@main/utils/logger";
 import type { Track } from "@shared/types/player";
+
+/** 同名候选：艺术家仅作区分，不作硬门槛 */
+interface NameCandidate {
+  /** 归一化首艺术家，缺失为空串 */
+  artist: string;
+  file: string;
+}
 
 interface RepoIndex {
   byNcm: Map<string, string>;
   byQq: Map<string, string>;
-  byName: Map<string, string>;
+  /** 归一化标题 → 同名候选 */
+  byTitle: Map<string, NameCandidate[]>;
 }
 
 interface IndexCache {
@@ -32,10 +41,6 @@ interface IndexCache {
 
 let cache: IndexCache | null = null;
 let building: Promise<RepoIndex | null> | null = null;
-
-/** 归一化「标题|首艺术家」匹配键 */
-const nameKey = (title: string, artist: string): string =>
-  `${normalize(title)}|${normalize(artist)}`;
 
 /** 从 TTML 文本头部提取 AMLL 元信息 */
 const extractMeta = (
@@ -78,7 +83,7 @@ const collectTtml = async (dir: string): Promise<string[]> => {
 
 /** 扫描目录建立索引 */
 const buildIndex = async (dir: string): Promise<RepoIndex> => {
-  const index: RepoIndex = { byNcm: new Map(), byQq: new Map(), byName: new Map() };
+  const index: RepoIndex = { byNcm: new Map(), byQq: new Map(), byTitle: new Map() };
   const files = await collectTtml(dir);
   for (const file of files) {
     let text: string;
@@ -91,8 +96,11 @@ const buildIndex = async (dir: string): Promise<RepoIndex> => {
     if (meta.ncmId && !index.byNcm.has(meta.ncmId)) index.byNcm.set(meta.ncmId, file);
     if (meta.qqId && !index.byQq.has(meta.qqId)) index.byQq.set(meta.qqId, file);
     if (meta.name) {
-      const key = nameKey(meta.name, meta.artist ?? "");
-      if (!index.byName.has(key)) index.byName.set(key, file);
+      const titleKey = normalize(meta.name);
+      const candidate: NameCandidate = { artist: normalize(meta.artist ?? ""), file };
+      const list = index.byTitle.get(titleKey);
+      if (list) list.push(candidate);
+      else index.byTitle.set(titleKey, [candidate]);
     }
   }
   coreLog.info(`[localLyric] 索引完成：${files.length} 个文件 @ ${dir}`);
@@ -137,6 +145,49 @@ const tryRead = async (file: string | undefined): Promise<string | null> => {
 };
 
 /**
+ * 同名候选里按艺术家挑最匹配的；只有一条或无法用艺术家区分时取第一条
+ * @param candidates - 同一标题下的候选
+ * @param wantArtist - 归一化的目标首艺术家
+ * @returns 命中文件路径
+ */
+const pickByArtist = (candidates: NameCandidate[], wantArtist: string): string => {
+  if (candidates.length === 1 || !wantArtist) return candidates[0].file;
+  const exact = candidates.find((candidate) => candidate.artist === wantArtist);
+  if (exact) return exact.file;
+  const partial = candidates.find(
+    (candidate) =>
+      candidate.artist &&
+      (candidate.artist.includes(wantArtist) || wantArtist.includes(candidate.artist)),
+  );
+  return (partial ?? candidates[0]).file;
+};
+
+/**
+ * 用匹配缓存里在线模糊搜索解析出的平台 id 回查本地库
+ * 本地歌首播时没有平台 id、标题也可能对不上，靠在线搜索事后写入的 id 兜底命中
+ * @param track - 歌曲信息
+ * @param index - 当前索引
+ * @returns 命中的 TTML 原文，未命中返回 null
+ */
+const matchByCachedId = async (track: Track, index: RepoIndex): Promise<string | null> => {
+  const fingerprint = buildFingerprint(track);
+  const ncm = getMatchedId(fingerprint, "netease");
+  if (ncm) {
+    const hit = await tryRead(index.byNcm.get(ncm.platformId));
+    if (hit) return hit;
+  }
+  const qq = getMatchedId(fingerprint, "qqmusic");
+  if (qq) {
+    for (const idCandidate of [qq.extra?.mid, qq.platformId]) {
+      if (!idCandidate) continue;
+      const hit = await tryRead(index.byQq.get(idCandidate));
+      if (hit) return hit;
+    }
+  }
+  return null;
+};
+
+/**
  * 在本地 TTML 歌词库中匹配当前歌曲
  * @param track - 歌曲信息
  * @returns 命中的 TTML 原文，未命中返回 null
@@ -145,18 +196,23 @@ export const matchLocalTTML = async (track: Track): Promise<string | null> => {
   if (!store.get("localLyric.enableLocalTTMLOverride")) return null;
   const index = await getIndex();
   if (!index) return null;
-  // 平台 id 精确命中
+  // track 自带平台 id 精确命中（在线歌曲）
   if (track.source === "netease") {
     const hit = await tryRead(index.byNcm.get(track.id));
     if (hit) return hit;
   }
   if (track.source === "qqmusic") {
-    for (const candidate of [track.extId, track.id]) {
-      if (!candidate) continue;
-      const hit = await tryRead(index.byQq.get(candidate));
+    for (const idCandidate of [track.extId, track.id]) {
+      if (!idCandidate) continue;
+      const hit = await tryRead(index.byQq.get(idCandidate));
       if (hit) return hit;
     }
   }
-  // 标题 + 首艺术家 模糊命中
-  return tryRead(index.byName.get(nameKey(track.title, track.artists[0]?.name ?? "")));
-};
+  // 标题命中；同名多条时再用艺术家软性区分
+  const candidates = index.byTitle.get(normalize(track.title));
+  if (candidates && candidates.length > 0) {
+    return tryRead(pickByArtist(candidates, normalize(track.artists[0]?.name ?? "")));
+  }
+  // 兜底：平台 id 回查
+  return matchByCachedId(track, index);
+};;

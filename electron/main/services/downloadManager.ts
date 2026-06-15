@@ -3,11 +3,7 @@
  *
  * 渲染层解析好 URL/封面/歌词后交给本服务：拉流落盘到下载目录、按文件名模板命名、
  * 再用原生 writeTrackTags 内嵌封面/元信息/歌词、可选写 .lrc。任务权威态在此（持久化到
- * download_tasks 表），进度/状态经 broadcast 推送给渲染层镜像。
- *
- * 下载骨架参照 songCache.ts（fetch + AbortController + 临时文件 + MIME/首字节校验），但落到
- * 用户下载目录、命名规范、附加写标签，且不做缓存/LRU 语义。队列严格串行：一次只下一首。
- * 临时 .part 写在 app 缓存的 downloads-tmp 下，避免崩溃残留污染用户目录；完成时移动到目标。
+ * download_tasks 表），进度/状态经 broadcast 推送给渲染层镜像
  */
 
 import fs from "node:fs";
@@ -34,10 +30,11 @@ const MAX_HISTORY = 200;
 /** 拒绝的响应 Content-Type 前缀（命中即非音频） */
 const REJECTED_MIME_PREFIXES = ["text/html", "application/json", "application/xml", "text/xml"];
 
+/** 是否拒绝的 MIME 类型 */
 const isRejectedMime = (mime: string | null): boolean =>
   !!mime && REJECTED_MIME_PREFIXES.some((prefix) => mime.toLowerCase().startsWith(prefix));
 
-/** 首字节是否像音频（挡 HTML/JSON 错误页冒充音频） */
+/** 首字节是否像音频 */
 const looksLikeAudio = async (filePath: string): Promise<boolean> => {
   let fd: FileHandle | null = null;
   try {
@@ -80,6 +77,7 @@ const dedupeKeyOf = (req: DownloadRequest): string =>
 const artistString = (req: DownloadRequest): string =>
   req.track.artists.map((artist) => artist.name).join("/");
 
+/** 广播任务状态 */
 const broadcastState = (task: DownloadTask): void => {
   // 已删除的任务：收尾态（如中断产生的 canceled）不再写回 DB / 推送，否则会在删行后复活
   if (tasks.get(task.taskId)?.removed) return;
@@ -333,7 +331,20 @@ export const cancel = (taskId: string): void => {
   broadcastState(pending.task);
 };
 
-/** 删除一条任务记录：进行中则中断、排队中则丢弃，且不留下取消态记录 */
+/**
+ * 删除已下载的音频文件及同名 .lrc
+ * @param filePath 音频文件路径
+ */
+const deleteDownloadedFile = async (filePath: string): Promise<void> => {
+  await fsp.unlink(filePath).catch(() => {});
+  const lrcPath = `${filePath.slice(0, filePath.length - path.extname(filePath).length)}.lrc`;
+  await fsp.unlink(lrcPath).catch(() => {});
+};
+
+/**
+ * 删除一条任务记录
+ * @param taskId 任务 ID
+ */
 export const remove = (taskId: string): void => {
   const pending = tasks.get(taskId);
   if (pending) {
@@ -347,7 +358,9 @@ export const remove = (taskId: string): void => {
       tasks.delete(taskId);
     }
   }
+  const filePath = db.findById(taskId)?.filePath;
   db.remove(taskId);
+  if (filePath) void deleteDownloadedFile(filePath);
 };
 
 /** 清空已结束任务 */

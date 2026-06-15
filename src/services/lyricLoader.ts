@@ -382,6 +382,8 @@ export const loadForTrack = async (detail: TrackDetail | null): Promise<void> =>
     // 按偏好获取歌词
     const online = await tryOnlineByPreference(token, track, hasUsableLocal, localFormat);
     if (token !== currentToken) return;
+    // id 回查本地 TTML 库
+    if (online && (await tryLocalRepo(token, track))) return;
     if (online) {
       await applyOnline(token, track, online, local);
     } else if (!hasUsableLocal) {
