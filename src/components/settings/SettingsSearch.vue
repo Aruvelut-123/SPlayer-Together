@@ -27,7 +27,7 @@ const results = computed<SearchResult[]>(() => {
   if (!q) return [];
   const out: SearchResult[] = [];
   for (const cat of settingsSchema) {
-    for (const sec of cat.sections) {
+    for (const sec of cat.sections ?? []) {
       for (const item of sec.items) {
         const label = t(`settings.${item.key}.label`);
         const desc = t(`settings.${item.key}.description`);

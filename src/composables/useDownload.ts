@@ -79,7 +79,8 @@ export const useDownload = () => {
         };
         // 内嵌与 .lrc 文件共用所选格式（lrc/增强 LRC）
         if (tagOptions.embedLyric || tagOptions.writeLrc) {
-          lyricText = buildDownloadLyric(input, lyric.format, download.lyricFileFormat) ?? undefined;
+          lyricText =
+            buildDownloadLyric(input, lyric.format, download.lyricFileFormat) ?? undefined;
         }
         // 完整 TTML 单独导出
         if (tagOptions.saveTtml) {

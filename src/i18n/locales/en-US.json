@@ -626,9 +626,14 @@
       "mediaSource": "Media Sources",
       "download": "Downloads",
       "localCache": "Local & Cache",
-      "plugins": "Plugin Manager"
+      "plugins": "Plugin Manager",
+      "about": "About"
     },
     "section": {
+      "aboutApp": "About",
+      "specialThanks": "Special Thanks",
+      "developers": "Developers",
+      "community": "Community",
       "update": "Update",
       "language": "Language",
       "playback": "Player",
@@ -665,6 +670,15 @@
       "database": "Database",
       "backupReset": "Backup & Reset",
       "debug": "Debug"
+    },
+    "about": {
+      "checkUpdate": "Check for Updates",
+      "checking": "Checking",
+      "newVersion": "Update Available",
+      "openLogs": "Open Logs",
+      "officialSite": "Official Site",
+      "showMore": "More Contributors",
+      "collapse": "Collapse"
     },
     "language": {
       "label": "Language",

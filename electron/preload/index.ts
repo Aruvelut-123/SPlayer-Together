@@ -103,6 +103,8 @@ const api = {
     toggleDevTools: () => ipcRenderer.invoke("system:toggleDevTools"),
     // 在文件管理器中显示文件
     showInExplorer: (filePath: string) => ipcRenderer.invoke("system:showInExplorer", filePath),
+    // 打开日志目录
+    openLogsDir: () => ipcRenderer.invoke("system:openLogsDir"),
     // 同步语言到主进程
     setLocale: (locale: string) => ipcRenderer.send("system:setLocale", locale),
     // 显示并聚焦主窗口

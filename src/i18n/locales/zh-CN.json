@@ -614,9 +614,14 @@
       "mediaSource": "媒体源配置",
       "download": "下载配置",
       "localCache": "本地与缓存",
-      "plugins": "插件管理"
+      "plugins": "插件管理",
+      "about": "关于软件"
     },
     "section": {
+      "aboutApp": "关于软件",
+      "specialThanks": "特别致谢",
+      "developers": "开发人员",
+      "community": "社区与资讯",
       "update": "更新",
       "language": "语言",
       "playback": "播放器",
@@ -653,6 +658,15 @@
       "downloadTags": "写入内容",
       "backupReset": "备份与重置",
       "debug": "调试"
+    },
+    "about": {
+      "checkUpdate": "检查更新",
+      "checking": "检查中",
+      "newVersion": "发现新版本",
+      "openLogs": "打开日志",
+      "officialSite": "官方网站",
+      "showMore": "更多贡献者",
+      "collapse": "收起"
     },
     "language": {
       "label": "界面语言",

@@ -12,6 +12,7 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     AbLoopDialog: typeof import('./src/components/modals/AbLoopDialog.vue')['default']
+    AboutSettings: typeof import('./src/components/settings/custom/AboutSettings.vue')['default']
     AmllDbServerConfig: typeof import('./src/components/settings/custom/AmllDbServerConfig.vue')['default']
     AppBackground: typeof import('./src/components/AppBackground.vue')['default']
     AutoCloseDialog: typeof import('./src/components/modals/AutoCloseDialog.vue')['default']

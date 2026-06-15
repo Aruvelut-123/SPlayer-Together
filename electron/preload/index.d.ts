@@ -29,6 +29,7 @@ declare global {
       system: {
         toggleDevTools: () => Promise<void>;
         showInExplorer: (filePath: string) => Promise<void>;
+        openLogsDir: () => Promise<string>;
         setLocale: (locale: LocaleCode) => void;
         focusMainWindow: () => Promise<void>;
         openSettings: (category?: string, highlight?: string) => Promise<void>;

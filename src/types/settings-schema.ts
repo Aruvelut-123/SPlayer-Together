@@ -87,5 +87,8 @@ export interface SettingCategory {
   /** i18n key: settings.group.{id}，同时作为菜单 key */
   id: string;
   icon: Component;
-  sections: SettingSection[];
+  /** 声明式区块 */
+  sections?: SettingSection[];
+  /** 整页自定义组件 */
+  component?: Component;
 }

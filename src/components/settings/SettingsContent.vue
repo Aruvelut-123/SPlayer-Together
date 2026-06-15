@@ -97,13 +97,16 @@ onMounted(() => {
     <!-- 右侧 -->
     <div ref="scrollRef" class="flex-1 overflow-y-auto bg-surface py-6 px-8">
       <div v-if="activeCategory" :key="activeCategory.id" class="animate-fade-in">
-        <SettingsSection
-          v-for="(sec, si) in activeCategory.sections"
-          :key="sec.id"
-          :section="sec"
-          :highlight-key="highlightKey"
-          :start-index="sectionStartIndices[si] ?? 0"
-        />
+        <component :is="activeCategory.component" v-if="activeCategory.component" />
+        <template v-else>
+          <SettingsSection
+            v-for="(sec, si) in activeCategory.sections"
+            :key="sec.id"
+            :section="sec"
+            :highlight-key="highlightKey"
+            :start-index="sectionStartIndices[si] ?? 0"
+          />
+        </template>
       </div>
     </div>
   </div>
