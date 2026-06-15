@@ -9,6 +9,7 @@ import { QUALITY_LABELS, type QualityLevel } from "@/utils/quality";
 import { useSettingsStore } from "@/stores/settings";
 import { resolveDownloadSource } from "@/services/downloadSource";
 import { resolveDownloadLyric } from "@/services/downloadLyric";
+import { buildDownloadLyric } from "@/utils/lyric/serialize";
 import { toast } from "@/composables/useToast";
 
 /** 下载选项 */
@@ -62,14 +63,28 @@ export const useDownload = () => {
       embedMeta: download.embedMeta,
       embedLyric: download.embedLyric,
       writeLrc: download.writeLrc,
+      saveTtml: download.saveTtml,
     };
     let lyricText: string | undefined;
-    let lyricFormat: DownloadRequest["lyricFormat"];
-    if (tagOptions.embedLyric || tagOptions.writeLrc) {
+    let ttmlText: string | undefined;
+    if (tagOptions.embedLyric || tagOptions.writeLrc || tagOptions.saveTtml) {
       const lyric = await resolveDownloadLyric(track);
       if (lyric) {
-        lyricText = lyric.content;
-        lyricFormat = lyric.format;
+        const input = {
+          content: lyric.content,
+          translation: lyric.translation,
+          translationFormat: lyric.translationFormat,
+          romaji: lyric.romaji,
+          romajiFormat: lyric.romajiFormat,
+        };
+        // 内嵌与 .lrc 文件共用所选格式（lrc/增强 LRC）
+        if (tagOptions.embedLyric || tagOptions.writeLrc) {
+          lyricText = buildDownloadLyric(input, lyric.format, download.lyricFileFormat) ?? undefined;
+        }
+        // 完整 TTML 单独导出
+        if (tagOptions.saveTtml) {
+          ttmlText = buildDownloadLyric(input, lyric.format, "ttml") ?? undefined;
+        }
       }
     }
     return {
@@ -81,7 +96,7 @@ export const useDownload = () => {
       declaredSize: source.size,
       coverUrl: track.coverOriginal ?? track.cover,
       lyricText,
-      lyricFormat,
+      ttmlText,
       tagOptions,
     };
   };

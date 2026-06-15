@@ -4,8 +4,13 @@
  */
 
 import type { Track } from "./player";
-import type { LyricFormat } from "./lyrics";
 import type { PluginQuality } from "./plugin";
+
+/** 下载歌词文件保存格式：逐行 LRC / 逐字增强 LRC */
+export type DownloadLyricFormat = "lrc" | "enhanced-lrc";
+
+/** 下载文件智能分类：不分文件夹 / 按歌手 / 按歌手再按专辑 */
+export type DownloadFolderScheme = "none" | "artist" | "artist-album";
 
 /** 下载任务状态 */
 export type DownloadStatus =
@@ -24,8 +29,10 @@ export interface DownloadTagOptions {
   embedMeta: boolean;
   /** 内嵌歌词到标签 */
   embedLyric: boolean;
-  /** 额外写同名 .lrc 文件 */
+  /** 额外保存同名歌词文件 */
   writeLrc: boolean;
+  /** 额外保存完整 TTML */
+  saveTtml: boolean;
 }
 
 /** 渲染层 → 主进程的下载请求 */
@@ -44,8 +51,8 @@ export interface DownloadRequest {
   coverUrl?: string;
   /** 歌词文本 */
   lyricText?: string;
-  /** 歌词格式 */
-  lyricFormat?: LyricFormat;
+  /** 完整 TTML 文本 */
+  ttmlText?: string;
   tagOptions: DownloadTagOptions;
 }
 

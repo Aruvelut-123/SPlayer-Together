@@ -612,6 +612,7 @@
       "hotkeys": "快捷键配置",
       "services": "网络与服务",
       "mediaSource": "媒体源配置",
+      "download": "下载配置",
       "localCache": "本地与缓存",
       "plugins": "插件管理"
     },
@@ -1452,7 +1453,17 @@
     },
     "downloadFileTemplate": {
       "label": "文件名格式",
-      "description": "下载文件的命名方式；可用 / 生成子目录"
+      "description": "下载文件的命名方式",
+      "titleOnly": "歌曲名",
+      "artistTitle": "歌手 - 歌曲名",
+      "titleArtist": "歌曲名 - 歌手"
+    },
+    "downloadFolderScheme": {
+      "label": "文件智能分类",
+      "description": "下载时按规则归入子文件夹",
+      "none": "不分文件夹",
+      "artist": "按歌手分文件夹",
+      "artistAlbum": "按歌手 / 专辑分文件夹"
     },
     "downloadOverwrite": {
       "label": "重名处理",
@@ -1474,8 +1485,18 @@
       "description": "将歌词写入文件标签"
     },
     "downloadWriteLrc": {
-      "label": "保存 .lrc 文件",
-      "description": "在同目录额外保存同名 .lrc 歌词文件"
+      "label": "同时保存歌词文件",
+      "description": "下载歌曲时在同目录额外保存一份歌词文件"
+    },
+    "downloadLyricFormat": {
+      "label": "歌词文件格式",
+      "description": "保存及内嵌到标签的歌词格式",
+      "lrc": "LRC（逐行）",
+      "enhanced": "增强 LRC（逐字）"
+    },
+    "downloadSaveTtml": {
+      "label": "同时保存为 TTML",
+      "description": "额外导出一份 TTML，单文件含原文、翻译与音译"
     },
     "cacheCategoryClear": {
       "label": "清除",

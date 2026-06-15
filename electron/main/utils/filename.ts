@@ -3,6 +3,14 @@
  */
 
 import { existsSync } from "node:fs";
+import type { DownloadFolderScheme } from "@shared/types/download";
+
+/** 模板占位符取值 */
+interface TemplateVars {
+  artist: string;
+  title: string;
+  album: string;
+}
 
 /** 文件名非法字符 */
 const ILLEGAL = /[\\/:*?"<>|]/g;
@@ -16,33 +24,41 @@ export const sanitizeSegment = (name: string): string =>
     .replace(/^\.+|\.+$/g, "")
     .trim();
 
+/** 填充占位符 {artist} {title} {album} */
+const fillTemplate = (template: string, vars: TemplateVars): string =>
+  template
+    .replace(/\{artist\}/g, vars.artist)
+    .replace(/\{title\}/g, vars.title)
+    .replace(/\{album\}/g, vars.album);
+
+/** 智能分类对应的子文件夹段（清洗后丢弃空段） */
+const folderSegments = (scheme: DownloadFolderScheme, vars: TemplateVars): string[] => {
+  const raw =
+    scheme === "artist"
+      ? [vars.artist]
+      : scheme === "artist-album"
+        ? [vars.artist, vars.album]
+        : [];
+  return raw.map(sanitizeSegment).filter(Boolean);
+};
+
 /**
- * 渲染文件名模板（不含扩展名）
- * 支持占位符 {artist} {title} {album}。仅模板里字面的 / 生成子目录；
- * 先按模板切分再逐段填充清洗，占位符值内的 / （如多名歌手）会被当普通字符清掉，不产生子目录
- * @param template - 模板字符串
+ * 组合下载的相对子目录与文件名（不含扩展名）
+ *
+ * 文件名整段视作单一名字，内部 / 不生成子目录；子目录仅由智能分类决定。
+ * @param scheme - 文件智能分类
+ * @param fileTemplate - 文件名模板（不含子目录）
  * @param vars - 占位符取值
- * @returns 相对基名（可能含子目录分隔），清洗后为空时回退到标题再回退 "untitled"
+ * @returns relDir 相对子目录（可能为空串），baseName 文件名
  */
-export const renderFileBase = (
-  template: string,
-  vars: { artist: string; title: string; album: string },
-): string => {
-  const segments = template
-    .split("/")
-    .map((segment) =>
-      sanitizeSegment(
-        segment
-          .replace(/\{artist\}/g, vars.artist)
-          .replace(/\{title\}/g, vars.title)
-          .replace(/\{album\}/g, vars.album),
-      ),
-    )
-    .filter(Boolean);
-  if (segments.length === 0) {
-    return sanitizeSegment(vars.title) || "untitled";
-  }
-  return segments.join("/");
+export const renderDownloadPath = (
+  scheme: DownloadFolderScheme,
+  fileTemplate: string,
+  vars: TemplateVars,
+): { relDir: string; baseName: string } => {
+  const baseName =
+    sanitizeSegment(fillTemplate(fileTemplate, vars)) || sanitizeSegment(vars.title) || "untitled";
+  return { relDir: folderSegments(scheme, vars).join("/"), baseName };
 };
 
 /**

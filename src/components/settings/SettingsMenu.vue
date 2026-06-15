@@ -23,5 +23,10 @@ const menuItems = computed<SMenuItem[]>(() =>
 </script>
 
 <template>
-  <SMenu :items="menuItems" :model-value="activeId" @select="emit('select', $event)" />
+  <SMenu
+    :items="menuItems"
+    :model-value="activeId"
+    center-active-on-mount
+    @select="emit('select', $event)"
+  />
 </template>

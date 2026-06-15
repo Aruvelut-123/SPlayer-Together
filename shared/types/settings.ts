@@ -1,5 +1,6 @@
 import type { PluginsConfig, PluginQuality } from "./plugin";
 import type { HotkeyConfig } from "./hotkey";
+import type { DownloadLyricFormat, DownloadFolderScheme } from "./download";
 
 /** 支持的语言代码 */
 export type LocaleCode = "zh-CN" | "en-US";
@@ -273,8 +274,10 @@ export interface DownloadSettings {
   quality: PluginQuality;
   /** 模拟播放下载：网易云用播放接口替代下载接口，避免占用每日下载次数 */
   usePlaybackForDownload: boolean;
-  /** 文件名模板，支持 {artist} {title} {album} {index} */
+  /** 文件名模板，支持 {artist} {title} {album}；不含子目录 */
   fileTemplate: string;
+  /** 文件智能分类：按规则分子文件夹 */
+  folderScheme: DownloadFolderScheme;
   /** 重名处理策略 */
   overwritePolicy: "rename" | "overwrite" | "skip";
   /** 内嵌封面 */
@@ -283,8 +286,12 @@ export interface DownloadSettings {
   embedMeta: boolean;
   /** 内嵌歌词到标签 */
   embedLyric: boolean;
-  /** 额外写同名 .lrc 文件 */
+  /** 额外保存同名歌词文件 */
   writeLrc: boolean;
+  /** 额外保存完整 TTML */
+  saveTtml: boolean;
+  /** 保存 / 内嵌的歌词格式 */
+  lyricFileFormat: DownloadLyricFormat;
 }
 
 /** 主窗口几何 */

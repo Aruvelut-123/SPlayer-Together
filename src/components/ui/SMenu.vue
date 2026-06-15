@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Component, VNode } from "vue";
+import type { Component, VNode, ComponentPublicInstance } from "vue";
 
 export interface SMenuItem {
   /** 菜单项类型 */
@@ -26,14 +26,30 @@ const props = withDefaults(
     size?: "small" | "medium" | "large";
     /** 折叠模式 */
     collapsed?: boolean;
+    /** 挂载时把选中项滚动到可视区中间 */
+    centerActiveOnMount?: boolean;
   }>(),
-  { size: "medium", collapsed: false },
+  { size: "medium", collapsed: false, centerActiveOnMount: false },
 );
 
 const emit = defineEmits<{
   "update:modelValue": [key: string];
   select: [key: string];
 }>();
+
+/** 各菜单项行元素，按 key 收集，用于定位选中项 */
+const itemEls = new Map<string, HTMLElement>();
+const setItemEl = (key: string, el: Element | ComponentPublicInstance | null): void => {
+  if (el instanceof HTMLElement) itemEls.set(key, el);
+  else itemEls.delete(key);
+};
+
+onMounted(() => {
+  if (!props.centerActiveOnMount) return;
+  const key = props.modelValue;
+  if (!key) return;
+  nextTick(() => itemEls.get(key)?.scrollIntoView({ block: "center" }));
+});
 
 const sizeClass = computed(() => {
   const collapsed = props.collapsed;
@@ -93,6 +109,7 @@ const handleSelect = (item: SMenuItem) => {
         side="right"
       >
         <div
+          :ref="(el) => setItemEl(item.key, el)"
           class="relative flex items-center rounded-lg cursor-pointer select-none overflow-hidden whitespace-nowrap transition-[background-color,color,height,padding] duration-250"
           :class="[
             item.showCover ? sizeClass.coverItem : sizeClass.item,

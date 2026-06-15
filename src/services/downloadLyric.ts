@@ -14,6 +14,12 @@ import { detectFormat } from "@/utils/lyric/parse";
 export interface DownloadLyric {
   content: string;
   format: LyricFormat;
+  /** 翻译原文 */
+  translation?: string;
+  translationFormat?: LyricFormat;
+  /** 音译原文 */
+  romaji?: string;
+  romajiFormat?: LyricFormat;
 }
 
 /**
@@ -33,7 +39,14 @@ export const resolveDownloadLyric = async (track: Track): Promise<DownloadLyric 
     const lookupId = track.source === "qqmusic" ? (track.extId ?? track.id) : track.id;
     const resp = await window.api.lyrics.matchById(track.source, lookupId);
     if (resp.ok && resp.data?.content) {
-      return { content: resp.data.content, format: resp.data.format };
+      return {
+        content: resp.data.content,
+        format: resp.data.format,
+        translation: resp.data.translation,
+        translationFormat: resp.data.translationFormat,
+        romaji: resp.data.romaji,
+        romajiFormat: resp.data.romajiFormat,
+      };
     }
   }
   return null;

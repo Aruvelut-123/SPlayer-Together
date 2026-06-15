@@ -2,7 +2,7 @@
  * 下载管理服务
  *
  * 渲染层解析好 URL/封面/歌词后交给本服务：拉流落盘到下载目录、按文件名模板命名、
- * 再用原生 writeTrackTags 内嵌封面/元信息/歌词、可选写 .lrc。任务权威态在此（持久化到
+ * 再用原生 writeTrackTags 内嵌封面/元信息/歌词、可选写歌词文件。任务权威态在此（持久化到
  * download_tasks 表），进度/状态经 broadcast 推送给渲染层镜像
  */
 
@@ -16,7 +16,7 @@ import { broadcast } from "@main/utils/broadcast";
 import { downloadLog } from "@main/utils/logger";
 import { getEngine } from "@main/services/engine";
 import { fetchBytes } from "@main/utils/fetchBytes";
-import { renderFileBase, dedupePath, resolveExtension } from "@main/utils/filename";
+import { renderDownloadPath, dedupePath, resolveExtension } from "@main/utils/filename";
 import * as db from "@main/database/downloads";
 import { ErrorCode } from "@shared/types/errors";
 import type { JsTagWriteRequest } from "@splayer/audio-engine";
@@ -173,16 +173,20 @@ const applyTags = async (req: DownloadRequest, filePath: string): Promise<boolea
   }
 };
 
-/** 写同名 .lrc（仅行级 LRC） */
-const writeLrcFile = async (req: DownloadRequest, audioPath: string): Promise<void> => {
-  if (!req.tagOptions.writeLrc || !req.lyricText) return;
-  if (req.lyricFormat && req.lyricFormat !== "lrc") return;
-  const lrcPath = `${audioPath.slice(0, audioPath.length - path.extname(audioPath).length)}.lrc`;
+/** 写同名歌词文件，失败仅告警不影响音频 */
+const writeSidecar = async (filePath: string, text: string): Promise<void> => {
   try {
-    await fsp.writeFile(lrcPath, req.lyricText, "utf-8");
+    await fsp.writeFile(filePath, text, "utf-8");
   } catch (err) {
-    downloadLog.warn(`写 .lrc 失败 ${lrcPath}:`, err);
+    downloadLog.warn(`写歌词文件失败 ${filePath}:`, err);
   }
+};
+
+/** 按开关写 .lrc（所选格式）与 .ttml（完整） */
+const writeLyricFiles = async (req: DownloadRequest, audioPath: string): Promise<void> => {
+  const base = audioPath.slice(0, audioPath.length - path.extname(audioPath).length);
+  if (req.tagOptions.writeLrc && req.lyricText) await writeSidecar(`${base}.lrc`, req.lyricText);
+  if (req.tagOptions.saveTtml && req.ttmlText) await writeSidecar(`${base}.ttml`, req.ttmlText);
 };
 
 /** 实际下载 + 落盘 + 写标签 */
@@ -195,13 +199,16 @@ const runTask = async (
 
   try {
     const downloadDir = getDownloadDir();
-    const baseRel = renderFileBase(store.get("download.fileTemplate"), {
-      artist: artistString(req),
-      title: req.track.title,
-      album: req.track.album?.name ?? "",
-    });
-    const targetDir = path.join(downloadDir, path.dirname(baseRel));
-    const baseName = path.basename(baseRel);
+    const { relDir, baseName } = renderDownloadPath(
+      store.get("download.folderScheme"),
+      store.get("download.fileTemplate"),
+      {
+        artist: artistString(req),
+        title: req.track.title,
+        album: req.track.album?.name ?? "",
+      },
+    );
+    const targetDir = path.join(downloadDir, relDir);
     const finalNoExt = path.join(targetDir, baseName);
     const policy = store.get("download.overwritePolicy");
 
@@ -240,7 +247,7 @@ const runTask = async (
     const finalPath = policy === "rename" ? dedupePath(finalNoExt, ext) : `${finalNoExt}${ext}`;
     await moveFile(partPath, finalPath);
 
-    await writeLrcFile(req, finalPath);
+    await writeLyricFiles(req, finalPath);
     const tagOk = await applyTags(req, finalPath);
 
     task.status = "done";
@@ -331,14 +338,17 @@ export const cancel = (taskId: string): void => {
   broadcastState(pending.task);
 };
 
+/** 下载附带的歌词文件可能的扩展名 */
+const LYRIC_SIDECAR_EXTS = [".lrc", ".qrc", ".yrc", ".krc", ".ttml", ".lys"];
+
 /**
- * 删除已下载的音频文件及同名 .lrc
+ * 删除已下载的音频文件及同名歌词文件
  * @param filePath 音频文件路径
  */
 const deleteDownloadedFile = async (filePath: string): Promise<void> => {
   await fsp.unlink(filePath).catch(() => {});
-  const lrcPath = `${filePath.slice(0, filePath.length - path.extname(filePath).length)}.lrc`;
-  await fsp.unlink(lrcPath).catch(() => {});
+  const base = filePath.slice(0, filePath.length - path.extname(filePath).length);
+  await Promise.all(LYRIC_SIDECAR_EXTS.map((ext) => fsp.unlink(`${base}${ext}`).catch(() => {})));
 };
 
 /**

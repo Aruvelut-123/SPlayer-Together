@@ -624,6 +624,7 @@
       "hotkeys": "Hotkey Settings",
       "services": "Services",
       "mediaSource": "Media Sources",
+      "download": "Downloads",
       "localCache": "Local & Cache",
       "plugins": "Plugin Manager"
     },
@@ -1464,7 +1465,17 @@
     },
     "downloadFileTemplate": {
       "label": "Filename Format",
-      "description": "How downloaded files are named; use / to create subfolders"
+      "description": "How downloaded files are named",
+      "titleOnly": "Title",
+      "artistTitle": "Artist - Title",
+      "titleArtist": "Title - Artist"
+    },
+    "downloadFolderScheme": {
+      "label": "Smart Foldering",
+      "description": "Organize downloads into subfolders by rule",
+      "none": "No subfolders",
+      "artist": "By artist",
+      "artistAlbum": "By artist / album"
     },
     "downloadOverwrite": {
       "label": "Duplicate Handling",
@@ -1486,8 +1497,18 @@
       "description": "Write lyrics into file tags"
     },
     "downloadWriteLrc": {
-      "label": "Save .lrc File",
-      "description": "Also save a matching .lrc lyric file alongside the audio"
+      "label": "Save Lyric File",
+      "description": "Also save a lyric file alongside the audio when downloading"
+    },
+    "downloadLyricFormat": {
+      "label": "Lyric File Format",
+      "description": "Format for saved and embedded lyrics",
+      "lrc": "LRC (line)",
+      "enhanced": "Enhanced LRC (word)"
+    },
+    "downloadSaveTtml": {
+      "label": "Also Save as TTML",
+      "description": "Export an extra TTML file containing original, translation and romanization in one file"
     },
     "cacheCategoryClear": {
       "label": "Clear",
