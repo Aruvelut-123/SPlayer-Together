@@ -87,6 +87,7 @@ import artist_songs from "./artist_songs";
 
 // 用户收藏
 import album_sublist from "./album_sublist";
+import artist_sub from "./artist_sub";
 import artist_sublist from "./artist_sublist";
 
 export const modules: Record<string, NeteaseModule> = {
@@ -160,5 +161,6 @@ export const modules: Record<string, NeteaseModule> = {
   artist_songs,
 
   album_sublist,
+  artist_sub,
   artist_sublist,
 };

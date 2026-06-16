@@ -2,6 +2,8 @@
 import type { TrackSource } from "@shared/types/player";
 import type { ArtistProfile, CoverItem } from "@/types/artist";
 import { useSettingsStore } from "@/stores/settings";
+import { useUserStore } from "@/stores/user";
+import { toast } from "@/composables/useToast";
 import { loadArtist as loadArtistService } from "@/services/artistLoader";
 import { fetchArtistSongs } from "@/apis/artist/netease";
 import { navigateToAlbum } from "@/utils/navigate";
@@ -15,11 +17,14 @@ import IconLucideHourglass from "~icons/lucide/hourglass";
 import IconLucideMusic from "~icons/lucide/music";
 import type { DropdownMenuItem } from "@/components/ui/SDropdownMenu.vue";
 import IconLucideListChecks from "~icons/lucide/list-checks";
+import IconMaterialSymbolsFavoriteRounded from "~icons/material-symbols/favorite-rounded";
+import IconMaterialSymbolsFavoriteOutlineRounded from "~icons/material-symbols/favorite-outline-rounded";
 
 const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
 const { appearance } = useSettingsStore();
+const userStore = useUserStore();
 
 const tabTransitionName = computed(() => {
   const transition = appearance.routeTransition;
@@ -118,6 +123,32 @@ const totalDuration = computed(() => {
 const handlePlayAll = () => {
   if (!artist.value?.tracks.length) return;
   player.playFrom(artist.value.tracks, 0);
+};
+
+/** 收藏歌手仅支持网易云 */
+const canSubscribeArtist = computed(() => artist.value?.source === "netease");
+
+/** 当前歌手是否已收藏（依据用户收藏歌手列表） */
+const isArtistSubscribed = computed(() => {
+  const current = artist.value;
+  if (!current || current.source !== "netease") return false;
+  return userStore.artists.some((item) => String(item.id) === String(current.id));
+});
+
+/** 收藏操作进行中 */
+const artistSubBusy = ref(false);
+
+const handleToggleSubscribe = async (): Promise<void> => {
+  const current = artist.value;
+  if (!current || current.source !== "netease" || artistSubBusy.value) return;
+  artistSubBusy.value = true;
+  try {
+    await userStore.toggleArtistSubscribe(current.id, !isArtistSubscribed.value);
+  } catch (err) {
+    toast.error(err instanceof Error && err.message ? err.message : t("liked.toast.failed"));
+  } finally {
+    artistSubBusy.value = false;
+  }
 };
 
 const searchQuery = ref("");
@@ -235,6 +266,19 @@ const albumItems = computed<CoverItem[]>(() => {
                   <IconLucidePlay />
                 </template>
                 {{ t("common.playAll") }}
+              </SButton>
+              <SButton
+                v-if="canSubscribeArtist"
+                variant="secondary"
+                round
+                :disabled="artistSubBusy"
+                @click="handleToggleSubscribe"
+              >
+                <template #icon>
+                  <IconMaterialSymbolsFavoriteRounded v-if="isArtistSubscribed" />
+                  <IconMaterialSymbolsFavoriteOutlineRounded v-else />
+                </template>
+                {{ t(isArtistSubscribed ? "collection.unsubscribe" : "collection.subscribe") }}
               </SButton>
               <SDropdownMenu
                 :items="moreMenuItems"

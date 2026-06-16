@@ -27,6 +27,7 @@ import {
   subscribePlaylist,
 } from "@/apis/playlist/netease";
 import { subscribeAlbum } from "@/apis/album/netease";
+import { subscribeArtist } from "@/apis/artist/netease";
 import { fetchUserCloud, deleteCloudSongs } from "@/apis/cloud/netease";
 
 /** 登录 cookie 保活间隔 */
@@ -485,6 +486,12 @@ export const useUserStore = defineStore(
       albums.value = await fetchUserAlbums();
     };
 
+    /** 收藏 / 取消收藏歌手 */
+    const toggleArtistSubscribe = async (artistId: string, subscribe: boolean): Promise<void> => {
+      await subscribeArtist(artistId, subscribe);
+      artists.value = await fetchUserArtists();
+    };
+
     /** 同步用户内容 */
     const syncContent = (uid: number | undefined): void => {
       if (uid) void loadContent(uid);
@@ -574,6 +581,7 @@ export const useUserStore = defineStore(
       removeTracksFromPlaylist,
       togglePlaylistSubscribe,
       toggleAlbumSubscribe,
+      toggleArtistSubscribe,
     };
   },
   {

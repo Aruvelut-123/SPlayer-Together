@@ -3,6 +3,7 @@ import { useStatusStore } from "@/stores/status";
 import { useMediaStore } from "@/stores/media";
 import { useSettingsStore } from "@/stores/settings";
 
+const route = useRoute();
 const status = useStatusStore();
 const settings = useSettingsStore();
 
@@ -17,15 +18,10 @@ const routeTransitionName = computed(() => {
   return transition === "none" ? "" : `route-${transition}`;
 });
 
-/**
- * 顶级路由组件的 key：
- * - 路由链含 :param（如 /collection/:source/:type/:id）→ 按 fullPath，让参数变化触发重建
- * - 全静态路由（如 /streaming/songs）→ 按顶级 children path，让嵌套子路由切换时外层不重建
- */
-const route = useRoute();
+/** 路由 key */
 const routeKey = computed(() => {
   const hasParam = route.matched.some((m) => m.path.includes(":"));
-  return hasParam ? route.fullPath : (route.matched[1]?.path ?? route.fullPath);
+  return hasParam ? route.path : (route.matched[1]?.path ?? route.path);
 });
 
 /** 侧边栏样式 */

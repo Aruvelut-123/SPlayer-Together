@@ -1,6 +1,6 @@
 import type { Album, Artist, Track } from "@shared/types/player";
 import { netease as neteaseApi } from "@/apis/netease";
-import { songsToTracks, toAlbum, toArtist } from "@/utils/format/netease";
+import { ensureOk, songsToTracks, toAlbum, toArtist } from "@/utils/format/netease";
 
 /**
  * 拉取歌手：基本资料 + 热门 50 首 + 全部专辑
@@ -40,4 +40,13 @@ export const fetchArtistSongs = async (
     tracks: songsToTracks(body?.songs),
     more: !!body?.more,
   };
+};
+
+/**
+ * 收藏 / 取消收藏歌手
+ * @param id 歌手 id
+ * @param subscribe true 收藏，false 取消
+ */
+export const subscribeArtist = async (id: string, subscribe: boolean): Promise<void> => {
+  ensureOk(await neteaseApi.artist_sub({ id, t: subscribe ? 1 : 2 }));
 };
