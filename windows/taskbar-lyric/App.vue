@@ -50,6 +50,7 @@ const artistsText = computed<string>(
 const effectiveTheme = computed<"light" | "dark">(() => {
   if (config.colorMode === "light") return "light";
   if (config.colorMode === "dark") return "dark";
+  if (config.colorMode === "taskbarInverse") return taskbarIsLight.value ? "dark" : "light";
   return taskbarIsLight.value ? "light" : "dark";
 });
 

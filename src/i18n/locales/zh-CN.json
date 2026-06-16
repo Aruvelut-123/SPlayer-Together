@@ -1066,6 +1066,7 @@
       "label": "配色模式",
       "description": "任务栏歌词的文字与背景配色",
       "taskbar": "跟随任务栏",
+      "taskbarInverse": "跟随任务栏（反向）",
       "light": "浅色",
       "dark": "深色"
     },

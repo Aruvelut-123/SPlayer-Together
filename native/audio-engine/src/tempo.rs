@@ -21,6 +21,8 @@ const FLOAT_EQ_EPS: f32 = 1e-4;
 pub(crate) struct StretchProcessor {
     stretch: Stretch,
     channels: u16,
+    /// 当前 stretch 内核构建所用的采样率，set_sample_rate 比对以决定是否重建
+    sample_rate: u32,
     speed: f32,
     pitch_semitones: i8,
     pitch_sync: bool,
@@ -35,11 +37,26 @@ impl StretchProcessor {
         Self {
             stretch,
             channels,
+            sample_rate,
             speed: 1.0,
             pitch_semitones: 0,
             pitch_sync: true,
             applied_transpose: 0.0,
         }
+    }
+
+    /// 更新采样率（输出设备切换导致播放采样率变化时调用）
+    /// 采样率变了必须重建 stretch 内核——否则变速/变调的时间与音高换算全部偏移
+    /// 采样率不变时直接返回
+    pub(crate) fn set_sample_rate(&mut self, sample_rate: u32) {
+        if sample_rate == self.sample_rate {
+            return;
+        }
+        self.sample_rate = sample_rate;
+        self.stretch = Stretch::preset_default(self.channels as u32, sample_rate);
+        // 新内核 transpose 归零，强制按当前参数重新下发
+        self.applied_transpose = 0.0;
+        self.sync_transpose_to_stretch();
     }
 
     /// 1.0 速度 + 当前模式下 transpose 为 0：bypass，可走 passthrough

@@ -160,6 +160,8 @@ pub struct SeekTake {
     pub current_source: Option<String>,
     /// seek 前是否在播放（fallback 到 load 时保留状态）
     pub was_playing: bool,
+    /// 当前输出设备采样率（新 Shared 沿用，与复用的重采样器目标一致）
+    pub output_sample_rate: u32,
     /// 本次 seek 的 token，commit_seeked 时比对最新值，不一致说明已被新 load/seek/stop 取代
     pub token: u64,
 }
@@ -196,9 +198,32 @@ impl InnerPlayer {
             .ok_or_else(|| anyhow::anyhow!("ensure_output 后置条件违反"))
     }
 
+    /// 当前输出设备的原生采样率（播放重采样目标）
+    pub fn output_sample_rate(&self) -> u32 {
+        self.output
+            .as_ref()
+            .map(|out| out.sample_rate())
+            .unwrap_or(decoder::TARGET_SAMPLE_RATE)
+    }
+
+    /// 把 EQ / stretch 的采样率对齐到当前输出设备率
+    /// 设备切换（reinit_output → load）后纠正系数，避免 EQ 频点 / 变调音高偏移
+    /// 调用前须保证 output 已就绪
+    fn configure_dsp_sample_rate(&self) {
+        let rate = self.output_sample_rate();
+        self.equalizer.lock().set_sample_rate(rate);
+        self.tempo.lock().set_sample_rate(rate);
+    }
+
     pub fn new() -> Result<Self> {
         // 延迟初始化：构造时不要求有音频设备，load 时再打开
         let output = AudioOutput::new(None).ok();
+        // EQ / stretch 须按播放采样率建系数；无设备时退化到 TARGET_SAMPLE_RATE，
+        // load 时 configure_dsp_sample_rate 会按当时设备率纠正
+        let initial_rate = output
+            .as_ref()
+            .map(|out| out.sample_rate())
+            .unwrap_or(decoder::TARGET_SAMPLE_RATE);
         debug!("InnerPlayer 已创建");
 
         Ok(Self {
@@ -227,10 +252,10 @@ impl InnerPlayer {
             fft_timer_handle: None,
             selected_device_name: None,
             normalization_enabled: false,
-            equalizer: Arc::new(Mutex::new(Equalizer::new(decoder::TARGET_SAMPLE_RATE))),
+            equalizer: Arc::new(Mutex::new(Equalizer::new(initial_rate))),
             tempo: Arc::new(Mutex::new(StretchProcessor::new(
                 decoder::TARGET_CHANNELS,
-                decoder::TARGET_SAMPLE_RATE,
+                initial_rate,
             ))),
             load_token: Arc::new(AtomicU64::new(0)),
         })
@@ -428,6 +453,9 @@ impl InnerPlayer {
     /// - 其他状态 → 仅重建输出，不恢复播放
     pub fn reinit_output(&mut self) -> Result<()> {
         info!(device = ?self.selected_device_name, "开始重建音频输出");
+        // 重建会改变输出采样率：作废在途的 async load/seek，否则它们用旧采样率解出的结果
+        // 会通过 commit 的 token 校验贴到新输出上（Shared/解码为旧率、DSP 却按新率配置）
+        self.load_token.fetch_add(1, Ordering::AcqRel);
         // 保存当前状态
         let prev_state = self.state;
         let prev_source = self.current_source.clone();
@@ -586,6 +614,7 @@ impl InnerPlayer {
             normalization_gain: norm_gain,
             current_source: self.current_source.clone(),
             was_playing: self.state == PlayerState::Playing,
+            output_sample_rate: self.output_sample_rate(),
             token,
         })
     }
@@ -683,6 +712,8 @@ impl InnerPlayer {
             Arc::new(Sink::try_new(output.handle()).context("Failed to create audio sink")?)
         };
 
+        self.configure_dsp_sample_rate();
+
         let decoder_source = DecoderSource::new(
             Arc::clone(&shared),
             Arc::clone(&self.fft),
@@ -736,11 +767,13 @@ impl InnerPlayer {
         // 切歌时清空 stretch 内部 FFT 历史，但保留用户参数（speed/pitch/sync 跨曲目延续）
         self.tempo.lock().reset();
 
-        let shared = Shared::new(decoder::TARGET_SAMPLE_RATE, decoder::TARGET_CHANNELS);
+        // 先确保音频输出就绪（无设备时在此报错，不影响解码），再按设备原生采样率
+        // 对齐 DSP 并创建 Shared——Shared.sample_rate 即解码侧的播放重采样目标
+        self.ensure_output()?;
+        self.configure_dsp_sample_rate();
+        let shared = Shared::new(self.output_sample_rate(), decoder::TARGET_CHANNELS);
         // 将归一化开关同步到新的 Shared 实例
         shared.set_normalization_enabled(self.normalization_enabled);
-        // 确保音频输出就绪（无设备时在此报错，不影响解码）
-        self.ensure_output()?;
         let (mut metadata, decode_handle) =
             decoder::start_decode(source, Arc::clone(&shared), self.cover_cache_dir.as_deref())?;
 
@@ -955,7 +988,7 @@ impl InnerPlayer {
         }
 
         // 创建新的共享状态（旧的 is_stopping=true 不可复用）
-        let shared = Shared::new(decoder::TARGET_SAMPLE_RATE, decoder::TARGET_CHANNELS);
+        let shared = Shared::new(self.output_sample_rate(), decoder::TARGET_CHANNELS);
         // 同步归一化设置（从旧 Shared 继承增益值和开关）
         if let Some(ref old_shared) = self.shared {
             shared.set_normalization_enabled(old_shared.is_normalization_enabled());

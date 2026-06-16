@@ -76,7 +76,9 @@ pub fn start_decode(
     shared: Arc<Shared>,
     cover_cache_dir: Option<&str>,
 ) -> Result<(AudioMetadata, JoinHandle<DecoderData>)> {
-    let (reader, player_resampler, fft_resampler, interrupt_flag) = open_source(source)?;
+    // 播放重采样目标 = 输出设备原生采样率
+    let target_rate = shared.sample_rate();
+    let (reader, player_resampler, fft_resampler, interrupt_flag) = open_source(source, target_rate)?;
     if let Some(ref flag) = interrupt_flag {
         shared.bind_interrupt(Arc::clone(flag));
     }
@@ -106,7 +108,7 @@ pub fn start_decode(
         album: tags.album,
         comment: tags.comment,
         duration_secs,
-        sample_rate: TARGET_SAMPLE_RATE,
+        sample_rate: target_rate,
         channels: TARGET_CHANNELS,
         original_sample_rate: stream_info.sample_rate,
         bits_per_sample: stream_info.bits_per_sample,
@@ -155,9 +157,12 @@ pub fn resume_decode(data: DecoderData, shared: Arc<Shared>) -> JoinHandle<Decod
 
 /// 根据 source 协议打开音频：http(s) 走 HttpRangeSource + 拿 cancel flag，其他走本地 File
 ///
+/// `target_rate` 为播放重采样目标采样率（输出设备原生采样率）；FFT 路径固定 48000
+///
 /// 返回 (reader, 播放重采样器, FFT 重采样器, cancel 标志)
 fn open_source(
     source: &str,
+    target_rate: u32,
 ) -> Result<(AudioReader, Resampler, Resampler, Option<Arc<AtomicBool>>)> {
     let (reader, cancel) = if http_source::is_network_source(source) {
         let http = http_source::HttpRangeSource::new(source)?;
@@ -173,7 +178,7 @@ fn open_source(
     };
 
     let player_opts = ResampleOptions::new()
-        .sample_rate(TARGET_SAMPLE_RATE as i32)
+        .sample_rate(target_rate as i32)
         .channels(i32::from(TARGET_CHANNELS))
         .format::<f32>();
     let player_resampler = reader
@@ -196,7 +201,7 @@ fn open_source(
 fn run_decoding_loop(data: &mut DecoderData, shared: &Shared) {
     // 响度归一化：有 ReplayGain 标签时用固定增益，否则用实时分析
     let has_replay_gain = (shared.normalization_gain() - 1.0).abs() > f32::EPSILON;
-    let mut loudness = LoudnessAnalyzer::new(TARGET_SAMPLE_RATE, TARGET_CHANNELS);
+    let mut loudness = LoudnessAnalyzer::new(shared.sample_rate(), TARGET_CHANNELS);
     loudness.set_has_replay_gain(has_replay_gain);
 
     // 容忍尾部坏帧（FLAC ID3v1 尾巴 / 封面 chunk / VBR 末帧），避免整首歌被标记 SourceError。

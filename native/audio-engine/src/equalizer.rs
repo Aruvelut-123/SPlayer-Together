@@ -128,6 +128,16 @@ impl Equalizer {
         self.enabled = enabled;
     }
 
+    /// 更新采样率（输出设备切换导致播放采样率变化时调用），重算所有滤波器系数
+    pub fn set_sample_rate(&mut self, sample_rate: u32) {
+        let rate = sample_rate as f32;
+        if (self.sample_rate - rate).abs() < f32::EPSILON {
+            return;
+        }
+        self.sample_rate = rate;
+        self.recompute_coefficients();
+    }
+
     pub fn enabled(&self) -> bool {
         self.enabled
     }

@@ -79,6 +79,11 @@ impl Shared {
             .store(gain.to_bits(), Ordering::Relaxed);
     }
 
+    /// 输出采样率
+    pub fn sample_rate(&self) -> u32 {
+        self.sample_rate
+    }
+
     /// 设置归一化开关
     pub fn set_normalization_enabled(&self, enabled: bool) {
         self.normalization_enabled.store(enabled, Ordering::Relaxed);

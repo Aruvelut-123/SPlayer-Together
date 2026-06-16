@@ -257,7 +257,7 @@ impl AudioPlayer {
         let auto_play = auto_play.unwrap_or(true);
         info!(source = %source, auto_play, "加载音频源");
 
-        let (old_threads, token, cover_dir, normalization_enabled) = {
+        let (old_threads, token, cover_dir, normalization_enabled, output_sample_rate) = {
             let mut player = self.inner.lock();
             let (old_threads, token) = player.take_for_async_load();
             player.ensure_output_pub().into_napi()?;
@@ -266,10 +266,12 @@ impl AudioPlayer {
                 token,
                 player.cover_cache_dir().map(String::from),
                 player.is_normalization_enabled(),
+                player.output_sample_rate(),
             )
         };
 
-        let shared = Shared::new(decoder::TARGET_SAMPLE_RATE, decoder::TARGET_CHANNELS);
+        // 用设备原生采样率创建 Shared，其 sample_rate 即解码侧播放重采样目标
+        let shared = Shared::new(output_sample_rate, decoder::TARGET_CHANNELS);
         shared.set_normalization_enabled(normalization_enabled);
         let shared_for_decoder = Arc::clone(&shared);
         let source_for_decoder = source.clone();
@@ -383,6 +385,7 @@ impl AudioPlayer {
             normalization_gain,
             current_source,
             was_playing,
+            output_sample_rate,
             token,
         } = take;
 
@@ -399,7 +402,8 @@ impl AudioPlayer {
             if !decoder_data.seek(position) {
                 return SeekOutcome::Fallback;
             }
-            let shared = Shared::new(decoder::TARGET_SAMPLE_RATE, decoder::TARGET_CHANNELS);
+            // 沿用设备原生采样率，与复用的 DecoderData 重采样器目标一致
+            let shared = Shared::new(output_sample_rate, decoder::TARGET_CHANNELS);
             shared.set_normalization_enabled(normalization_enabled);
             shared.set_normalization_gain(normalization_gain);
             let handle = decoder::resume_decode(decoder_data, Arc::clone(&shared));

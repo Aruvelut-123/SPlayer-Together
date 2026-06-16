@@ -166,7 +166,7 @@ export interface DynamicIslandSettings {
 export type TaskbarLyricPosition = "auto" | "left" | "right";
 
 /** 任务栏歌词配色模式：taskbar=跟随任务栏主题，light=强制浅色，dark=强制深色 */
-export type TaskbarLyricColorMode = "taskbar" | "light" | "dark";
+export type TaskbarLyricColorMode = "taskbar" | "taskbarInverse" | "light" | "dark";
 
 /** 任务栏歌词配置（仅 Windows） */
 export interface TaskbarLyricSettings {

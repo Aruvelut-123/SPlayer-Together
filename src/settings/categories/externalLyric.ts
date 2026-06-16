@@ -286,6 +286,7 @@ const taskbarLyricSection: SettingSection = {
       binding: { store: "settings", path: "system.taskbarLyric.colorMode" },
       options: [
         { value: "taskbar", labelKey: "settings.taskbarLyricColorMode.taskbar" },
+        { value: "taskbarInverse", labelKey: "settings.taskbarLyricColorMode.taskbarInverse" },
         { value: "light", labelKey: "settings.taskbarLyricColorMode.light" },
         { value: "dark", labelKey: "settings.taskbarLyricColorMode.dark" },
       ],

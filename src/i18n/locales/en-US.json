@@ -1078,6 +1078,7 @@
       "label": "Color Mode",
       "description": "Text and background color scheme of the taskbar lyric",
       "taskbar": "Follow Taskbar",
+      "taskbarInverse": "Follow Taskbar (Inverted)",
       "light": "Light",
       "dark": "Dark"
     },
