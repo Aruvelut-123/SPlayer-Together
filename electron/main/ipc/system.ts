@@ -10,6 +10,7 @@ import { refreshTray } from "@main/services/tray";
 import { getThumbar } from "@main/services/thumbar";
 import { getMainWindow, focusMainWindow } from "@main/window";
 import { fetchBytes } from "@main/utils/fetchBytes";
+import { logsDir } from "@main/utils/paths";
 
 /**
  * 注册系统相关的 IPC 事件
@@ -30,6 +31,9 @@ export const registerSystemIpc = (): void => {
   ipcMain.handle("system:showInExplorer", (_event, filePath: string) => {
     shell.showItemInFolder(filePath);
   });
+
+  // 打开日志目录
+  ipcMain.handle("system:openLogsDir", () => shell.openPath(logsDir));
 
   // 切换主进程语言
   ipcMain.on("system:setLocale", (_event, locale: LocaleCode) => {

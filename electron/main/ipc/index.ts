@@ -12,6 +12,7 @@ import { registerThemeIpc } from "./theme";
 import { registerStreamingIpc } from "./streaming";
 import { registerLastfmIpc } from "./lastfm";
 import { registerCacheIpc } from "./cache";
+import { registerDownloadIpc } from "./download";
 import { registerExternalApiIpc } from "./externalApi";
 import { registerStatsIpc } from "./stats";
 import { registerUpdateIpc } from "./update";
@@ -32,6 +33,7 @@ export const registerIpcHandlers = (): void => {
   registerStreamingIpc();
   registerLastfmIpc();
   registerCacheIpc();
+  registerDownloadIpc();
   registerExternalApiIpc();
   registerStatsIpc();
   registerUpdateIpc();

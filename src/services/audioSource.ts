@@ -43,14 +43,18 @@ const cacheKeyForTrack = (track: Track, songLevel: QualityLevel): string | null 
 };
 
 /** 在线 URL 解析结果 */
-type OnlineResolveResult = { url: string } | { url: null; errorCode: ErrorCode };
+export type OnlineResolveResult = { url: string } | { url: null; errorCode: ErrorCode };
 
 /**
- * 根据 track 信息解析出最终的音频源 URL
+ * 经插件解析在线音频源 URL
  * @param track - 要解析的 track
+ * @param quality - 音质档位（播放默认 hq，下载传下载档位）
  * @returns 解析结果，失败时带原因码
  */
-const resolveByPlugin = async (track: Track): Promise<OnlineResolveResult> => {
+export const resolveByPlugin = async (
+  track: Track,
+  quality: QualityLevel = "hq",
+): Promise<OnlineResolveResult> => {
   const fail = (errorCode: ErrorCode): OnlineResolveResult => ({ url: null, errorCode });
   if (!isOnlinePlatform(track.source)) return fail(ErrorCode.URL_RESOLVE_FAILED);
   const pluginSource = PLATFORM_TO_PLUGIN_SOURCE[track.source];
@@ -92,7 +96,7 @@ const resolveByPlugin = async (track: Track): Promise<OnlineResolveResult> => {
       const res = await window.api.plugins.resolveUrl({
         pluginId: plugin.manifest.id,
         source: pluginSource,
-        quality: "hq",
+        quality,
         musicInfo,
       });
       if (res?.url) return { url: res.url };

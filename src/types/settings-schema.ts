@@ -47,6 +47,8 @@ export interface SettingItem {
   defaultValue?: unknown;
   /** 覆盖描述的 i18n key */
   descriptionKey?: string;
+  /** 隐藏描述行 */
+  hideDescription?: boolean;
   /** 条件禁用 */
   disabled?: () => boolean;
   /** button 类型的点击回调 */
@@ -87,5 +89,8 @@ export interface SettingCategory {
   /** i18n key: settings.group.{id}，同时作为菜单 key */
   id: string;
   icon: Component;
-  sections: SettingSection[];
+  /** 声明式区块 */
+  sections?: SettingSection[];
+  /** 整页自定义组件 */
+  component?: Component;
 }

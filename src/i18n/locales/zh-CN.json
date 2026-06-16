@@ -154,6 +154,7 @@
     "library": "音乐库",
     "liked": "我喜欢的音乐",
     "history": "播放历史",
+    "download": "下载管理",
     "favorites": "我的收藏",
     "cloud": "我的云盘",
     "streaming": "流媒体",
@@ -447,6 +448,7 @@
       "showInExplorer": "打开文件位置",
       "copyPath": "复制文件路径",
       "editTags": "编辑元数据",
+      "download": "下载歌曲",
       "deleteFile": "删除文件",
       "searchSame": "同名搜索",
       "more": "更多操作",
@@ -459,6 +461,7 @@
       "selected": "已选 {count} 首",
       "invert": "反选",
       "addToQueue": "添加到播放列表",
+      "download": "下载",
       "exit": "退出"
     },
     "delete": {
@@ -524,6 +527,43 @@
     "clearConfirmTitle": "清空播放历史",
     "clearConfirmContent": "确认清空全部播放历史吗？此操作不可撤销！"
   },
+  "download": {
+    "title": "下载管理",
+    "activeCount": "{count} 个进行中",
+    "clearFinished": "清空已完成",
+    "clearConfirmTitle": "清空已完成任务",
+    "clearConfirmContent": "将从列表移除所有已完成和出错的任务记录，已下载的本地文件不会被删除。确认清空？",
+    "tabAll": "所有任务",
+    "tabActive": "下载中",
+    "tabError": "下载出错",
+    "tabDone": "已完成",
+    "colStatus": "状态",
+    "colSize": "大小",
+    "empty": "暂无下载任务",
+    "emptyDone": "还没有下载完成的歌曲",
+    "qualityDefault": "跟随默认",
+    "cancel": "取消",
+    "retry": "重试",
+    "openFolder": "打开所在文件夹",
+    "remove": "移除",
+    "deleteFile": "删除文件",
+    "deleteConfirmTitle": "删除下载文件",
+    "deleteConfirmContent": "将从磁盘永久删除该歌曲文件，此操作不可恢复。确认删除？",
+    "tagWarning": "标签写入失败，文件已保存",
+    "resolveFailed": "无法下载：{title}",
+    "alreadyQueued": "该歌曲已在下载队列",
+    "alreadyDownloaded": "该歌曲已下载",
+    "started": "已加入下载：{title}",
+    "enqueued": "已加入 {count} 首下载",
+    "status": {
+      "queued": "排队中",
+      "downloading": "下载中",
+      "done": "已完成",
+      "failed": "失败",
+      "canceled": "已取消",
+      "interrupted": "已中断"
+    }
+  },
   "daily": {
     "title": "每日推荐",
     "tagline": "根据你的音乐口味",
@@ -572,10 +612,16 @@
       "hotkeys": "快捷键配置",
       "services": "网络与服务",
       "mediaSource": "媒体源配置",
+      "download": "下载配置",
       "localCache": "本地与缓存",
-      "plugins": "插件管理"
+      "plugins": "插件管理",
+      "about": "关于软件"
     },
     "section": {
+      "aboutApp": "关于软件",
+      "specialThanks": "特别致谢",
+      "developers": "开发人员",
+      "community": "社区与资讯",
       "update": "更新",
       "language": "语言",
       "playback": "播放器",
@@ -607,8 +653,20 @@
       "songCache": "歌曲缓存",
       "cache": "缓存",
       "database": "数据库",
+      "downloadLocation": "下载配置",
+      "downloadGeneral": "下载选项",
+      "downloadTags": "写入内容",
       "backupReset": "备份与重置",
       "debug": "调试"
+    },
+    "about": {
+      "checkUpdate": "检查更新",
+      "checking": "检查中",
+      "newVersion": "发现新版本",
+      "openLogs": "打开日志",
+      "officialSite": "官方网站",
+      "showMore": "更多贡献者",
+      "collapse": "收起"
     },
     "language": {
       "label": "界面语言",
@@ -1394,6 +1452,68 @@
     "songCacheSizeLimit": {
       "label": "缓存上限",
       "description": "缓存达到上限后将自动清理，∞ 表示不限制"
+    },
+    "downloadEnabled": {
+      "label": "启用下载功能"
+    },
+    "downloadDir": {
+      "label": "下载目录",
+      "change": "更换"
+    },
+    "downloadQuality": {
+      "label": "下载音质",
+      "description": "下载时优先使用的音质，实际可用受平台与账号权限限制"
+    },
+    "downloadUsePlayback": {
+      "label": "模拟播放下载",
+      "description": "下载时优先使用播放链接作为音频来源"
+    },
+    "downloadFileTemplate": {
+      "label": "文件名格式",
+      "description": "下载文件的命名方式",
+      "titleOnly": "歌曲名",
+      "artistTitle": "歌手 - 歌曲名",
+      "titleArtist": "歌曲名 - 歌手"
+    },
+    "downloadFolderScheme": {
+      "label": "文件智能分类",
+      "description": "下载时按规则归入子文件夹",
+      "none": "不分文件夹",
+      "artist": "按歌手分文件夹",
+      "artistAlbum": "按歌手 / 专辑分文件夹"
+    },
+    "downloadOverwrite": {
+      "label": "重名处理",
+      "description": "目标文件已存在时的处理方式",
+      "rename": "保留两者（加序号）",
+      "overwrite": "覆盖",
+      "skip": "跳过"
+    },
+    "downloadEmbedCover": {
+      "label": "内嵌封面",
+      "description": "将封面写入下载的音频文件"
+    },
+    "downloadEmbedMeta": {
+      "label": "内嵌元信息",
+      "description": "将标题、艺术家、专辑写入文件标签"
+    },
+    "downloadEmbedLyric": {
+      "label": "内嵌歌词",
+      "description": "将歌词写入文件标签"
+    },
+    "downloadWriteLrc": {
+      "label": "同时保存歌词文件",
+      "description": "下载歌曲时在同目录额外保存一份歌词文件"
+    },
+    "downloadLyricFormat": {
+      "label": "歌词文件格式",
+      "description": "保存及内嵌到标签的歌词格式",
+      "lrc": "LRC（逐行）",
+      "enhanced": "增强 LRC（逐字）"
+    },
+    "downloadSaveTtml": {
+      "label": "同时保存为 TTML",
+      "description": "额外导出一份 TTML，单文件含原文、翻译与音译"
     },
     "cacheCategoryClear": {
       "label": "清除",

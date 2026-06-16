@@ -21,3 +21,7 @@ export const REPO_URL = __APP_REPO_URL__;
 export const REPO_NAME = __APP_REPO_NAME__;
 /** 版权署名 */
 export const COPYRIGHT_HOLDER = __APP_AUTHOR__;
+/** 官网地址 */
+export const HOMEPAGE_URL = __APP_HOMEPAGE__;
+/** 作者主页 */
+export const AUTHOR_URL = __APP_AUTHOR_URL__;

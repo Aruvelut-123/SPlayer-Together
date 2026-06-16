@@ -51,7 +51,7 @@ const descriptionText = computed(() =>
             {{ item.tag.text }}
           </STag>
         </div>
-        <div class="text-sm text-on-surface-variant/70 mt-0.5">
+        <div v-if="!item.hideDescription" class="text-sm text-on-surface-variant/70 mt-0.5">
           {{ descriptionText }}
         </div>
       </div>

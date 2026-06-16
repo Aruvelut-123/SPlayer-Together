@@ -6,6 +6,7 @@ import { NowPlayingApi } from "@shared/types/nowPlaying";
 import { PluginsApi } from "@shared/types/plugin";
 import { ApisApi } from "@shared/types/apis";
 import { LyricsApi } from "@shared/types/lyrics";
+import { DownloadApi } from "@shared/types/download";
 import {
   WindowApi,
   DesktopLyricApi,
@@ -28,6 +29,7 @@ declare global {
       system: {
         toggleDevTools: () => Promise<void>;
         showInExplorer: (filePath: string) => Promise<void>;
+        openLogsDir: () => Promise<string>;
         setLocale: (locale: LocaleCode) => void;
         focusMainWindow: () => Promise<void>;
         openSettings: (category?: string, highlight?: string) => Promise<void>;
@@ -51,6 +53,7 @@ declare global {
       plugins: PluginsApi;
       apis: ApisApi;
       lyrics: LyricsApi;
+      download: DownloadApi;
       theme: {
         pickBackgroundImage: () => Promise<string | null>;
         clearBackgroundImages: () => Promise<void>;

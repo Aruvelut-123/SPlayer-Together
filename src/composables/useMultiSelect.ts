@@ -5,6 +5,7 @@ import { usePlaylistStore } from "@/stores/playlist";
 import { useLibraryStore } from "@/stores/library";
 import { useUserStore } from "@/stores/user";
 import { toast } from "@/composables/useToast";
+import { useDownload } from "@/composables/useDownload";
 import * as player from "@/core/player";
 
 export interface MultiSelectOptions {
@@ -31,6 +32,7 @@ export const useMultiSelect = (items: Ref<Track[]>, options: MultiSelectOptions)
   const playlistStore = usePlaylistStore();
   const libraryStore = useLibraryStore();
   const userStore = useUserStore();
+  const { enqueueMany } = useDownload();
 
   const active = ref(false);
   const selectedIds = ref(new Set<string>());
@@ -187,6 +189,14 @@ export const useMultiSelect = (items: Ref<Track[]>, options: MultiSelectOptions)
     requestDelete(selectedItems.value, "cloud");
   };
 
+  /** 批量下载（跳过本地曲目） */
+  const batchDownload = (): void => {
+    const tracks = selectedItems.value.filter((track) => track.source !== "local");
+    if (tracks.length === 0) return;
+    void enqueueMany(tracks);
+    exit();
+  };
+
   return {
     // 选择状态
     active,
@@ -218,5 +228,6 @@ export const useMultiSelect = (items: Ref<Track[]>, options: MultiSelectOptions)
     batchRemove,
     batchDelete,
     batchRemoveFromCloud,
+    batchDownload,
   };
 };

@@ -52,6 +52,7 @@ import cloud_lyric_get from "./cloud_lyric_get";
 // 播放
 import song_detail from "./song_detail";
 import song_url from "./song_url";
+import song_download_url from "./song_download_url";
 import playmode_intelligence from "./playmode_intelligence";
 import personal_fm from "./personal_fm";
 import fm_trash from "./fm_trash";
@@ -129,6 +130,7 @@ export const modules: Record<string, NeteaseModule> = {
 
   song_detail,
   song_url,
+  song_download_url,
   playmode_intelligence,
   personal_fm,
   fm_trash,

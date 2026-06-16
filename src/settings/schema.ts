@@ -7,11 +7,12 @@ import externalLyricCategory from "./categories/externalLyric";
 import hotkeysCategory from "./categories/hotkeys";
 import servicesCategory from "./categories/services";
 import mediaSourceCategory from "./categories/streaming";
+import downloadCategory from "./categories/download";
 import localCacheCategory from "./categories/localCache";
 import pluginsCategory from "./categories/plugins";
+import AboutSettings from "@/components/settings/custom/AboutSettings.vue";
+import IconLucideInfo from "~icons/lucide/info";
 
-/** 设置项 schema：左侧分类（category）→ 区块（section）→ 设置项（item）三级结构。
- *  各 category 单独成文件，便于维护与定位。 */
 export const settingsSchema: SettingCategory[] = [
   generalCategory,
   appearanceCategory,
@@ -21,6 +22,8 @@ export const settingsSchema: SettingCategory[] = [
   hotkeysCategory,
   servicesCategory,
   mediaSourceCategory,
+  downloadCategory,
   localCacheCategory,
   pluginsCategory,
+  { id: "about", icon: IconLucideInfo, component: AboutSettings },
 ];

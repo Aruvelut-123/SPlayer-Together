@@ -103,6 +103,8 @@ const api = {
     toggleDevTools: () => ipcRenderer.invoke("system:toggleDevTools"),
     // 在文件管理器中显示文件
     showInExplorer: (filePath: string) => ipcRenderer.invoke("system:showInExplorer", filePath),
+    // 打开日志目录
+    openLogsDir: () => ipcRenderer.invoke("system:openLogsDir"),
     // 同步语言到主进程
     setLocale: (locale: string) => ipcRenderer.send("system:setLocale", locale),
     // 显示并聚焦主窗口
@@ -319,6 +321,30 @@ const api = {
     matchLocalTTML: (track: unknown) => ipcRenderer.invoke("lyrics:matchLocalTTML", track),
     // 选择本地 TTML 歌词库目录
     pickLyricRepoDir: () => ipcRenderer.invoke("lyrics:pickLyricRepoDir"),
+  },
+  download: {
+    // 入队下载
+    start: (req: unknown) => ipcRenderer.invoke("download:start", req),
+    // 取消任务
+    cancel: (taskId: string) => ipcRenderer.invoke("download:cancel", taskId),
+    // 重试（携带重新解析的 URL）
+    retry: (req: unknown) => ipcRenderer.invoke("download:retry", req),
+    // 删除一条任务记录
+    remove: (taskId: string) => ipcRenderer.invoke("download:remove", taskId),
+    // 清空已结束任务
+    clearFinished: () => ipcRenderer.invoke("download:clearFinished"),
+    // 拉取全部任务
+    list: () => ipcRenderer.invoke("download:list"),
+    // 选择下载目录
+    pickDir: () => ipcRenderer.invoke("download:pickDir"),
+    // 当前下载目录
+    getDir: () => ipcRenderer.invoke("download:getDir"),
+    // 重置为默认下载目录
+    resetDir: () => ipcRenderer.invoke("download:resetDir"),
+    // 订阅进度
+    onProgress: (callback: (data: unknown) => void) => subscribe("download:progress", callback),
+    // 订阅状态变更
+    onState: (callback: (task: unknown) => void) => subscribe("download:state", callback),
   },
   nowPlaying: {
     // 渲染进程同步当前播放状态到主进程

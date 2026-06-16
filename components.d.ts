@@ -12,6 +12,7 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     AbLoopDialog: typeof import('./src/components/modals/AbLoopDialog.vue')['default']
+    AboutSettings: typeof import('./src/components/settings/custom/AboutSettings.vue')['default']
     AmllDbServerConfig: typeof import('./src/components/settings/custom/AmllDbServerConfig.vue')['default']
     AppBackground: typeof import('./src/components/AppBackground.vue')['default']
     AutoCloseDialog: typeof import('./src/components/modals/AutoCloseDialog.vue')['default']
@@ -49,6 +50,8 @@ declare module 'vue' {
     DialogRoot: typeof import('reka-ui')['DialogRoot']
     DialogTitle: typeof import('reka-ui')['DialogTitle']
     DialogTrigger: typeof import('reka-ui')['DialogTrigger']
+    DownloadDirConfig: typeof import('./src/components/settings/custom/DownloadDirConfig.vue')['default']
+    DownloadList: typeof import('./src/components/list/DownloadList.vue')['default']
     DropdownMenuContent: typeof import('reka-ui')['DropdownMenuContent']
     DropdownMenuItem: typeof import('reka-ui')['DropdownMenuItem']
     DropdownMenuPortal: typeof import('reka-ui')['DropdownMenuPortal']
@@ -65,6 +68,8 @@ declare module 'vue' {
     FontConfig: typeof import('./src/components/settings/custom/FontConfig.vue')['default']
     FullPlayer: typeof import('./src/components/player/FullPlayer/index.vue')['default']
     HotkeyConfig: typeof import('./src/components/settings/custom/HotkeyConfig.vue')['default']
+    IconFavorite: typeof import('~icons/fa/vorite')['default']
+    IconFavoriteOutline: typeof import('~icons/fa/vorite-outline')['default']
     IconLucideArrowRight: typeof import('~icons/lucide/arrow-right')['default']
     IconLucideArrowUp: typeof import('~icons/lucide/arrow-up')['default']
     IconLucideArrowUpCircle: typeof import('~icons/lucide/arrow-up-circle')['default']
