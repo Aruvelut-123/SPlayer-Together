@@ -84,7 +84,7 @@ onMounted(async () => {
       >
         <SLogo :size="34" />
         <div class="flex items-center gap-2 mr-auto">
-          <span class="text-lg font-semibold text-on-surface">{{ REPO_NAME }}</span>
+          <span class="text-lg font-logo text-on-surface">{{ REPO_NAME }}</span>
           <STag type="primary" size="small" round>v{{ APP_VERSION }}</STag>
         </div>
         <div class="flex items-center gap-2">

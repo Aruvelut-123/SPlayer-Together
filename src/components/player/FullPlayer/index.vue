@@ -89,7 +89,9 @@ const onBeforeLeave = () => {
 const hasTrack = computed(() => !!media.track);
 
 /** 当前歌曲是否可下载 */
-const canDownload = computed(() => !!media.track && media.track.source !== "local");
+const canDownload = computed(
+  () => !!media.track && media.track.source !== "local" && settings.system.download.enabled,
+);
 
 /** 下载音质菜单项 */
 const downloadQualityItems = computed(() =>

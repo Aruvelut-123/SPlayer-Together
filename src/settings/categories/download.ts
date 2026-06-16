@@ -10,6 +10,13 @@ const downloadCategory: SettingCategory = {
       id: "downloadLocation",
       items: [
         {
+          key: "downloadEnabled",
+          type: "switch",
+          binding: { store: "settings", path: "system.download.enabled" },
+          defaultValue: false,
+          hideDescription: true,
+        },
+        {
           key: "downloadDir",
           type: "custom",
           component: DownloadDirConfig,

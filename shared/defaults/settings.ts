@@ -103,6 +103,7 @@ export const defaultSystemConfig: SystemConfig = {
     },
   },
   download: {
+    enabled: false,
     dir: null,
     quality: "lossless",
     usePlaybackForDownload: false,

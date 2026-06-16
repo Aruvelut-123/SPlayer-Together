@@ -653,7 +653,7 @@
       "songCache": "歌曲缓存",
       "cache": "缓存",
       "database": "数据库",
-      "downloadLocation": "下载位置",
+      "downloadLocation": "下载配置",
       "downloadGeneral": "下载选项",
       "downloadTags": "写入内容",
       "backupReset": "备份与重置",
@@ -1452,6 +1452,9 @@
     "songCacheSizeLimit": {
       "label": "缓存上限",
       "description": "缓存达到上限后将自动清理，∞ 表示不限制"
+    },
+    "downloadEnabled": {
+      "label": "启用下载功能"
     },
     "downloadDir": {
       "label": "下载目录",

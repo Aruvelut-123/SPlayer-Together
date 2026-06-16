@@ -170,25 +170,29 @@ const menuItems = computed<SMenuItem[]>(() => [
   },
   { key: "/favorites", label: t("nav.favorites"), icon: markRaw(IconLucideStar) },
   { key: "/cloud", label: t("nav.cloud"), icon: markRaw(IconLucideCloud) },
-  {
-    key: "/download",
-    label: t("nav.download"),
-    icon: markRaw(IconLucideDownload),
-    ...(downloadStore.activeCount > 0
-      ? {
-          trailing: () =>
-            h(
-              "span",
-              {
-                class:
-                  "inline-flex items-center justify-center h-6 min-w-8.5 px-1.5 rounded-full bg-primary/16 text-primary text-xs font-medium tabular-nums leading-none cursor-pointer",
-                onClick: () => router.push("/download"),
-              },
-              String(downloadStore.activeCount),
-            ),
-        }
-      : {}),
-  },
+  ...(systemSettings.download.enabled
+    ? ([
+        {
+          key: "/download",
+          label: t("nav.download"),
+          icon: markRaw(IconLucideDownload),
+          ...(downloadStore.activeCount > 0
+            ? {
+                trailing: () =>
+                  h(
+                    "span",
+                    {
+                      class:
+                        "inline-flex items-center justify-center h-6 min-w-8.5 px-1.5 rounded-full bg-primary/16 text-primary text-xs font-medium tabular-nums leading-none cursor-pointer",
+                      onClick: () => router.push("/download"),
+                    },
+                    String(downloadStore.activeCount),
+                  ),
+              }
+            : {}),
+        },
+      ] satisfies SMenuItem[])
+    : []),
   ...(systemSettings.streaming.enabled
     ? ([
         { key: "/streaming", label: t("nav.streaming"), icon: markRaw(IconLucideServer) },

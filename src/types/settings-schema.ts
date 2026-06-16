@@ -47,6 +47,8 @@ export interface SettingItem {
   defaultValue?: unknown;
   /** 覆盖描述的 i18n key */
   descriptionKey?: string;
+  /** 隐藏描述行 */
+  hideDescription?: boolean;
   /** 条件禁用 */
   disabled?: () => boolean;
   /** button 类型的点击回调 */

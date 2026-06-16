@@ -663,7 +663,7 @@
       "pluginsList": "Installed Plugins",
       "streaming": "Streaming",
       "songCache": "Song Cache",
-      "downloadLocation": "Download Location",
+      "downloadLocation": "Download Settings",
       "downloadGeneral": "Download Options",
       "downloadTags": "What to Write",
       "cache": "Caches",
@@ -1464,6 +1464,9 @@
     "songCacheSizeLimit": {
       "label": "Size Limit",
       "description": "When the limit is reached, entries are evicted automatically; ∞ means unlimited"
+    },
+    "downloadEnabled": {
+      "label": "Enable Downloads"
     },
     "downloadDir": {
       "label": "Download Folder",

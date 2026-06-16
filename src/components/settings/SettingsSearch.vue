@@ -30,7 +30,7 @@ const results = computed<SearchResult[]>(() => {
     for (const sec of cat.sections ?? []) {
       for (const item of sec.items) {
         const label = t(`settings.${item.key}.label`);
-        const desc = t(`settings.${item.key}.description`);
+        const desc = item.hideDescription ? "" : t(`settings.${item.key}.description`);
         const kw = item.keywords?.map((k) => t(k)).join(" ") ?? "";
         if (`${label} ${desc} ${kw}`.toLowerCase().includes(q)) {
           out.push({
@@ -71,7 +71,7 @@ const handleBlur = () => {
       </template>
     </SInput>
 
-    <!-- 搜索结果（绝对定位，在输入框下方展开） -->
+    <!-- 搜索结果 -->
     <Transition
       enter-active-class="transition-[opacity,transform] duration-200 ease-out"
       leave-active-class="transition-[opacity,transform] duration-150 ease-in"
