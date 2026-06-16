@@ -140,6 +140,7 @@ export const defaultSystemConfig: SystemConfig = {
     taskbarProgress: true,
     uiZoom: 100,
     onboardingCompleted: false,
+    neteaseRealIp: false,
   },
   windowStates: {
     main: {

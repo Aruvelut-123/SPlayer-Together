@@ -630,6 +630,7 @@
       "about": "About"
     },
     "section": {
+      "network": "Network & Proxy",
       "aboutApp": "About",
       "specialThanks": "Special Thanks",
       "developers": "Developers",
@@ -1286,6 +1287,10 @@
     "taskbarProgress": {
       "label": "Taskbar Progress",
       "description": "Show playback progress on the taskbar icon"
+    },
+    "neteaseRealIp": {
+      "label": "Use Real IP",
+      "description": "May be restricted overseas or in some regions; enable this to try to resolve it"
     },
     "streamingEnabled": {
       "label": "Enable streaming",

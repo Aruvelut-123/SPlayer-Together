@@ -384,6 +384,8 @@ export interface SystemConfig {
     uiZoom: number;
     /** 首启引导是否已完成 */
     onboardingCompleted: boolean;
+    /** NCM请求注入国内 IP（X-Real-IP/X-Forwarded-For） */
+    neteaseRealIp: boolean;
   };
   /** 窗口几何状态（运行时自动记录，非用户主动配置） */
   windowStates: WindowStates;

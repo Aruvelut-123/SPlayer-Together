@@ -618,6 +618,7 @@
       "about": "关于软件"
     },
     "section": {
+      "network": "网络代理",
       "aboutApp": "关于软件",
       "specialThanks": "特别致谢",
       "developers": "开发人员",
@@ -1274,6 +1275,10 @@
     "taskbarProgress": {
       "label": "任务栏播放进度",
       "description": "在任务栏图标上显示当前播放进度"
+    },
+    "neteaseRealIp": {
+      "label": "使用真实IP地址",
+      "description": "在海外或部分地区可能会受到限制，可开启此处尝试解决"
     },
     "streamingEnabled": {
       "label": "启用流媒体",

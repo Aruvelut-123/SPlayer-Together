@@ -8,6 +8,17 @@ const servicesCategory: SettingCategory = {
   icon: IconLucideGlobe,
   sections: [
     {
+      id: "network",
+      items: [
+        {
+          key: "neteaseRealIp",
+          type: "switch",
+          binding: { store: "settings", path: "system.system.neteaseRealIp" },
+          defaultValue: false,
+        },
+      ],
+    },
+    {
       id: "media",
       items: [
         {
