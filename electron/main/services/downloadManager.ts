@@ -9,6 +9,7 @@
 import fs from "node:fs";
 import fsp, { type FileHandle } from "node:fs/promises";
 import path from "node:path";
+import { pipeline } from "node:stream/promises";
 import { app } from "electron";
 import { store } from "@main/store";
 import { getDownloadDir, getCoverCacheDir, getAppCacheDir } from "@main/utils/config";
@@ -110,32 +111,28 @@ const streamToFile = async (
   total: number,
   signal: AbortSignal,
 ): Promise<number> => {
-  const fileStream = fs.createWriteStream(partPath);
   const reader = body.getReader();
   let received = 0;
   let lastTs = 0;
-  try {
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      if (signal.aborted) throw new DOMException("aborted", "AbortError");
-      if (!fileStream.write(value)) {
-        await new Promise<void>((resolve) => fileStream.once("drain", resolve));
+  // 交给 pipeline 管理写入流
+  const source = (async function* read() {
+    try {
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) return;
+        received += value.length;
+        const now = Date.now();
+        if (now - lastTs >= PROGRESS_INTERVAL_MS) {
+          lastTs = now;
+          broadcast("download:progress", { taskId, received, total }, true);
+        }
+        yield value;
       }
-      received += value.length;
-      const now = Date.now();
-      if (now - lastTs >= PROGRESS_INTERVAL_MS) {
-        lastTs = now;
-        broadcast("download:progress", { taskId, received, total }, true);
-      }
+    } finally {
+      await reader.cancel().catch(() => {});
     }
-  } finally {
-    fileStream.end();
-    await new Promise<void>((resolve, reject) => {
-      fileStream.on("finish", () => resolve());
-      fileStream.on("error", reject);
-    });
-  }
+  })();
+  await pipeline(source, fs.createWriteStream(partPath), { signal });
   return received;
 };
 
