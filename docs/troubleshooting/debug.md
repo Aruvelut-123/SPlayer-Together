@@ -1,0 +1,56 @@
+# 调试模式与错误排查
+
+本文介绍如何定位 SPlayer-Next 运行中遇到的问题。
+
+## 开发者工具
+
+在客户端中按 `Ctrl + Shift + I`（Windows / Linux）或 `Cmd + Option + I`（macOS）打开开发者工具：
+
+| 面板            | 用途                   |
+| --------------- | ---------------------- |
+| **Console**     | 查看日志输出、错误信息 |
+| **Network**     | 监控网络请求           |
+| **Application** | 查看本地存储、缓存数据 |
+
+## 日志文件
+
+最简单的方式：在 **设置 → 关于** 中点击 **打开日志目录**。
+
+日志位于用户数据目录下的 `app-data/logs/`：
+
+| 系统    | 路径                                                       |
+| ------- | ---------------------------------------------------------- |
+| Windows | `%APPDATA%\SPlayer-Next\app-data\logs\`                    |
+| macOS   | `~/Library/Application Support/SPlayer-Next/app-data/logs/`|
+| Linux   | `~/.config/SPlayer-Next/app-data/logs/`                    |
+
+原生模块日志位于 `app-data/logs/native/`。
+
+## 常见问题
+
+- **歌曲无法播放 / 卡顿 / 无声**：检查 Console 是否有错误、音频源是否有效、系统输出设备是否正常。
+- **封面 / 歌词加载失败**：在 Network 面板查看失败请求与状态码，确认网络与音源可达。
+- **界面异常 / 白屏**：查看 Console 错误堆栈，尝试清缓存后重启（设置 → 缓存，或删除 `app-data/cache/`）。
+
+## 提交 Issue
+
+请附上：操作系统与版本、SPlayer-Next 版本（开发版附 Commit ID）、Console 完整错误日志、可复现的操作步骤。
+
+## 重置应用
+
+::: warning 注意
+重置会清除全部用户数据（登录状态、播放列表、设置、本地库等）。
+:::
+
+删除用户数据目录即可重置：
+
+```bash
+# Windows
+rd /s /q "%APPDATA%\SPlayer-Next"
+
+# macOS
+rm -rf ~/Library/Application\ Support/SPlayer-Next
+
+# Linux
+rm -rf ~/.config/SPlayer-Next
+```

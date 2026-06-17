@@ -42,7 +42,10 @@
     "build:unpack": "pnpm build && electron-builder --dir --config electron-builder.config.ts",
     "build:win": "pnpm build && tsx scripts/gen-license.ts && electron-builder --config electron-builder.config.ts --win",
     "build:mac": "pnpm build && electron-builder --config electron-builder.config.ts --mac",
-    "build:linux": "pnpm build && electron-builder --config electron-builder.config.ts --linux"
+    "build:linux": "pnpm build && electron-builder --config electron-builder.config.ts --linux",
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs"
   },
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.2",
@@ -89,6 +92,7 @@
     "eslint-plugin-vue": "^10.8.0",
     "prettier": "^3.8.1",
     "rimraf": "^6.1.3",
+    "sass-embedded": "^1.100.0",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "unocss": "^66.6.8",
@@ -96,6 +100,7 @@
     "unplugin-icons": "^23.0.1",
     "unplugin-vue-components": "^31.1.0",
     "vite": "^7.3.2",
+    "vitepress": "2.0.0-alpha.15",
     "vue": "^3.5.32",
     "vue-eslint-parser": "^10.4.0",
     "vue-tsc": "^3.2.6"
