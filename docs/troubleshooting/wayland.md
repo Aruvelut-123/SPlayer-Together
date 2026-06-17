@@ -45,16 +45,67 @@ Wayland 出于安全考虑，不允许应用读取 / 设置全局屏幕坐标，
 
 > 具体表现因发行版与合成器（GNOME Mutter、KDE KWin、wlroots 等）而异。
 
-## 桌面歌词的 KWin 窗口规则
+## 桌面歌词的窗口规则
 
-桌面歌词窗口使用固定的窗口标题 **`SPlayer-Next - Desktop Lyric`**。在 KDE（KWin）下可通过**窗口规则**按标题匹配，手动补齐 Wayland 下缺失的行为（如保持置顶等）：
+桌面歌词窗口使用固定的窗口标题 **`SPlayer-Next - Desktop Lyric`** 以方便窗口规则匹配。
+
+在 KDE（KWin）下可通过**窗口规则**按标题匹配，手动补齐 Wayland 下缺失的行为（如保持置顶等）：
 
 1. 打开 **系统设置 → 窗口管理 → 窗口规则**，新建一条规则；
-2. 在 **窗口匹配** 中，将 **窗口标题** 设为 `SPlayer-Next - Desktop Lyric`（精确或包含匹配）；
+2. 在 **窗口匹配** 中，将 **窗口类** 设为 `top.imsyy.splayer_next`（精确匹配），将 **窗口标题** 设为 `SPlayer-Next - Desktop Lyric`（精确匹配）；
 3. 添加需要的属性，例如：
-   - **保持在其他窗口之上**：设为「强制 / 是」；
-   - 可选 **无标题栏与边框**、固定 **位置** 与 **大小**；
+   - **窗口置顶**：设为 **强制**、**是**；
+   - 可选 **图层**：设为 **强制**、**叠加**（全屏游戏时窗口也在上方）；
+   - 可选 **虚拟桌面**：设为 **强制**、**所有桌面**（窗口同时处于所有虚拟桌面）；
+   - 可选 **跳过任务栏**、**跳过虚拟桌面切换器**、**跳过窗口切换器**：设为 **强制**、**是**（优化一些细节体验）；
+   - 可选固定 **位置** 与 **大小**；
 4. 应用并保存。
+
+其它 DE/WM 也可参考此配置方法自行配置。
+
+<details>
+
+<summary>可直接导入的规则</summary>
+
+> 这里提供了一些可直接导入的规则。欢迎 PR 补充你的 DE/WM
+
+KWin 规则
+
+> 编者用的规则，我觉得挺好用的。如有更好的规则欢迎 PR
+
+```ini
+[SPlayer Next 桌面歌词]
+Description=SPlayer Next 桌面歌词
+above=true
+aboverule=2
+desktops=\\0
+desktopsrule=2
+layer=overlay
+layerrule=2
+skippager=true
+skippagerrule=2
+skipswitcher=true
+skipswitcherrule=2
+skiptaskbar=true
+skiptaskbarrule=2
+title=SPlayer-Next - Desktop Lyric
+titlematch=1
+wmclass=top.imsyy.splayer_next
+wmclassmatch=1
+```
+
+Niri 窗口规则
+
+> 编者日常不使用 Niri，未经充分测试。如有更好的规则欢迎 PR
+
+```kdl
+window-rule {
+    match app-id="top.imsyy.splayer_next" title="SPlayer-Next - Desktop Lyric"
+    open-floating true
+}
+```
+
+</details>
 
 ## 第三方 / 外部 API 替代
 
