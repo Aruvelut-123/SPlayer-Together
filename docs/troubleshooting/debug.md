@@ -18,11 +18,11 @@
 
 日志位于用户数据目录下的 `app-data/logs/`：
 
-| 系统    | 路径                                                       |
-| ------- | ---------------------------------------------------------- |
-| Windows | `%APPDATA%\SPlayer-Next\app-data\logs\`                    |
-| macOS   | `~/Library/Application Support/SPlayer-Next/app-data/logs/`|
-| Linux   | `~/.config/SPlayer-Next/app-data/logs/`                    |
+| 系统    | 路径                                                        |
+| ------- | ----------------------------------------------------------- |
+| Windows | `%APPDATA%\SPlayer-Next\app-data\logs\`                     |
+| macOS   | `~/Library/Application Support/SPlayer-Next/app-data/logs/` |
+| Linux   | `~/.config/SPlayer-Next/app-data/logs/`                     |
 
 原生模块日志位于 `app-data/logs/native/`。
 

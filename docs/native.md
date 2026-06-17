@@ -6,9 +6,9 @@ SPlayer-Next 将性能敏感的能力下沉到 **Rust**，通过 [NAPI-RS](https
 
 | 模块            | 职责                                                                         |
 | --------------- | ---------------------------------------------------------------------------- |
-| `audio-engine`  | 音频解码（FFmpeg）与播放（rodio）、FFT 频谱、封面提取                         |
+| `audio-engine`  | 音频解码（FFmpeg）与播放（rodio）、FFT 频谱、封面提取                        |
 | `media-ctrl`    | 系统媒体控制（Windows SMTC / Linux MPRIS / macOS Now Playing）与 Discord RPC |
-| `taskbar-lyric` | Windows 任务栏歌词文字渲染                                                    |
+| `taskbar-lyric` | Windows 任务栏歌词文字渲染                                                   |
 
 ### audio-engine
 

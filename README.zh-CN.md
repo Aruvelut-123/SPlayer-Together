@@ -45,11 +45,11 @@
 
 核心性能特性由 Rust 编写的原生模块提供：
 
-| 模块            | 说明                                                       |
-| --------------- | ---------------------------------------------------------- |
-| `audio-engine`  | 高性能音频解码（FFmpeg）、播放、FFT 频谱、封面提取         |
-| `media-ctrl`    | 系统媒体控制 + Discord Rich Presence                       |
-| `taskbar-lyric` | Windows 任务栏歌词原生渲染                                 |
+| 模块            | 说明                                               |
+| --------------- | -------------------------------------------------- |
+| `audio-engine`  | 高性能音频解码（FFmpeg）、播放、FFT 频谱、封面提取 |
+| `media-ctrl`    | 系统媒体控制 + Discord Rich Presence               |
+| `taskbar-lyric` | Windows 任务栏歌词原生渲染                         |
 
 `pnpm dev` 与 `pnpm build` 会自动编译原生模块。若只做 UI 开发想跳过，可设置 `SKIP_NATIVE_BUILD=true`。
 

@@ -45,11 +45,11 @@
 
 Core performance features are powered by Rust-based native modules:
 
-| Module          | Description |
-| --------------- | ----------- |
+| Module          | Description                                                                        |
+| --------------- | ---------------------------------------------------------------------------------- |
 | `audio-engine`  | High-performance audio decoding (FFmpeg), playback, FFT spectrum, cover extraction |
-| `media-ctrl`    | System media controls + Discord Rich Presence |
-| `taskbar-lyric` | Native Windows taskbar lyric rendering |
+| `media-ctrl`    | System media controls + Discord Rich Presence                                      |
+| `taskbar-lyric` | Native Windows taskbar lyric rendering                                             |
 
 `pnpm dev` and `pnpm build` compile the native modules automatically. To skip them (e.g. when working only on the UI), set `SKIP_NATIVE_BUILD=true`.
 

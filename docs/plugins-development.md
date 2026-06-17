@@ -69,12 +69,12 @@ splayer.on("musicUrl", async (req) => {
 
 ### 属性
 
-| 属性                 | 类型     | 说明                        |
-| -------------------- | -------- | --------------------------- |
-| `splayer.pluginId`   | `string` | 宿主分配的插件 ID           |
-| `splayer.apiLevel`   | `number` | 宿主 Host API 级别          |
-| `splayer.locale`     | `string` | 当前界面语言（如 `zh-CN`）  |
-| `splayer.appVersion` | `string` | 应用版本                    |
+| 属性                 | 类型     | 说明                       |
+| -------------------- | -------- | -------------------------- |
+| `splayer.pluginId`   | `string` | 宿主分配的插件 ID          |
+| `splayer.apiLevel`   | `number` | 宿主 Host API 级别         |
+| `splayer.locale`     | `string` | 当前界面语言（如 `zh-CN`） |
+| `splayer.appVersion` | `string` | 应用版本                   |
 
 ### `splayer.register(capabilities)`
 
@@ -82,17 +82,17 @@ splayer.on("musicUrl", async (req) => {
 
 **参数**
 
-| 参数           | 类型     | 必填 | 说明                                       |
-| -------------- | -------- | ---- | ------------------------------------------ |
+| 参数           | 类型     | 必填 | 说明                                  |
+| -------------- | -------- | ---- | ------------------------------------- |
 | `capabilities` | `object` | ✅   | `{ sources: Record<string, Source> }` |
 
 `Source` 结构：
 
-| 字段        | 类型               | 必填 | 说明                           |
-| ----------- | ------------------ | ---- | ------------------------------ |
-| `name`      | `string`           | ✅   | 音源展示名                     |
-| `actions`   | `("musicUrl")[]`   | ✅   | 支持的动作（当前仅 `musicUrl`）|
-| `qualities` | `Quality[]`        |      | 支持的音质                     |
+| 字段        | 类型             | 必填 | 说明                            |
+| ----------- | ---------------- | ---- | ------------------------------- |
+| `name`      | `string`         | ✅   | 音源展示名                      |
+| `actions`   | `("musicUrl")[]` | ✅   | 支持的动作（当前仅 `musicUrl`） |
+| `qualities` | `Quality[]`      |      | 支持的音质                      |
 
 `Quality` 取值：
 
@@ -112,28 +112,28 @@ splayer.on("musicUrl", async (req) => {
 
 **参数**
 
-| 参数      | 类型                          | 必填 | 说明                       |
-| --------- | ----------------------------- | ---- | -------------------------- |
-| `action`  | `string`                      | ✅   | 动作名（当前仅 `musicUrl`）|
-| `handler` | `(req) => Promise<res>`       | ✅   | 处理函数，异步返回结果     |
+| 参数      | 类型                    | 必填 | 说明                        |
+| --------- | ----------------------- | ---- | --------------------------- |
+| `action`  | `string`                | ✅   | 动作名（当前仅 `musicUrl`） |
+| `handler` | `(req) => Promise<res>` | ✅   | 处理函数，异步返回结果      |
 
 **`musicUrl` 请求（`req`）**
 
-| 字段                | 类型      | 说明              |
-| ------------------- | --------- | ----------------- |
-| `source`            | `string`  | 音源 key          |
-| `quality`           | `Quality` | 请求的音质        |
-| `musicInfo.songmid` | `string`  | 歌曲 ID           |
-| `musicInfo.name`    | `string?` | 歌曲名            |
-| `musicInfo.singer`  | `string?` | 艺术家            |
+| 字段                | 类型      | 说明       |
+| ------------------- | --------- | ---------- |
+| `source`            | `string`  | 音源 key   |
+| `quality`           | `Quality` | 请求的音质 |
+| `musicInfo.songmid` | `string`  | 歌曲 ID    |
+| `musicInfo.name`    | `string?` | 歌曲名     |
+| `musicInfo.singer`  | `string?` | 艺术家     |
 
 **`musicUrl` 返回（`res`）**
 
-| 字段      | 类型      | 必填 | 说明           |
-| --------- | --------- | ---- | -------------- |
-| `url`     | `string`  | ✅   | 播放地址       |
-| `quality` | `Quality` |      | 实际音质       |
-| `expire`  | `number`  |      | 过期时间戳（ms）|
+| 字段      | 类型      | 必填 | 说明             |
+| --------- | --------- | ---- | ---------------- |
+| `url`     | `string`  | ✅   | 播放地址         |
+| `quality` | `Quality` |      | 实际音质         |
+| `expire`  | `number`  |      | 过期时间戳（ms） |
 
 处理器抛出的异常会被宿主捕获并透传错误码；超时未返回会被取消。
 
@@ -150,20 +150,20 @@ splayer.on("musicUrl", async (req) => {
 
 `options` 结构：
 
-| 字段           | 类型                                | 默认      | 说明                       |
-| -------------- | ----------------------------------- | --------- | -------------------------- |
-| `method`       | `"GET" \| "POST"`                   | `"GET"`   | 请求方法                   |
-| `headers`      | `Record<string, string>`            | —         | 请求头                     |
-| `body`         | `string \| ArrayBuffer \| Uint8Array` | —       | 请求体                     |
-| `timeout`      | `number`                            | `15000`   | 超时（毫秒，最大 `60000`） |
-| `responseType` | `"text" \| "json" \| "arraybuffer"` | `"text"`  | 响应解析方式               |
+| 字段           | 类型                                  | 默认     | 说明                       |
+| -------------- | ------------------------------------- | -------- | -------------------------- |
+| `method`       | `"GET" \| "POST"`                     | `"GET"`  | 请求方法                   |
+| `headers`      | `Record<string, string>`              | —        | 请求头                     |
+| `body`         | `string \| ArrayBuffer \| Uint8Array` | —        | 请求体                     |
+| `timeout`      | `number`                              | `15000`  | 超时（毫秒，最大 `60000`） |
+| `responseType` | `"text" \| "json" \| "arraybuffer"`   | `"text"` | 响应解析方式               |
 
 **返回**：`Promise<Result>`
 
-| 字段      | 类型                     | 说明                                                  |
-| --------- | ------------------------ | ----------------------------------------------------- |
-| `status`  | `number`                 | HTTP 状态码                                            |
-| `headers` | `Record<string, string>` | 响应头                                                |
+| 字段      | 类型                     | 说明                                                         |
+| --------- | ------------------------ | ------------------------------------------------------------ |
+| `status`  | `number`                 | HTTP 状态码                                                  |
+| `headers` | `Record<string, string>` | 响应头                                                       |
 | `body`    | `unknown`                | `text` → 字符串；`json` → 对象；`arraybuffer` → `Uint8Array` |
 
 **示例**
@@ -181,12 +181,12 @@ console.log(resp.status, resp.body);
 
 插件私有的键值存储，每个插件独立命名空间，卸载插件时自动清除。
 
-| 方法                       | 返回                | 说明           |
-| -------------------------- | ------------------- | -------------- |
-| `storage.get(key)`         | `Promise<T \| null>`| 读取一个键     |
-| `storage.set(key, value)`  | `Promise<void>`     | 写入一个键     |
-| `storage.remove(key)`      | `Promise<void>`     | 删除一个键     |
-| `storage.keys()`           | `Promise<string[]>` | 列出所有键     |
+| 方法                      | 返回                 | 说明       |
+| ------------------------- | -------------------- | ---------- |
+| `storage.get(key)`        | `Promise<T \| null>` | 读取一个键 |
+| `storage.set(key, value)` | `Promise<void>`      | 写入一个键 |
+| `storage.remove(key)`     | `Promise<void>`      | 删除一个键 |
+| `storage.keys()`          | `Promise<string[]>`  | 列出所有键 |
 
 ### `splayer.getSetting(key)`
 
@@ -200,23 +200,23 @@ console.log(resp.status, resp.body);
 
 输出日志，转发到宿主日志系统；脚本中的 `console.*` 也会转发到同一通道。
 
-| 方法                  | 说明 |
-| --------------------- | ---- |
-| `log.debug(...args)`  | 调试 |
-| `log.info(...args)`   | 信息 |
-| `log.warn(...args)`   | 警告 |
-| `log.error(...args)`  | 错误 |
+| 方法                 | 说明 |
+| -------------------- | ---- |
+| `log.debug(...args)` | 调试 |
+| `log.info(...args)`  | 信息 |
+| `log.warn(...args)`  | 警告 |
+| `log.error(...args)` | 错误 |
 
 ### `splayer.utils`
 
 常用工具的安全封装，无需自行引入 Node 模块。
 
-| 命名空间          | 方法                                                                              |
-| ----------------- | --------------------------------------------------------------------------------- |
-| `utils.crypto`    | `md5` / `sha1` / `sha256` / `hmac` / `randomBytes` / `aesEncrypt` / `aesDecrypt` / `rsaEncrypt` |
-| `utils.buffer`    | `from` / `bufToString` / `concat`                                                 |
-| `utils.base64`    | `encode` / `decode`                                                               |
-| `utils.zlib`      | `inflate` / `deflate` / `gunzip` / `gzip`                                          |
+| 命名空间       | 方法                                                                                            |
+| -------------- | ----------------------------------------------------------------------------------------------- |
+| `utils.crypto` | `md5` / `sha1` / `sha256` / `hmac` / `randomBytes` / `aesEncrypt` / `aesDecrypt` / `rsaEncrypt` |
+| `utils.buffer` | `from` / `bufToString` / `concat`                                                               |
+| `utils.base64` | `encode` / `decode`                                                                             |
+| `utils.zlib`   | `inflate` / `deflate` / `gunzip` / `gzip`                                                       |
 
 ## 错误码
 
@@ -286,6 +286,6 @@ await window.api.plugins.resolveUrl({
 
 ## 兼容 lx 插件
 
-SPlayer-Next 提供 `lx` 垫片，覆盖 lx-music-desktop user_api 的常用接口（`lx.request` / `lx.on("request")` / `lx.send("inited")` / `lx.utils`），多数现有 lx 脚本无需修改即可运行。头部写 `@platform lx`，或以 `gz_` 压缩分发，会自动启用垫片。
+SPlayer-Next 提供 `lx` 垫片，覆盖 lx-music-desktop user*api 的常用接口（`lx.request` / `lx.on("request")` / `lx.send("inited")` / `lx.utils`），多数现有 lx 脚本无需修改即可运行。头部写 `@platform lx`，或以 `gz*` 压缩分发，会自动启用垫片。
 
 > 编写**新插件**请直接使用 `splayer.*` API；lx 垫片仅用于兼容存量脚本。
