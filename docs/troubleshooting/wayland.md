@@ -6,8 +6,6 @@
 
 遇到花屏、闪烁、卡死或悬浮窗异常时，最稳妥的办法是让应用以 **X11（XWayland）** 模式运行——在启动参数中加入 `--ozone-platform=x11`。
 
-> SPlayer-Next 默认即以 XWayland 运行；若你或发行版启用了原生 Wayland 并遇到问题，用此参数可强制回退。
-
 开发环境：
 
 ```bash
@@ -31,18 +29,6 @@ pnpm dev -- --ozone-platform=x11
    Exec=/opt/SPlayer-Next/splayer-next --ozone-platform=x11 %U
    ```
 4. 保存退出。
-
-## 原生 Wayland（可选）
-
-原生 Wayland 渲染更清晰、HiDPI / 分数缩放表现更好，但下面的窗口能力会更受限，且个别环境可能出现闪屏 / 卡死——**遇到问题请按上文回退 X11**。
-
-启用方式（命令行）：
-
-```bash
-ELECTRON_OZONE_PLATFORM_HINT=auto ./SPlayer-Next-*.AppImage
-# 或
-./SPlayer-Next-*.AppImage --ozone-platform-hint=auto
-```
 
 ## 已知的窗口限制
 
