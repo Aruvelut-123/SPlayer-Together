@@ -3,7 +3,8 @@
     <p v-if="loading" class="dl-state">正在获取最新版本…</p>
 
     <div v-else-if="error" class="dl-state dl-error">
-      获取版本信息失败：{{ error }}<br />
+      获取版本信息失败：{{ error }}
+      <br />
       <a :href="releasesUrl" target="_blank">前往 GitHub 下载 →</a>
     </div>
 
@@ -24,10 +25,16 @@
 
       <div v-if="recommended.length" class="dl-rec">
         <span class="dl-rec-label">
-          推荐用于 {{ userPlatform }}<template v-if="userArch"> · {{ userArch }}</template>
+          推荐用于 {{ userPlatform }}
+          <template v-if="userArch">· {{ userArch }}</template>
         </span>
         <div class="dl-rec-btns">
-          <a v-for="asset in recommended" :key="asset.url" class="dl-btn" :href="mirrored(asset.url)">
+          <a
+            v-for="asset in recommended"
+            :key="asset.url"
+            class="dl-btn"
+            :href="mirrored(asset.url)"
+          >
             <span>{{ asset.label }}</span>
             <span class="dl-size">{{ formatSize(asset.size) }}</span>
           </a>
@@ -48,7 +55,8 @@
       </div>
 
       <p class="dl-foot">
-        需要其他版本？<a :href="releasesUrl" target="_blank">查看全部 Releases</a>
+        需要其他版本？
+        <a :href="releasesUrl" target="_blank">查看全部 Releases</a>
       </p>
     </template>
   </div>
@@ -117,7 +125,8 @@ const parseAsset = (name: string, url: string, size: number): Asset | null => {
   }
   let arch = "通用";
   if (lower.includes("arm64") || lower.includes("aarch64")) arch = "ARM64";
-  else if (lower.includes("x64") || lower.includes("amd64") || lower.includes("x86_64")) arch = "x64";
+  else if (lower.includes("x64") || lower.includes("amd64") || lower.includes("x86_64"))
+    arch = "x64";
   return { fileName: name, label, url, size, platform, arch };
 };
 

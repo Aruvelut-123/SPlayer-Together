@@ -1,6 +1,6 @@
 packages: []
 allowBuilds:
-  '@parcel/watcher': false
+  "@parcel/watcher": false
   better-sqlite3: true
   electron: true
   electron-winstaller: true
