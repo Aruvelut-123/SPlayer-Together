@@ -26,7 +26,7 @@ pnpm dev -- --ozone-platform=x11
 2. 复制到 `~/.local/share/applications/`；
 3. 用文本编辑器打开，找到 `Exec=` 开头的行，在可执行文件后追加 `--ozone-platform=x11`，例如：
    ```
-   Exec=/opt/SPlayer-Next/splayer-next --ozone-platform=x11 %U
+   Exec=/opt/SPlayer-Next/SPlayer-Next --ozone-platform=x11 %U
    ```
 4. 保存退出。
 
