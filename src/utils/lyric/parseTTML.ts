@@ -75,11 +75,55 @@ const stripParens = (text: string): string =>
     .trim();
 
 /**
- * 收集 iTunes 翻译元数据（translations 段中的 text[for] 元素）
- * @param doc XML 文档
+ * 规范化语言标签
+ * @param lang 原始语言标签
+ * @returns 规范化后的语言标签
  */
-const collectTranslations = (doc: Document): Map<string, { main: string; bg: string }> => {
-  const translations = new Map<string, { main: string; bg: string }>();
+const normalizeLang = (lang: string | null | undefined): string =>
+  (lang ?? "").toLowerCase().replace(/_/g, "-");
+
+/**
+ * 从多语言候选中选出最匹配偏好语言的索引
+ * @param langs 候选语言标签数组，顺序与候选一致
+ * @param preferred 偏好语言标签（如 zh-CN），为空则取首个
+ * @returns 选中索引，无合适候选返回 -1
+ */
+const pickLangIndex = (langs: (string | null)[], preferred: string): number => {
+  if (langs.length === 0) return -1;
+  const want = normalizeLang(preferred);
+  if (!want) return 0;
+  const wantBase = want.split("-")[0];
+  let baseMatch = -1;
+  let hasTagged = false;
+  for (let i = 0; i < langs.length; i++) {
+    const lang = normalizeLang(langs[i]);
+    if (!lang) continue;
+    hasTagged = true;
+    if (lang === want) return i;
+    if (baseMatch === -1 && lang.split("-")[0] === wantBase) baseMatch = i;
+  }
+  if (baseMatch !== -1) return baseMatch;
+  return hasTagged ? -1 : 0;
+};
+
+/** 行级翻译候选 */
+interface TransCandidate {
+  lang: string | null;
+  main: string;
+  bg: string;
+}
+
+/**
+ * 收集 iTunes 翻译元数据（translations 段中的 text[for] 元素）
+ * 同一行可能有多个语言的 translation 块，按偏好语言挑选最匹配的
+ * @param doc XML 文档
+ * @param preferredLang 偏好语言标签
+ */
+const collectTranslations = (
+  doc: Document,
+  preferredLang: string,
+): Map<string, { main: string; bg: string }> => {
+  const candidates = new Map<string, TransCandidate[]>();
 
   for (const textEl of Array.from(doc.querySelectorAll("text[for]"))) {
     const parent = textEl.parentElement;
@@ -103,7 +147,21 @@ const collectTranslations = (doc: Document): Map<string, { main: string; bg: str
 
     main = main.trim();
     bg = stripParens(bg);
-    if (main || bg) translations.set(key, { main, bg });
+    if (!main && !bg) continue;
+
+    const lang = getAttr(parent, "lang");
+    const list = candidates.get(key) ?? [];
+    list.push({ lang, main, bg });
+    candidates.set(key, list);
+  }
+
+  const translations = new Map<string, { main: string; bg: string }>();
+  for (const [key, list] of candidates) {
+    const idx = pickLangIndex(
+      list.map((item) => item.lang),
+      preferredLang,
+    );
+    if (idx !== -1) translations.set(key, { main: list[idx].main, bg: list[idx].bg });
   }
 
   return translations;
@@ -193,17 +251,18 @@ const collectTransliterations = (doc: Document): TransliterationMaps => {
 /**
  * 解析 TTML 歌词文本
  * @param text TTML XML 文本内容
+ * @param preferredLang 偏好翻译语言标签
  * @returns 解析后的歌词行数组
  * @throws 当 XML 解析失败时抛出错误
  */
-export const parseTTML = (text: string): LyricLine[] => {
+export const parseTTML = (text: string, preferredLang = ""): LyricLine[] => {
   const doc = new DOMParser().parseFromString(text, "application/xml");
   if (doc.querySelector("parsererror")) {
     throw new Error("Invalid TTML XML");
   }
 
   const mainAgent = findMainAgent(doc);
-  const translations = collectTranslations(doc);
+  const translations = collectTranslations(doc, preferredLang);
   const transliterations = collectTransliterations(doc);
   const lines: LyricLine[] = [];
 
@@ -246,6 +305,7 @@ export const parseTTML = (text: string): LyricLine[] => {
 
     let bgCount = 0;
     let lastWasTimedSpan = false;
+    const transCandidates: { lang: string | null; text: string }[] = [];
 
     for (const node of Array.from(el.childNodes)) {
       if (node.nodeType === Node.TEXT_NODE) {
@@ -278,15 +338,14 @@ export const parseTTML = (text: string): LyricLine[] => {
           parseParagraph(span, true, line.isDuet, itunesKey);
           bgCount++;
         } else if (role === "x-translation") {
-          // 行内翻译
-          if (!line.translatedLyric) {
-            line.translatedLyric = span.textContent?.trim() ?? "";
-          }
+          // 行内翻译，可能多语言并存，先收集候选
+          transCandidates.push({
+            lang: getAttr(span, "lang"),
+            text: span.textContent?.trim() ?? "",
+          });
         } else if (role === "x-roman") {
           // 行内音译
-          if (!line.romanLyric) {
-            line.romanLyric = span.textContent?.trim() ?? "";
-          }
+          if (!line.romanLyric) line.romanLyric = span.textContent?.trim() ?? "";
         } else {
           // 逐字 span
           const wb = getAttr(span, "begin");
@@ -312,6 +371,16 @@ export const parseTTML = (text: string): LyricLine[] => {
           }
         }
       }
+    }
+
+    // 行内多语言翻译按偏好语言挑选
+    if (!line.translatedLyric) {
+      const valid = transCandidates.filter((item) => item.text);
+      const idx = pickLangIndex(
+        valid.map((item) => item.lang),
+        preferredLang,
+      );
+      if (idx !== -1) line.translatedLyric = valid[idx].text;
     }
 
     // 行级时间未设置时，从逐字时间推断

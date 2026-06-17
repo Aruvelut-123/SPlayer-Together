@@ -65,12 +65,13 @@ export const detectFormat = (text: string): LyricFormat => {
  * 根据格式类型解析歌词文本
  * @param text 歌词文本内容
  * @param format 歌词格式
+ * @param preferredLang 偏好翻译语言标签
  * @returns 解析后的歌词行数组
  */
-const parseContent = (text: string, format: LyricFormat): LyricLine[] => {
+const parseContent = (text: string, format: LyricFormat, preferredLang = ""): LyricLine[] => {
   switch (format) {
     case "ttml":
-      return parseTTML(text);
+      return parseTTML(text, preferredLang);
     case "qrc":
       return parseQRC(text);
     case "krc":
@@ -92,9 +93,14 @@ const parseContent = (text: string, format: LyricFormat): LyricLine[] => {
  * 解析歌词
  * @param input 主 + 可选翻译 / 音译
  * @param format 主歌词格式
+ * @param preferredLang 偏好翻译语言标签（TTML 多语言时据此挑选）
  */
-export const parseLyric = (input: LyricInput, format: LyricFormat): LyricLine[] => {
-  const lines = parseContent(input.content, format);
+export const parseLyric = (
+  input: LyricInput,
+  format: LyricFormat,
+  preferredLang = "",
+): LyricLine[] => {
+  const lines = parseContent(input.content, format, preferredLang);
   if (input.translation && input.translationFormat) {
     pairTranslation(
       lines,

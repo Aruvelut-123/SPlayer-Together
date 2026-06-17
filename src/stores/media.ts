@@ -1,6 +1,7 @@
 import type { MediaInfo, Track, TrackDetail } from "@shared/types/player";
 import type { LyricData, LyricFormat, LyricInput, LyricLine } from "@shared/types/lyrics";
 import { findLyricIndex } from "@shared/utils/lyric";
+import { useSettingsStore } from "@/stores/settings";
 import { watchLyricPreference } from "@/services/lyricLoader";
 import { parseLyric } from "@/utils/lyric/parse";
 import { extractLyricAuthor } from "@/utils/lyric/author";
@@ -99,7 +100,7 @@ export const useMediaStore = defineStore("media", () => {
     let nextLines: LyricLine[] = [];
     if (source && input) {
       try {
-        const lines = parseLyric(input, source.format);
+        const lines = parseLyric(input, source.format, useSettingsStore().locale);
         nextLines = applyLyricExclude(lines, track.value);
         normalizeLyricLines(nextLines);
       } catch (e) {
