@@ -52,5 +52,5 @@ rd /s /q "%APPDATA%\SPlayer-Next"
 rm -rf ~/Library/Application\ Support/SPlayer-Next
 
 # Linux
-rm -rf ~/.config/SPlayer-Next
+rm -rf "${XDG_CONFIG_HOME:-$HOME/.config}/SPlayer-Next"
 ```
