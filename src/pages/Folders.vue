@@ -1,13 +1,17 @@
 <script setup lang="ts">
 import type { Track } from "@shared/types/player";
 import type { FolderNode } from "@/types/folder";
+import type { DropdownMenuItem } from "@/components/ui/SDropdownMenu.vue";
 import { useLibraryStore } from "@/stores/library";
+import SongList from "@/components/list/SongList.vue";
 import * as player from "@/core/player";
 import IconLucideFolder from "~icons/lucide/folder";
 import IconLucideFolderOpen from "~icons/lucide/folder-open";
 import IconLucideMusic from "~icons/lucide/music";
 import IconLucideChevronRight from "~icons/lucide/chevron-right";
 import IconLucidePlay from "~icons/lucide/play";
+import IconLucideListChecks from "~icons/lucide/list-checks";
+import IconLucideEllipsis from "~icons/lucide/ellipsis";
 
 const { t } = useI18n();
 const router = useRouter();
@@ -18,6 +22,17 @@ const trackCount = computed(() => tracks.value.filter((tr) => !!tr.path).length)
 
 const expanded = ref<string[]>([]);
 const selectedFolder = shallowRef<FolderNode | null>(null);
+const songListRef = shallowRef<InstanceType<typeof SongList> | null>(null);
+
+/** 更多操作菜单 */
+const moreMenuItems = computed<DropdownMenuItem[]>(() => [
+  { key: "batchManage", label: t("songList.batch.manage"), icon: IconLucideListChecks },
+]);
+
+/** 处理更多操作 */
+const handleMore = (key: string): void => {
+  if (key === "batchManage") songListRef.value?.enterBatch();
+};
 
 // 默认展开/选中只在首次拿到非空树时执行一次，之后用户的折叠/选择不再被覆盖
 let defaultsApplied = false;
@@ -131,25 +146,40 @@ onMounted(async () => {
       <div class="flex-1 min-w-0">
         <SongList
           v-if="selectedFolder && selectedTracks.length > 0"
+          ref="songListRef"
           :items="selectedTracks"
           show-album
           show-duration
+          enable-sort
         >
           <template #topInfo>
             <div
-              class="mx-3 mb-2 flex items-center gap-3 px-3 py-3 bg-surface-panel border-2 border-solid border-primary/12 rounded-xl"
+              class="mx-3 mb-2 flex items-center gap-2 pl-3 pr-6 py-3 bg-surface-panel border-2 border-solid border-primary/12 rounded-xl"
             >
               <SButton
                 type="primary"
                 variant="secondary"
                 size="small"
+                round
                 :disabled="selectedTracks.length === 0"
                 @click="handlePlayAll"
               >
                 <template #icon><IconLucidePlay /></template>
                 {{ t("common.playAll") }}
               </SButton>
-              <SDivider vertical class="!h-5" />
+              <SDropdownMenu :items="moreMenuItems" align="start" @select="handleMore">
+                <template #trigger>
+                  <SButton
+                    variant="secondary"
+                    circle
+                    size="small"
+                    :disabled="selectedTracks.length === 0"
+                  >
+                    <template #icon><IconLucideEllipsis /></template>
+                  </SButton>
+                </template>
+              </SDropdownMenu>
+              <SDivider vertical class="h-6 mx-1" />
               <IconLucideFolderOpen class="size-4 text-primary shrink-0" />
               <div class="flex-1 min-w-0">
                 <div class="text-sm font-medium truncate">{{ selectedFolder.name }}</div>

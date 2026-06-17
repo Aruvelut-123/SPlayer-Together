@@ -257,6 +257,15 @@ const { items: contextMenuItems, handleSelect: onContextMenu } = useTrackMenu(co
   onDownload: (track, quality) => void enqueueDownload(track, { quality }),
 });
 
+/** 仅当右键命中歌曲行时放行上下文菜单 */
+const onListContextMenu = (event: MouseEvent): void => {
+  const target = event.target as HTMLElement | null;
+  if (!target?.closest("[data-song-item]")) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+};
+
 const emit = defineEmits<{
   scroll: [event: Event];
   reachBottom: [];
@@ -272,7 +281,7 @@ defineExpose({
 </script>
 
 <template>
-  <div class="relative h-full">
+  <div class="relative h-full" @contextmenu.capture="onListContextMenu">
     <SContextMenu :items="contextMenuItems" @select="onContextMenu">
       <template #header>
         <div v-if="contextTrack">
@@ -485,6 +494,7 @@ defineExpose({
         <template #default="{ item, index }: { item: Track; index: number }">
           <div class="px-3 pb-3">
             <div
+              data-song-item
               class="group flex items-center gap-3 pl-3 pr-6 h-19 rounded-xl cursor-pointer border-2 border-solid transition-[background-color,border-color] duration-200"
               :class="
                 batch.active.value
