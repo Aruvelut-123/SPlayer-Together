@@ -22,6 +22,11 @@ import { registerCacheScheme, handleCacheProtocol } from "@main/utils/protocol";
 import { startServer, stopServer } from "@main/server";
 import { initUpdater, disposeUpdater } from "@main/services/updater";
 import { coreLog, initLogger } from "@main/utils/logger";
+import {
+  initOrpheusRegistration,
+  extractOrpheusUrl,
+  captureOrpheusUrl,
+} from "@main/services/orpheus";
 
 /**
  * 配置 Chromium 启动参数以优化内存占用
@@ -71,12 +76,19 @@ export const initApp = (): void => {
     app.quit();
     return;
   }
-  app.on("second-instance", () => {
+  app.on("second-instance", (_event, commandLine) => {
     const win = BrowserWindow.getAllWindows()[0];
     if (win) {
       if (win.isMinimized()) win.restore();
       win.focus();
     }
+    const url = extractOrpheusUrl(commandLine);
+    if (url) captureOrpheusUrl(url);
+  });
+  // macOS 通过 open-url 接收协议唤起
+  app.on("open-url", (event, url) => {
+    event.preventDefault();
+    captureOrpheusUrl(url);
   });
   // 注册缓存协议方案
   registerCacheScheme();
@@ -92,6 +104,10 @@ export const initApp = (): void => {
     registerIpcHandlers();
     // 创建主窗口
     createMainWindow();
+    // 注册 orpheus 协议并处理冷启动唤起
+    initOrpheusRegistration();
+    const coldOrpheusUrl = extractOrpheusUrl(process.argv);
+    if (coldOrpheusUrl) captureOrpheusUrl(coldOrpheusUrl);
     // 初始化数据库
     initDatabase();
     // 启动歌曲缓存

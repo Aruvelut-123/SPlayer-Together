@@ -52,6 +52,7 @@ const config: Configuration = {
     artifactName: "${productName}-${version}-${arch}.${ext}",
     forceCodeSigning: false,
     target: ["nsis", "portable"],
+    protocols: [{ name: "Orpheus Protocol", schemes: ["orpheus"] }],
   },
   nsis: {
     oneClick: false,
@@ -86,6 +87,7 @@ const config: Configuration = {
         "Application requests access to the user's Documents folder.",
       NSDownloadsFolderUsageDescription:
         "Application requests access to the user's Downloads folder.",
+      CFBundleURLTypes: [{ CFBundleURLName: "Orpheus Protocol", CFBundleURLSchemes: ["orpheus"] }],
     },
     target: ["dmg", "zip"],
   },
@@ -100,6 +102,7 @@ const config: Configuration = {
     category: "Audio;Music;AudioVideo;",
     target: ["AppImage", "deb", "rpm", "tar.gz"],
     syncDesktopName: true,
+    desktop: { entry: { MimeType: "x-scheme-handler/orpheus;" } },
   },
   appImage: {
     artifactName: "${name}-${version}-${arch}.${ext}",

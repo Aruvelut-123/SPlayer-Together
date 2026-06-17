@@ -106,6 +106,8 @@ const applyAll = (): void => {
 /** 启动初始化 */
 export const initGlobalHotkey = (): void => {
   applyAll();
+  // 退出前自动清理
+  app.on("will-quit", cleanupGlobalHotkey);
 };
 
 /** 退出清理 */
@@ -177,8 +179,3 @@ export const probeAccelerator = (accelerator: string): boolean => {
   }
   return ok;
 };
-
-// 退出前自动清理
-app.on("will-quit", () => {
-  cleanupGlobalHotkey();
-});

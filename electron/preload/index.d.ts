@@ -43,6 +43,8 @@ declare global {
           fileName: string,
         ) => Promise<{ success: boolean; path?: string; error?: string }>;
         relaunch: () => Promise<void>;
+        onProtocolUrl: (callback: (url: string) => void) => () => void;
+        consumePendingProtocolUrl: () => Promise<string | null>;
       };
       library: LibraryApi;
       window: WindowApi;

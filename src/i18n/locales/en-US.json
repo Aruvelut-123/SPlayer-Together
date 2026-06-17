@@ -1292,6 +1292,10 @@
       "label": "Use Real IP",
       "description": "May be restricted overseas or in some regions; enable this to try to resolve it"
     },
+    "orpheusProtocol": {
+      "label": "Wake this app via the Orpheus protocol",
+      "description": "This protocol is normally used by the web player to launch the official client; enabling it may prevent the official client from being launched"
+    },
     "streamingEnabled": {
       "label": "Enable streaming",
       "description": "When disabled, the streaming entry is hidden from the sidebar"

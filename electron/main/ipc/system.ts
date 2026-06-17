@@ -11,12 +11,16 @@ import { getThumbar } from "@main/services/thumbar";
 import { getMainWindow, focusMainWindow } from "@main/window";
 import { fetchBytes } from "@main/utils/fetchBytes";
 import { logsDir } from "@main/utils/paths";
+import { consumePendingOrpheusUrl } from "@main/services/orpheus";
 
 /**
  * 注册系统相关的 IPC 事件
  */
 export const registerSystemIpc = (): void => {
   ipcMain.on("ping", () => systemLog.debug("pong"));
+
+  // 渲染层拉取冷启动暂存的 orpheus 唤起 URL
+  ipcMain.handle("system:consumePendingProtocolUrl", () => consumePendingOrpheusUrl());
 
   // 切换开发者工具
   ipcMain.handle("system:toggleDevTools", () => {

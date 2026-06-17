@@ -1280,6 +1280,10 @@
       "label": "使用真实IP地址",
       "description": "在海外或部分地区可能会受到限制，可开启此处尝试解决"
     },
+    "orpheusProtocol": {
+      "label": "通过 Orpheus 协议唤起本应用",
+      "description": "该协议通常用于官方网页端唤起官方客户端，启用后可能导致官方客户端无法被唤起"
+    },
     "streamingEnabled": {
       "label": "启用流媒体",
       "description": "关闭后将隐藏侧边栏的流媒体入口"

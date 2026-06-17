@@ -124,6 +124,12 @@ const api = {
       ipcRenderer.invoke("system:saveFile", data, defaultName),
     // 重启应用
     relaunch: () => ipcRenderer.invoke("system:relaunch"),
+    // 订阅主进程下发的 orpheus 唤起 URL
+    onProtocolUrl: (callback: (url: string) => void) =>
+      subscribe<string>("protocol:orpheus", callback),
+    // 拉取冷启动暂存的 orpheus 唤起 URL
+    consumePendingProtocolUrl: (): Promise<string | null> =>
+      ipcRenderer.invoke("system:consumePendingProtocolUrl"),
   },
   library: {
     // 开始扫描（默认增量）
