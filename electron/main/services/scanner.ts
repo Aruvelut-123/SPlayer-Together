@@ -26,6 +26,7 @@ export const scannedToUpsert = (track: JsScannedTrack): UpsertTrack => {
     id,
     path: track.path,
     title: track.title || track.path.split(/[/\\]/).pop() || track.path,
+    track: track.track,
     artists: parseArtists(track.artist ?? ""),
     album: parseAlbum(track.album ?? ""),
     duration: toMs(track.duration),

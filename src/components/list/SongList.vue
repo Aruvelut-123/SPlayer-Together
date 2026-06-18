@@ -121,7 +121,7 @@ const goAlbum = (item: Track): void => {
 };
 
 /** 排序字段 */
-type SortField = "none" | "title" | "artist" | "album" | "path" | "duration" | "size" | "mtime" | "ctime";
+type SortField = "none" | "title" | "artist" | "album" | "path" | "duration" | "size" | "mtime" | "ctime" | "track";
 /** 排序方向 */
 type SortOrder = "asc" | "desc";
 
@@ -141,6 +141,7 @@ const sortFieldLabelKeyMap: Record<SortField, string> = {
   size: "songList.sort.bySize",
   mtime: "songList.sort.byMtime",
   ctime: "songList.sort.byCtime",
+  track: "songList.sort.byTrack",
 };
 
 /** 表头显示的当前排序文案 */
@@ -183,7 +184,8 @@ const sortedItems = computed(() => {
     else if (field === "duration") value = a.duration - b.duration;
     else if (field === "size") value = (a.fileSize ?? 0) - (b.fileSize ?? 0);
     else if (field === "mtime") value = (a.mtime ?? 0) - (b.mtime ?? 0);
-    else value = (a.ctime ?? 0) - (b.ctime ?? 0);
+    else if (field === "ctime") value = (a.ctime ?? 0) - (b.ctime ?? 0);
+    else /*(field === "track")*/ value = (a.track ?? 0) - (b.track ?? 0);
     if (value !== 0) return value * direction;
     const fallback = textCollator.compare(a.title, b.title);
     if (fallback !== 0) return fallback;
@@ -463,6 +465,7 @@ defineExpose({
                       <SRadio value="size" :label="t('songList.sort.bySize')" />
                       <SRadio value="mtime" :label="t('songList.sort.byMtime')" />
                       <SRadio value="ctime" :label="t('songList.sort.byCtime')" />
+                      <SRadio value="track" :label="t('songList.sort.byTrack')" />
                     </SRadioGroup>
 
                     <div class="h-px bg-outline-variant/25" />

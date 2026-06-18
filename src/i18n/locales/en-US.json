@@ -446,13 +446,15 @@
       "desc": "Descending",
       "byTitle": "Sort by Title",
       "byArtist": "Sort by Artist",
+      "byPath": "Sort by Local Path",
       "byAlbum": "Sort by Album",
       "byDuration": "Sort by Duration",
       "bySize": "Sort by Size",
       "byMtime": "Sort by Modified Time",
       "byCtime": "Sort by Created Time",
       "byName": "Sort by Name",
-      "byTrackCount": "Sort by Song Count"
+      "byTrackCount": "Sort by Song Count",
+      "byTrack": "Sort by Track Number"
     },
     "context": {
       "play": "Play",

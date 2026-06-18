@@ -8,6 +8,7 @@ interface TrackRow {
   id: string;
   path: string;
   title: string;
+  track?: number;
   artists: string;
   album: string | null;
   duration: number;
@@ -41,6 +42,7 @@ const rowToTrack = (row: TrackRow): Track => {
     source: "local",
     path: row.path,
     title: row.title,
+    track: row.track ?? undefined,
     artists: JSON.parse(row.artists) as Artist[],
     album: row.album ? (JSON.parse(row.album) as Album) : undefined,
     duration: row.duration,
@@ -101,6 +103,7 @@ export interface UpsertTrack {
   id: string;
   path: string;
   title: string;
+  track?: number;
   artists: Artist[];
   album?: Album;
   duration: number;
@@ -121,9 +124,9 @@ export const upsertTracks = (tracks: UpsertTrack[]): void => {
   const d = getDb();
   const stmt = d.prepare(`
     INSERT OR REPLACE INTO tracks
-      (id, path, title, artists, album, duration, cover, codec, sample_rate, bit_rate, channels, bits_per_sample, file_size, file_mtime, file_ctime, scanned_at)
+      (id, path, title, track, artists, album, duration, cover, codec, sample_rate, bit_rate, channels, bits_per_sample, file_size, file_mtime, file_ctime, scanned_at)
     VALUES
-      (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const now = Date.now();
   const tx = d.transaction(() => {
@@ -132,6 +135,7 @@ export const upsertTracks = (tracks: UpsertTrack[]): void => {
         t.id,
         t.path,
         t.title,
+        t.track ?? null,
         JSON.stringify(t.artists),
         t.album ? JSON.stringify(t.album) : null,
         t.duration,

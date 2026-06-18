@@ -207,6 +207,8 @@ export interface JsScannedTrack {
   title?: string
   artist?: string
   album?: string
+  /** 音轨编号 */
+  track?: number
   /** 时长（秒） */
   duration: number
   codec: string
