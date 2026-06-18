@@ -25,7 +25,7 @@ pnpm dev -- --ozone-platform=x11
 1. 找到 SPlayer-Next 的 `.desktop` 文件（通常在 `/usr/share/applications/` 下，文件名为 `top.imsyy.splayer_next.desktop`）；
 2. 复制到 `~/.local/share/applications/`；
 3. 用文本编辑器打开，找到 `Exec=` 开头的行，在可执行文件后追加 `--ozone-platform=x11`，例如：
-   ```
+   ```desktop
    Exec=/opt/SPlayer-Next/SPlayer-Next --ozone-platform=x11 %U
    ```
 4. 保存退出。
