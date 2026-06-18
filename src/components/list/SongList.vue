@@ -121,7 +121,17 @@ const goAlbum = (item: Track): void => {
 };
 
 /** 排序字段 */
-type SortField = "none" | "title" | "artist" | "album" | "path" | "duration" | "size" | "mtime" | "ctime" | "track";
+type SortField =
+  | "none"
+  | "title"
+  | "artist"
+  | "album"
+  | "path"
+  | "duration"
+  | "size"
+  | "mtime"
+  | "ctime"
+  | "track";
 /** 排序方向 */
 type SortOrder = "asc" | "desc";
 
@@ -173,7 +183,7 @@ const sortedItems = computed(() => {
 
   const toArtistText = (track: Track): string => track.artists.map((a) => a.name).join(" / ");
   const toAlbumText = (track: Track): string => track.album?.name ?? "";
-  const toPathText = (track: Track): string => track.path?? "";
+  const toPathText = (track: Track): string => track.path ?? "";
 
   const compare = (a: Track, b: Track): number => {
     let value = 0;
