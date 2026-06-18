@@ -20,17 +20,35 @@ pnpm install
 
 # 启动开发（先以 debug 构建原生模块，再启动 Electron）
 pnpm dev
+
+# 启动开发时向程序传递参数
+pnpm dev -- [参数]...
 ```
 
 只做界面开发、想跳过 Rust 编译时，可设置 `SKIP_NATIVE_BUILD=true`。
 
 ## 构建
 
+基础命令
+
 ```bash
 pnpm build         # 完整构建：清理 → 原生模块 → 类型检查 → electron-vite
 pnpm build:win     # 打包 Windows
 pnpm build:mac     # 打包 macOS
 pnpm build:linux   # 打包 Linux
+```
+
+高级命令
+
+```bash
+# 上面的构建命令默认会构建当前平台和架构的全部 target。可以通过下面的方法指定只打包某些 target
+pnpm build:win nsis       # 打包 Windows 的 nsis 格式
+pnpm build:mac dmg        # 打包 macOS 的 dmg 格式
+pnpm build:linux tar.gz   # 打包 Linux 的 tar.gz 格式
+# 全部 target 的列表详见 https://www.electron.build/docs/targets
+
+# 仅构建未打包的程序目录，常用于本地测试（在 dist/xxx-unpacked 目录）
+pnpm build:unpack
 ```
 
 ## 常用脚本
