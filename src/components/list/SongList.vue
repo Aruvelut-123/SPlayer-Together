@@ -121,7 +121,7 @@ const goAlbum = (item: Track): void => {
 };
 
 /** 排序字段 */
-type SortField = "none" | "title" | "artist" | "album" | "duration" | "size" | "mtime" | "ctime";
+type SortField = "none" | "title" | "artist" | "album" | "path" | "duration" | "size" | "mtime" | "ctime";
 /** 排序方向 */
 type SortOrder = "asc" | "desc";
 
@@ -136,6 +136,7 @@ const sortFieldLabelKeyMap: Record<SortField, string> = {
   title: "songList.sort.byTitle",
   artist: "songList.sort.byArtist",
   album: "songList.sort.byAlbum",
+  path: "songList.sort.byPath",
   duration: "songList.sort.byDuration",
   size: "songList.sort.bySize",
   mtime: "songList.sort.byMtime",
@@ -171,12 +172,14 @@ const sortedItems = computed(() => {
 
   const toArtistText = (track: Track): string => track.artists.map((a) => a.name).join(" / ");
   const toAlbumText = (track: Track): string => track.album?.name ?? "";
+  const toPathText = (track: Track): string => track.path?? "";
 
   const compare = (a: Track, b: Track): number => {
     let value = 0;
     if (field === "title") value = textCollator.compare(a.title, b.title);
     else if (field === "artist") value = textCollator.compare(toArtistText(a), toArtistText(b));
     else if (field === "album") value = textCollator.compare(toAlbumText(a), toAlbumText(b));
+    else if (field === "path") value = textCollator.compare(toPathText(a), toPathText(b));
     else if (field === "duration") value = a.duration - b.duration;
     else if (field === "size") value = (a.fileSize ?? 0) - (b.fileSize ?? 0);
     else if (field === "mtime") value = (a.mtime ?? 0) - (b.mtime ?? 0);
@@ -455,6 +458,7 @@ defineExpose({
                       <SRadio value="title" :label="t('songList.sort.byTitle')" />
                       <SRadio value="artist" :label="t('songList.sort.byArtist')" />
                       <SRadio value="album" :label="t('songList.sort.byAlbum')" />
+                      <SRadio value="path" :label="t('songList.sort.byPath')" />
                       <SRadio value="duration" :label="t('songList.sort.byDuration')" />
                       <SRadio value="size" :label="t('songList.sort.bySize')" />
                       <SRadio value="mtime" :label="t('songList.sort.byMtime')" />
