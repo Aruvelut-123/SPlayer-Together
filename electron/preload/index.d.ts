@@ -19,6 +19,7 @@ import { LastfmApi } from "@shared/types/lastfm";
 import { IpcResponse } from "@shared/types/player";
 import { StatsApi } from "@shared/types/stats";
 import { UpdateApi } from "@shared/types/update";
+import { CloudUploadApi } from "@shared/types/cloudUpload";
 
 declare global {
   interface Window {
@@ -54,6 +55,7 @@ declare global {
       nowPlaying: NowPlayingApi;
       plugins: PluginsApi;
       apis: ApisApi;
+      cloud: CloudUploadApi;
       lyrics: LyricsApi;
       download: DownloadApi;
       theme: {

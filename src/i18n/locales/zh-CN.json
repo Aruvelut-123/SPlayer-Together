@@ -518,7 +518,20 @@
     "removeAction": "从云盘删除",
     "removeTitle": "删除云盘歌曲",
     "removeConfirmOne": "确认从云盘删除「{title}」？此操作不可撤销",
-    "removeConfirm": "确认从云盘删除选中的 {count} 首歌？此操作不可撤销"
+    "removeConfirm": "确认从云盘删除选中的 {count} 首歌？此操作不可撤销",
+    "upload": {
+      "button": "上传",
+      "title": "上传到云盘",
+      "selectFile": "选择文件",
+      "emptyHint": "点击「选择文件」添加要上传的歌曲",
+      "clearFinished": "清除已完成",
+      "instant": "秒传",
+      "done": "完成",
+      "reading": "读取中",
+      "retry": "重试",
+      "remove": "移除",
+      "capacityFull": "云盘空间不足"
+    }
   },
   "history": {
     "title": "播放历史",

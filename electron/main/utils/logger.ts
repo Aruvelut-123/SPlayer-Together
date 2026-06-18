@@ -90,3 +90,4 @@ export const serverLog = log.scope("server");
 export const pluginLog = log.scope("plugin");
 export const lastfmLog = log.scope("lastfm");
 export const updaterLog = log.scope("updater");
+export const cloudLog = log.scope("cloud");

@@ -8,6 +8,7 @@ import type { StreamingServerConfig } from "@shared/types/streaming";
 import type { PlayEventInput, FavoriteEventInput } from "@shared/types/stats";
 import type { TagEditRequest } from "@shared/types/tagEditor";
 import type { UpdateEvent } from "@shared/types/update";
+import type { CloudUploadProgress } from "@shared/types/cloudUpload";
 
 /** 订阅主进程推送的事件 */
 const subscribe = <T>(channel: string, callback: (data: T) => void): (() => void) => {
@@ -312,6 +313,16 @@ const api = {
     // 手动写入 cookie 登录
     setCookie: (platform: string, cookie: string) =>
       ipcRenderer.invoke("apis:setCookie", platform, cookie),
+  },
+  cloud: {
+    // 弹出文件选择器选择待上传歌曲
+    pickSongs: () => ipcRenderer.invoke("cloud:pickSongs"),
+    // 上传单首(path + 队列项 id)
+    uploadSong: (path: string, uploadId: string) =>
+      ipcRenderer.invoke("cloud:uploadSong", path, uploadId),
+    // 订阅上传进度
+    onUploadProgress: (callback: (progress: CloudUploadProgress) => void) =>
+      subscribe<CloudUploadProgress>("cloud:upload-progress", callback),
   },
   lyrics: {
     // 按 id 直取某平台歌词

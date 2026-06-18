@@ -530,7 +530,20 @@
     "removeAction": "Remove from cloud",
     "removeTitle": "Remove from Cloud",
     "removeConfirmOne": "Remove \"{title}\" from your cloud? This cannot be undone.",
-    "removeConfirm": "Remove {count} songs from your cloud? This cannot be undone."
+    "removeConfirm": "Remove {count} songs from your cloud? This cannot be undone.",
+    "upload": {
+      "button": "Upload",
+      "title": "Upload to Cloud",
+      "selectFile": "Select files",
+      "emptyHint": "Click Select files to add songs",
+      "clearFinished": "Clear finished",
+      "instant": "Instant",
+      "done": "Done",
+      "reading": "Reading",
+      "retry": "Retry",
+      "remove": "Remove",
+      "capacityFull": "Not enough cloud space"
+    }
   },
   "history": {
     "title": "Play History",

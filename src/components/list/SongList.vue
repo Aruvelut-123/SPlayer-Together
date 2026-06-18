@@ -155,8 +155,10 @@ const filteredItems = computed(() => {
   const query = props.searchQuery.trim().toLowerCase();
   if (!query) return props.items;
   return props.items.filter((track) => {
-    const title = track.title.toLowerCase();
-    const artists = track.artists.map((a) => a.name.toLowerCase()).join(" ");
+    const title = (track.title ?? "").toLowerCase();
+    const artists = (track.artists ?? [])
+      .map((artist) => (artist.name ?? "").toLowerCase())
+      .join(" ");
     const album = track.album?.name?.toLowerCase() ?? "";
     return title.includes(query) || artists.includes(query) || album.includes(query);
   });
