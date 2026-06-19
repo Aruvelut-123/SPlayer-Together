@@ -435,12 +435,14 @@
       "byTitle": "按标题",
       "byArtist": "按歌手",
       "byAlbum": "按专辑",
+      "byPath": "按文件路径",
       "byDuration": "按时长",
       "bySize": "按大小",
       "byMtime": "按修改时间",
       "byCtime": "按创建时间",
       "byName": "按名称",
-      "byTrackCount": "按歌曲数量"
+      "byTrackCount": "按歌曲数量",
+      "byTrack": "按曲目编号"
     },
     "context": {
       "play": "播放",

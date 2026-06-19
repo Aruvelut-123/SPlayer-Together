@@ -86,6 +86,8 @@ export interface Track {
   artists: Artist[];
   /** 专辑 */
   album?: Album;
+  /** 曲目编号 */
+  track?: number;
   /** 时长（毫秒） */
   duration: number;
   /** 封面 */

@@ -26,6 +26,7 @@ pub struct Tags {
     pub title: Option<String>,
     pub artist: Option<String>,
     pub album: Option<String>,
+    pub track: Option<u16>,
     pub comment: Option<String>,
 }
 
@@ -60,11 +61,13 @@ pub fn extract_tags(dict: &HashMap<String, String>) -> Tags {
         .or_else(|| dict_get(dict, "album_artist"))
         .map(ToString::to_string);
     let album = dict_get(dict, "album").map(ToString::to_string);
+    let track = dict_get(dict, "track").and_then(|s| s.parse().ok());
     let comment = dict_get(dict, "comment").map(ToString::to_string);
     Tags {
         title,
         artist,
         album,
+        track,
         comment,
     }
 }

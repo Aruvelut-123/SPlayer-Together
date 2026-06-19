@@ -36,6 +36,7 @@ export const initDatabase = (): void => {
       id TEXT PRIMARY KEY,
       path TEXT NOT NULL UNIQUE,
       title TEXT NOT NULL,
+      track INTEGER,
       artists TEXT NOT NULL DEFAULT '[]',
       album TEXT,
       duration INTEGER NOT NULL,
