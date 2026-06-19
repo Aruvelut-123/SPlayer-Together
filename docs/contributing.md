@@ -79,6 +79,24 @@ shared/             跨进程共享的类型与默认配置
 - **原生类型**：从 `@splayer/*` 导入，切勿手写 `native/*/index.d.ts`。
 - **提交信息**：使用单行中文标题，无特殊说明不附正文。
 
+## 国际化
+
+本项目使用 [vue-i18n](https://vue-i18n.intlify.dev/) 进行国际化
+
+### Visual Studio Code 系列
+
+推荐使用 [i18n Ally](https://marketplace.visualstudio.com/items?itemName=Lokalise.i18n-ally) 插件
+
+### JetBrains 系列
+
+推荐使用 [Easy i18n](https://plugins.jetbrains.com/plugin/16316-easy-i18n) 插件
+
+1. 安装插件
+2. 打开本项目，在 **设置 → 工具 → Easy i18n** 中配置此插件
+3. 在 **Modules Configuration → Add new module**，输入 SPlayer-Next（或任意名称），点击右侧的加号，新建模块
+4. 在下方的配置中，找到 **Preset** 选择 **VUE_I18N**。在 **Resource Configuration** 的 **Path template** 中填写 `$PROJECT_DIR$/src/i18n/locales/{locale}.json`
+5. (可选) 在上方的 **Common Configuration** 的 **Preview locale** 中填写 `zh-CN`
+
 ## 提交 Pull Request
 
 1. 从 `dev` 分支切出特性分支进行开发；
