@@ -87,6 +87,15 @@ shared/             跨进程共享的类型与默认配置
 
 推荐使用 [i18n Ally](https://marketplace.visualstudio.com/items?itemName=Lokalise.i18n-ally) 插件
 
+1. 安装插件
+2. 打开本项目，打开 `.vscode` 文件夹（若找不到，需要打开显示隐藏文件）
+3. 编辑或新建 `settings.json` 文件，编辑或新增 `i18n-ally.localesPaths`，值为 `./src/i18n/locales/`，就像这样
+   ```json
+   {
+     "i18n-ally.localesPaths": "./src/i18n/locales/"
+   }
+   ```
+
 ### JetBrains 系列
 
 推荐使用 [Easy i18n](https://plugins.jetbrains.com/plugin/16316-easy-i18n) 插件
