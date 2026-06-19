@@ -14,7 +14,7 @@
 2. 或在终端执行：
 
    ```bash
-   xattr -cr /Applications/SPlayer-Next.app
+   sudo xattr -rd com.apple.quarantine /Applications/SPlayer-Next.app
    ```
 
 若提示“应用已损坏”，请参考 [Mac 应用显示已损坏](/troubleshooting/macos-damaged)。
@@ -22,8 +22,8 @@
 ### Gatekeeper 持续阻止
 
 ```bash
-# 移除隔离属性
-sudo xattr -r -d com.apple.quarantine /Applications/SPlayer-Next.app
+# 强制移除所有属性
+sudo xattr -cr /Applications/SPlayer-Next.app
 ```
 
 ## 系统集成
