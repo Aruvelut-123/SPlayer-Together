@@ -15,15 +15,25 @@ const SCROBBLE_MIN_DURATION_SEC = 30;
 const SCROBBLE_MAX_WAIT_SEC = 240;
 
 let current: NeteaseScrobbleTrack | null = null;
+/** 最近一次加载的可打卡曲目 */
+let loaded: NeteaseScrobbleTrack | null = null;
 /** 暂停前已累计的播放毫秒 */
 let playedMs = 0;
 /** 本段播放开始的墙钟时间戳；未在播放时为 null */
 let playSince: number | null = null;
 /** 当前曲目是否已尝试打卡 */
 let attempted = false;
+/** 上一次收到的源时间位置 */
+let lastPositionMs = 0;
+/** 当前播放轮次，用于丢弃旧请求回包 */
+let cycleId = 0;
 
 /** 当前累计实际播放毫秒 */
 const elapsedMs = (): number => playedMs + (playSince != null ? Date.now() - playSince : 0);
+
+/** 当前曲目的打卡阈值 */
+const thresholdMs = (track: NeteaseScrobbleTrack): number =>
+  Math.min(track.durationSec / 2, SCROBBLE_MAX_WAIT_SEC) * 1000;
 
 /** 是否看起来是网易云登录态 */
 const isLoggedIn = (): boolean => Boolean(getNeteaseCookies().MUSIC_U);
@@ -51,32 +61,54 @@ const toScrobbleTrack = (track: Track | null, durationMs: number): NeteaseScrobb
 /** 达标则提交一次听歌打卡 */
 const maybeSubmit = (): void => {
   if (!current || attempted) return;
-  const thresholdMs = Math.min(current.durationSec / 2, SCROBBLE_MAX_WAIT_SEC) * 1000;
   const playedMsNow = elapsedMs();
-  if (playedMsNow < thresholdMs) return;
+  if (playedMsNow < thresholdMs(current)) return;
   attempted = true;
   if (!isLoggedIn()) return;
   const track = current;
+  const requestCycleId = cycleId;
   const playedSec = Math.max(1, Math.min(track.durationSec, Math.round(playedMsNow / 1000)));
   callNetease("scrobble", {
     id: track.id,
     sourceid: track.sourceId,
     time: playedSec,
   })
-    .then(() => neteaseLog.debug(`听歌打卡: ${track.title}`))
-    .catch((err) => neteaseLog.warn("听歌打卡失败:", err));
+    .then(() => {
+      if (requestCycleId === cycleId) neteaseLog.debug(`听歌打卡: ${track.title}`);
+    })
+    .catch((err) => {
+      if (requestCycleId === cycleId) neteaseLog.warn("听歌打卡失败:", err);
+    });
 };
 
-/** 结算当前曲目，切歌/结束前补一次达标检查 */
+/** 重置本轮播放状态 */
+const resetCycle = (): void => {
+  cycleId++;
+  current = null;
+  playedMs = 0;
+  playSince = null;
+  attempted = false;
+  lastPositionMs = 0;
+};
+
+/** 开启一轮播放 */
+const beginCycle = (autoPlay: boolean): void => {
+  cycleId++;
+  current = loaded;
+  playedMs = 0;
+  attempted = false;
+  lastPositionMs = 0;
+  playSince = current && autoPlay ? Date.now() : null;
+};
+
+/** 结算当前播放轮次，切歌/结束前补一次达标检查 */
 const flush = (): void => {
   if (playSince != null) {
     playedMs += Date.now() - playSince;
     playSince = null;
   }
   maybeSubmit();
-  current = null;
-  playedMs = 0;
-  attempted = false;
+  resetCycle();
 };
 
 /**
@@ -87,10 +119,8 @@ const flush = (): void => {
  */
 export const onTrackLoaded = (track: Track | null, durationMs: number, autoPlay: boolean): void => {
   flush();
-  current = toScrobbleTrack(track, durationMs);
-  playedMs = 0;
-  attempted = false;
-  playSince = current && autoPlay ? Date.now() : null;
+  loaded = toScrobbleTrack(track, durationMs);
+  beginCycle(autoPlay);
 };
 
 /**
@@ -101,18 +131,34 @@ export const onState = (playing: boolean): void => {
   if (!current) return;
   if (playing) {
     if (playSince == null) playSince = Date.now();
-  } else if (playSince != null) {
-    playedMs += Date.now() - playSince;
-    playSince = null;
+  } else {
+    if (playSince != null) {
+      playedMs += Date.now() - playSince;
+      playSince = null;
+    }
+    maybeSubmit();
   }
 };
 
-/** 播放进度推进 */
-export const onPosition = (): void => {
+/**
+ * 播放进度推进
+ * @param positionMs - 当前源时间位置
+ */
+export const onPosition = (positionMs: number): void => {
+  if (current && attempted) {
+    const limit = thresholdMs(current);
+    const returnedBeforeThreshold = lastPositionMs >= limit && positionMs < limit;
+    const jumpedBack = positionMs + 1000 < lastPositionMs;
+    if (positionMs < limit && (returnedBeforeThreshold || jumpedBack)) {
+      beginCycle(playSince != null);
+    }
+  }
+  lastPositionMs = positionMs;
   maybeSubmit();
 };
 
 /** 自然播放结束 */
 export const onEnded = (): void => {
   flush();
+  beginCycle(false);
 };
