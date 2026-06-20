@@ -12,6 +12,7 @@ docs/.vitepress/dist
 skills-lock.json
 *.log*
 .vscode/settings.json
+.idea
 
 # Rust build artifacts
 **/target

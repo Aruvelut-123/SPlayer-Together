@@ -8,6 +8,7 @@ import { toMs } from "@main/utils/time";
 import * as mediaService from "@main/services/media";
 import * as nowPlaying from "@main/services/nowPlaying";
 import * as lastfm from "@main/services/lastfm";
+import * as neteaseScrobble from "@main/services/neteaseScrobble";
 import { fetchBytes } from "@main/utils/fetchBytes";
 import { getPlayer, resetPlayer, onPlayerCreated } from "@main/services/engine";
 import { startDevicePolling, stopDevicePolling } from "@main/services/device";
@@ -61,6 +62,7 @@ const registerNativeEvents = (inst: InstanceType<AudioEngineModule["AudioPlayer"
         }
         nowPlaying.onPlayStateChange(state === "playing");
         lastfm.onState(state === "playing");
+        neteaseScrobble.onState(state === "playing");
         const statusEvent = {
           type: "status",
           data: {
@@ -80,6 +82,7 @@ const registerNativeEvents = (inst: InstanceType<AudioEngineModule["AudioPlayer"
         wsBroadcast({ type: "ended" });
         mediaService.setPlayState({ status: "Paused" });
         lastfm.onEnded();
+        neteaseScrobble.onEnded();
         setTaskbarProgress(-1);
         break;
       }
@@ -103,6 +106,7 @@ const registerNativeEvents = (inst: InstanceType<AudioEngineModule["AudioPlayer"
         mediaService.setTimeline({ currentMs: posMs, totalMs: durMs });
         nowPlaying.onPosition(posMs, true);
         lastfm.onPosition();
+        neteaseScrobble.onPosition();
         if (store.get("system.taskbarProgress") && durMs > 0) setTaskbarProgress(posMs / durMs);
         break;
       }
@@ -211,6 +215,7 @@ export const registerPlayerIpc = (): void => {
         durationMs,
         autoPlay,
       });
+      neteaseScrobble.onTrackLoaded(authoritative, durationMs, autoPlay);
       // 远端高清封面
       if (coverUrl) {
         void fetchBytes(coverUrl).then((buf) => {

@@ -37,6 +37,7 @@ const SESSION_MUTATING: ReadonlySet<string> = new Set([
 const NON_CACHEABLE: ReadonlySet<string> = new Set([
   "song_url",
   "song_download_url",
+  "scrobble",
   "like",
   "playlist_create",
   "playlist_delete",

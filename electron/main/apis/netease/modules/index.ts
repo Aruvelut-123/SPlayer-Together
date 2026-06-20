@@ -56,6 +56,7 @@ import song_download_url from "./song_download_url";
 import playmode_intelligence from "./playmode_intelligence";
 import personal_fm from "./personal_fm";
 import fm_trash from "./fm_trash";
+import scrobble from "./scrobble";
 
 // 每日推荐 / 发现
 import recommend_songs from "./recommend_songs";
@@ -135,6 +136,7 @@ export const modules: Record<string, NeteaseModule> = {
   playmode_intelligence,
   personal_fm,
   fm_trash,
+  scrobble,
 
   recommend_songs,
   personalized,
