@@ -56,6 +56,12 @@ export const OS_MAP = {
     osver: "16.2",
     channel: "distribution",
   },
+  osx: {
+    os: "osx",
+    appver: "3.1.10.5100",
+    osver: "15.5",
+    channel: "netease",
+  },
 } as const;
 
 /** 不同加密方式 + 设备类型下的 User-Agent */
