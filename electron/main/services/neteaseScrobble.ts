@@ -19,8 +19,8 @@ let current: NeteaseScrobbleTrack | null = null;
 let playedMs = 0;
 /** 本段播放开始的墙钟时间戳；未在播放时为 null */
 let playSince: number | null = null;
-/** 当前曲目是否已打卡 */
-let submitted = false;
+/** 当前曲目是否已尝试打卡 */
+let attempted = false;
 
 /** 当前累计实际播放毫秒 */
 const elapsedMs = (): number => playedMs + (playSince != null ? Date.now() - playSince : 0);
@@ -50,16 +50,18 @@ const toScrobbleTrack = (track: Track | null, durationMs: number): NeteaseScrobb
 
 /** 达标则提交一次听歌打卡 */
 const maybeSubmit = (): void => {
-  if (!current || submitted) return;
+  if (!current || attempted) return;
   const thresholdMs = Math.min(current.durationSec / 2, SCROBBLE_MAX_WAIT_SEC) * 1000;
-  if (elapsedMs() < thresholdMs) return;
-  submitted = true;
+  const playedMsNow = elapsedMs();
+  if (playedMsNow < thresholdMs) return;
+  attempted = true;
   if (!isLoggedIn()) return;
   const track = current;
+  const playedSec = Math.max(1, Math.min(track.durationSec, Math.round(playedMsNow / 1000)));
   callNetease("scrobble", {
     id: track.id,
     sourceid: track.sourceId,
-    time: track.durationSec,
+    time: playedSec,
   })
     .then(() => neteaseLog.debug(`听歌打卡: ${track.title}`))
     .catch((err) => neteaseLog.warn("听歌打卡失败:", err));
@@ -74,7 +76,7 @@ const flush = (): void => {
   maybeSubmit();
   current = null;
   playedMs = 0;
-  submitted = false;
+  attempted = false;
 };
 
 /**
@@ -87,7 +89,7 @@ export const onTrackLoaded = (track: Track | null, durationMs: number, autoPlay:
   flush();
   current = toScrobbleTrack(track, durationMs);
   playedMs = 0;
-  submitted = false;
+  attempted = false;
   playSince = current && autoPlay ? Date.now() : null;
 };
 
