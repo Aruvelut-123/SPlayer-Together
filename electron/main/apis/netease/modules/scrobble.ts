@@ -8,15 +8,15 @@ import { createOption } from "../core/option";
 import type { NeteaseModule } from "../core/types";
 
 const scrobble: NeteaseModule = async (query, request) => {
-  if (typeof query.cookie === "object" && query.cookie) {
-    query.cookie = { os: "osx", ...query.cookie };
-  } else if (typeof query.cookie === "string") {
-    query.cookie = query.cookie.includes("os=")
-      ? query.cookie.replace(/os=[^;]+/g, "os=osx")
-      : `${query.cookie}; os=osx`;
+  let cookie: string | Record<string, string> = query.cookie || "";
+  if (typeof cookie === "object") {
+    cookie = Object.assign({ os: "osx" }, cookie);
+  } else if (typeof cookie === "string") {
+    cookie = cookie.includes("os=") ? cookie.replace(/os=[^;]+/g, "os=osx") : `${cookie}; os=osx`;
   } else {
-    query.cookie = "os=osx";
+    cookie = "os=osx";
   }
+  query.cookie = cookie;
 
   const startplayData = {
     logs: JSON.stringify([
