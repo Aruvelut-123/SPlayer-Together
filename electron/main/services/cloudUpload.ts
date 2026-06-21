@@ -13,6 +13,7 @@ import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { stat } from "node:fs/promises";
 import { Transform } from "node:stream";
+import { pipeline } from "node:stream/promises";
 import { callNetease } from "@main/apis/netease";
 import { getEngine } from "@main/services/engine";
 import { cloudLog } from "@main/utils/logger";
@@ -116,7 +117,7 @@ const uploadToNos = (
         callback(null, chunk);
       },
     });
-    createReadStream(filePath).pipe(counter).pipe(req);
+    void pipeline(createReadStream(filePath), counter, req).catch(reject);
   });
 
 /**

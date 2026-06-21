@@ -82,15 +82,20 @@ export const useCloudUploadStore = defineStore("cloudUpload", () => {
         if (!next) break;
         next.status = "reading";
         next.progress = 0;
-        const res: CloudUploadResult = await window.api.cloud.uploadSong(next.path, next.id);
-        if (res.success) {
-          next.status = res.instant ? "instant" : "success";
-          next.progress = 100;
-          next.songId = res.songId;
-          anySuccess = true;
-        } else {
+        try {
+          const res: CloudUploadResult = await window.api.cloud.uploadSong(next.path, next.id);
+          if (res.success) {
+            next.status = res.instant ? "instant" : "success";
+            next.progress = 100;
+            next.songId = res.songId;
+            anySuccess = true;
+          } else {
+            next.status = "error";
+            next.error = res.error;
+          }
+        } catch (err) {
           next.status = "error";
-          next.error = res.error;
+          next.error = err instanceof Error ? err.message : String(err);
         }
       }
     } finally {
