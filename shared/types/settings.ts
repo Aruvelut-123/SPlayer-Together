@@ -389,7 +389,9 @@ export interface SystemConfig {
     onboardingCompleted: boolean;
     /** NCM请求注入国内 IP（X-Real-IP/X-Forwarded-For） */
     neteaseRealIp: boolean;
-    /** 网易云听歌打卡上报方式 */
+    /** 听歌打卡开关 */
+    neteaseScrobbleEnabled: boolean;
+    /** 听歌打卡上报方式 */
     neteaseScrobbleMode: NeteaseScrobbleMode;
     /** 注册为 Orpheus 协议处理程序，抢占网页端「用客户端打开」 */
     registerOrpheusProtocol: boolean;
