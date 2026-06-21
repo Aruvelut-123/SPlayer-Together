@@ -159,7 +159,10 @@ const shapeExtraWidth = computed(() => (mode.value === "snapped" ? SHAPE_SIDE_OV
 const maxLyricSlotWidth = computed(() => {
   const windowLimit = getRendererWindowLimit();
   const currentWindowWidth = Math.max(MIN_SHAPE_WIDTH, viewportWidth.value);
-  return Math.max(1, Math.min(windowLimit, currentWindowWidth) - fixedContentWidth.value - shapeExtraWidth.value);
+  return Math.max(
+    1,
+    Math.min(windowLimit, currentWindowWidth) - fixedContentWidth.value - shapeExtraWidth.value,
+  );
 });
 
 const getLyricSlotWidth = (lyricPx: number): number =>

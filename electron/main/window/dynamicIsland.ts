@@ -123,12 +123,17 @@ const getCurrentDisplay = (): Electron.Display => {
  * @param display - 当前窗口所在显示器
  * @returns 吸附后的左上角坐标
  */
-const computeSnappedPos = (display: Electron.Display = getCurrentDisplay()): { x: number; y: number } => {
+const computeSnappedPos = (
+  display: Electron.Display = getCurrentDisplay(),
+): { x: number; y: number } => {
   const bounds = display.bounds;
   const notch = getNotchMetrics(display);
   const centerX = display.bounds.x + Math.round(display.bounds.width / 2);
   const leftFromCenter = centerX - Math.round(cachedSize.width / 2);
-  const x = Math.max(bounds.x, Math.min(bounds.x + bounds.width - cachedSize.width, leftFromCenter));
+  const x = Math.max(
+    bounds.x,
+    Math.min(bounds.x + bounds.width - cachedSize.width, leftFromCenter),
+  );
   return { x, y: bounds.y + notch.topOffset };
 };
 
