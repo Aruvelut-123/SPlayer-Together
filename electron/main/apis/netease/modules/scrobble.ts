@@ -5,6 +5,7 @@
  */
 
 import { createOption } from "../core/option";
+import { CLIENT_LOG_DOMAIN } from "../core/config";
 import type { NeteaseModule } from "../core/types";
 
 const scrobble: NeteaseModule = async (query, request) => {
@@ -55,7 +56,7 @@ const scrobble: NeteaseModule = async (query, request) => {
   };
 
   const option = createOption(query, "eapi");
-  option.domain = "https://clientlog.music.163.com";
+  option.domain = CLIENT_LOG_DOMAIN;
 
   const startplay = await request("/api/feedback/weblog", startplayData, option);
   const play = await request("/api/feedback/weblog", playData, option);

@@ -38,6 +38,7 @@ const NON_CACHEABLE: ReadonlySet<string> = new Set([
   "song_url",
   "song_download_url",
   "scrobble",
+  "scrobble_v1",
   "like",
   "playlist_create",
   "playlist_delete",

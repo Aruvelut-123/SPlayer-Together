@@ -16,6 +16,16 @@ const servicesCategory: SettingCategory = {
           binding: { store: "settings", path: "system.system.neteaseRealIp" },
           defaultValue: false,
         },
+        {
+          key: "neteaseScrobbleMode",
+          type: "select",
+          binding: { store: "settings", path: "system.system.neteaseScrobbleMode" },
+          options: [
+            { value: "legacy", labelKey: "settings.neteaseScrobbleMode.legacy" },
+            { value: "ncbl", labelKey: "settings.neteaseScrobbleMode.ncbl" },
+          ],
+          defaultValue: "ncbl",
+        },
       ],
     },
     {

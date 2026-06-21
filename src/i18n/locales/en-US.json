@@ -1294,6 +1294,12 @@
       "label": "Use Real IP",
       "description": "May be restricted overseas or in some regions; enable this to try to resolve it"
     },
+    "neteaseScrobbleMode": {
+      "label": "NetEase scrobble method",
+      "description": "Choose which reporting interface is used for automatic NetEase listening records",
+      "legacy": "Legacy log API",
+      "ncbl": "NCBL encrypted API"
+    },
     "orpheusProtocol": {
       "label": "Wake this app via the Orpheus protocol",
       "description": "This protocol is normally used by the web player to launch the official client; enabling it may prevent the official client from being launched"

@@ -344,6 +344,9 @@ export interface AppUpdateSettings {
   autoCheck: boolean;
 }
 
+/** 网易云听歌打卡上报方式 */
+export type NeteaseScrobbleMode = "legacy" | "ncbl";
+
 /** 后端配置汇总 */
 export interface SystemConfig {
   /** 播放器配置 */
@@ -386,6 +389,8 @@ export interface SystemConfig {
     onboardingCompleted: boolean;
     /** NCM请求注入国内 IP（X-Real-IP/X-Forwarded-For） */
     neteaseRealIp: boolean;
+    /** 网易云听歌打卡上报方式 */
+    neteaseScrobbleMode: NeteaseScrobbleMode;
     /** 注册为 Orpheus 协议处理程序，抢占网页端「用客户端打开」 */
     registerOrpheusProtocol: boolean;
   };

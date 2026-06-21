@@ -1282,6 +1282,12 @@
       "label": "使用真实IP地址",
       "description": "在海外或部分地区可能会受到限制，可开启此处尝试解决"
     },
+    "neteaseScrobbleMode": {
+      "label": "网易云听歌打卡方式",
+      "description": "选择自动同步网易云听歌记录时使用的上报接口",
+      "legacy": "原版日志接口",
+      "ncbl": "NCBL 加密接口"
+    },
     "orpheusProtocol": {
       "label": "通过 Orpheus 协议唤起本应用",
       "description": "该协议通常用于官方网页端唤起官方客户端，启用后可能导致官方客户端无法被唤起"

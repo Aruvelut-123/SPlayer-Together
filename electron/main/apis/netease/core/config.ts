@@ -22,6 +22,10 @@ MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDgtQn2JZ34ZC28NWYpAUd98iZ37BUrX/aKzmFbt7cl
 export const DOMAIN = "https://music.163.com";
 /** 客户端接口域名（api/eapi） */
 export const API_DOMAIN = "https://interface.music.163.com";
+/** 客户端日志域名 */
+export const CLIENT_LOG_DOMAIN = "https://clientlog.music.163.com";
+/** NCBL 加密日志域名 */
+export const CLIENT_LOG3_DOMAIN = "https://clientlog3.music.163.com";
 /** 是否默认对响应体做 eapi 加密（e_r） */
 export const ENCRYPT_RESPONSE = false;
 
