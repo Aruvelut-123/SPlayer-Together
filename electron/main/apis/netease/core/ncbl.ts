@@ -162,7 +162,9 @@ export const rsaWrap = (keyA: Buffer): Buffer => bigToBe(modPow(beToBig(keyA), R
 const compressBody = (buf: Buffer): Buffer => {
   const zstd = (zlib as unknown as { zstdCompressSync?: (input: Buffer) => Buffer })
     .zstdCompressSync;
-  return zstd ? zstd(buf) : zlib.gzipSync(buf);
+  // NCBL v3 头不带压缩标识,服务端固定按 zstd 解;缺 zstd 时直接报错,不能塞 gzip 让服务端解不开
+  if (!zstd) throw new Error("当前运行时不支持 zstd,无法进行 NCBL 上报");
+  return zstd(buf);
 };
 
 export const encryptNCBL = (meta: string | Buffer, body: string | Buffer): Buffer => {
@@ -432,9 +434,7 @@ export const doUpload = async (
   metaJson: string,
   body: string,
   cookieStr: string,
-  label?: string,
 ): Promise<UploadResult> => {
-  void label;
   const payload = encryptNCBL(metaJson, body);
   const multipart = buildMultipart(payload);
   const resp = await fetch(`${CLIENT_LOG3_DOMAIN}/api/clientlog/encrypt/upload?multiupload=true`, {

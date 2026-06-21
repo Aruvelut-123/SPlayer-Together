@@ -33,13 +33,6 @@ const scrobbleV1: NeteaseModule = async (query) => {
   const cookieObj = parseCookie(rawCookie);
   cookieObj.os = "pc";
   const ctx = extractContext(cookieObj);
-  if (!ctx.auth.token && rawCookie) {
-    const parsed =
-      typeof rawCookie === "string"
-        ? parseCookie(rawCookie)
-        : (rawCookie as Record<string, string>);
-    ctx.auth.token = parsed.MUSIC_U || "";
-  }
   if (!ctx.auth.token) {
     return { status: 401, body: { code: 401, msg: "缺少 MUSIC_U 鉴权令牌" }, cookie: [] };
   }
@@ -68,13 +61,13 @@ const scrobbleV1: NeteaseModule = async (query) => {
   ]);
 
   try {
-    const plv = await doUpload(ctx, metaJson, plvBody, cookieStr, "PLV");
+    const plv = await doUpload(ctx, metaJson, plvBody, cookieStr);
     if (!plv.success) {
       const rate = plv.respBody?.data?.rate;
       return {
-        status: 200,
+        status: 502,
         body: {
-          code: plv.respBody?.code || -1,
+          code: 502,
           msg: `PLV 上报失败${rate != null ? ` (rate=${rate})` : ""}`,
           details: plv.respBody,
         },
@@ -82,12 +75,12 @@ const scrobbleV1: NeteaseModule = async (query) => {
       };
     }
 
-    const pld = await doUpload(ctx, metaJson, pldBody, cookieStr, "PLD");
+    const pld = await doUpload(ctx, metaJson, pldBody, cookieStr);
     if (!pld.success) {
       return {
-        status: 200,
+        status: 502,
         body: {
-          code: pld.respBody?.code || -1,
+          code: 502,
           msg: "PLV 成功但 PLD 失败",
           details: { plv: plv.respBody, pld: pld.respBody },
         },
