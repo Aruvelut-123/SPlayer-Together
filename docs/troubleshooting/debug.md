@@ -36,6 +36,10 @@
 
 请附上：操作系统与版本、SPlayer-Next 版本（开发版附 Commit ID）、Console 完整错误日志、可复现的操作步骤。
 
+> [!IMPORTANT]
+>
+> 如果是 Linux，请先查看 [Linux Wayland 兼容性](./wayland)。报告故障时附带桌面环境、发行版、所使用的安装包格式（官方包）或构建脚本（第三方包）
+
 ## 重置应用
 
 ::: warning 注意
@@ -52,5 +56,5 @@ rd /s /q "%APPDATA%\SPlayer-Next"
 rm -rf ~/Library/Application\ Support/SPlayer-Next
 
 # Linux
-rm -rf ~/.config/SPlayer-Next
+rm -rf "${XDG_CONFIG_HOME:-$HOME/.config}/SPlayer-Next"
 ```

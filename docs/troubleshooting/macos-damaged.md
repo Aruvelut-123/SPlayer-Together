@@ -1,4 +1,4 @@
-# Mac 系统应用显示已损坏
+# macOS 应用显示已损坏
 
 在 macOS 上打开 SPlayer-Next 时，可能会遇到“应用已损坏，无法打开”的提示。这通常是 macOS 的安全机制导致的，而非应用本身损坏。
 
@@ -18,17 +18,25 @@
 
 ## 解决方案
 
-### 方法一：移除隔离属性（推荐）
+### 方法一：安全移除隔离属性（推荐）
 
 打开 **终端**，执行：
 
 ```bash
-sudo xattr -r -d com.apple.quarantine /Applications/SPlayer-Next.app
+sudo xattr -rd com.apple.quarantine /Applications/SPlayer-Next.app
 ```
 
 输入管理员密码后，重新打开应用即可。
 
-### 方法二：右键打开
+### 方法二：强制移除所有属性（不推荐）
+
+打开 **终端**，执行：
+
+```bash
+sudo xattr -cr /Applications/SPlayer-Next.app
+```
+
+### 方法三：右键打开
 
 1. 在 Finder 中找到 `SPlayer-Next.app`；
 2. 按住 `Control` 键点击应用图标；
@@ -42,7 +50,7 @@ sudo xattr -r -d com.apple.quarantine /Applications/SPlayer-Next.app
 如果使用 M1/M2/M3 芯片的 Mac，请尽量下载 **ARM（arm64）** 版本的安装包。若下载了 x64 版本，可能需要 Rosetta 2 转译：
 
 ```bash
-softwareupdate --install-rosetta
+softwareupdate --install-rosetta --agree-to-license
 ```
 
 ## 仍然无法解决？
