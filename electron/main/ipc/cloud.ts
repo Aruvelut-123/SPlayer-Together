@@ -9,13 +9,6 @@ import type { CloudUploadProgress, CloudUploadResult, PickedSong } from "@shared
 /** 进度事件节流间隔(ms) */
 const PROGRESS_THROTTLE_MS = 200;
 
-/** 把冗长的服务端报错收敛成简短可读提示(完整堆栈仍写日志) */
-const conciseError = (raw: string): string => {
-  const matched = raw.match(/^netease (\d+)/);
-  if (matched) return `上传失败(${matched[1]})`;
-  return raw.length > 60 ? `${raw.slice(0, 60)}…` : raw;
-};
-
 /** 注册云盘上传相关 IPC */
 export const registerCloudIpc = (): void => {
   // 弹出文件选择器,返回选中歌曲的路径/名称/大小
@@ -63,8 +56,13 @@ export const registerCloudIpc = (): void => {
         return res;
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
+        const matched = message.match(/^netease (\d+)/);
         cloudLog.error(`上传失败: ${filePath}`, err);
-        return { success: false, instant: false, error: conciseError(message) };
+        return {
+          success: false,
+          instant: false,
+          errorCode: matched ? Number(matched[1]) : undefined,
+        };
       }
     },
   );

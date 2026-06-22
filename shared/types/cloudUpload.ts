@@ -43,8 +43,8 @@ export interface CloudUploadResult {
   instant: boolean;
   /** 云盘歌曲 id */
   songId?: string;
-  /** 失败原因 */
-  error?: string;
+  /** 失败时的网易错误码 */
+  errorCode?: number;
 }
 
 /** 渲染层 api */

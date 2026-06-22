@@ -18,7 +18,7 @@ export interface UploadItem {
   songId?: string;
 }
 
-/** 队列保留项硬上限,溢出淘汰最旧的成功/秒传项 */
+/** 队列保留项硬上限,溢出淘汰最旧的已结束项(成功/秒传/失败) */
 const MAX_RETAINED = 200;
 
 /** 进度订阅只绑一次 */
@@ -56,13 +56,16 @@ export const useCloudUploadStore = defineStore("cloudUpload", () => {
     });
   };
 
-  /** 队列超上限时,从最旧开始淘汰成功/秒传项 */
+  /** 队列超上限时,从最旧开始淘汰已结束项(成功/秒传/失败) */
   const evictOldFinished = (): void => {
     if (items.value.length <= MAX_RETAINED) return;
     let removable = items.value.length - MAX_RETAINED;
     const kept: UploadItem[] = [];
     for (const item of items.value) {
-      if (removable > 0 && (item.status === "success" || item.status === "instant")) {
+      if (
+        removable > 0 &&
+        (item.status === "success" || item.status === "instant" || item.status === "error")
+      ) {
         removable--;
         continue;
       }
@@ -91,11 +94,14 @@ export const useCloudUploadStore = defineStore("cloudUpload", () => {
             anySuccess = true;
           } else {
             next.status = "error";
-            next.error = res.error;
+            next.error =
+              res.errorCode != null
+                ? i18n.global.t("cloud.upload.errorWithCode", { code: res.errorCode })
+                : i18n.global.t("cloud.upload.error");
           }
-        } catch (err) {
+        } catch {
           next.status = "error";
-          next.error = err instanceof Error ? err.message : String(err);
+          next.error = i18n.global.t("cloud.upload.error");
         }
       }
     } finally {
