@@ -542,7 +542,8 @@
       "reading": "Reading",
       "retry": "Retry",
       "remove": "Remove",
-      "capacityFull": "Not enough cloud space"
+      "capacityFull": "Not enough cloud space",
+      "riskTip": "Uploading may get your account flagged or restricted, so use it with care. After uploading, the cloud needs some time to match the song — refresh again later to check."
     }
   },
   "history": {

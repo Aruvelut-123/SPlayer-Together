@@ -530,7 +530,8 @@
       "reading": "读取中",
       "retry": "重试",
       "remove": "移除",
-      "capacityFull": "云盘空间不足"
+      "capacityFull": "云盘空间不足",
+      "riskTip": "上传操作可能会导致账号被风控，请谨慎使用。上传完成后云端需要一段时间进行匹配，可稍后再刷新查看"
     }
   },
   "history": {

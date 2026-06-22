@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import type { Component } from "vue";
-import IconLucideInfo from "~icons/lucide/info";
-import IconLucideCheckCircle2 from "~icons/lucide/check-circle-2";
-import IconLucideAlertTriangle from "~icons/lucide/alert-triangle";
-import IconLucideXCircle from "~icons/lucide/x-circle";
+import IconMaterialSymbolsInfoRounded from "~icons/material-symbols/info-rounded";
+import IconMaterialSymbolsCheckCircleRounded from "~icons/material-symbols/check-circle-rounded";
+import IconMaterialSymbolsErrorRounded from "~icons/material-symbols/error-rounded";
+import IconMaterialSymbolsCancelRounded from "~icons/material-symbols/cancel-rounded";
 
 type AlertType = "default" | "info" | "success" | "warning" | "error";
 type AlertVariant = "soft" | "outline";
@@ -31,13 +31,13 @@ const props = withDefaults(
 const defaultIcon = computed<Component>(() => {
   switch (props.type) {
     case "success":
-      return IconLucideCheckCircle2;
+      return IconMaterialSymbolsCheckCircleRounded;
     case "warning":
-      return IconLucideAlertTriangle;
+      return IconMaterialSymbolsErrorRounded;
     case "error":
-      return IconLucideXCircle;
+      return IconMaterialSymbolsCancelRounded;
     default:
-      return IconLucideInfo;
+      return IconMaterialSymbolsInfoRounded;
   }
 });
 

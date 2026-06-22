@@ -17,9 +17,12 @@ const store = useCloudUploadStore();
     @update:open="(value) => emit('update:open', value)"
   >
     <div class="flex flex-col gap-3">
+      <!-- 风险提示 -->
+      <SAlert>{{ t("cloud.upload.riskTip") }}</SAlert>
+
       <!-- 操作行 -->
       <div class="flex items-center justify-between gap-2">
-        <SButton type="primary" round @click="store.pickAndEnqueue()">
+        <SButton type="primary" variant="secondary" round @click="store.pickAndEnqueue()">
           <template #icon>
             <IconLucideFilePlus2 />
           </template>
@@ -27,10 +30,13 @@ const store = useCloudUploadStore();
         </SButton>
         <SButton
           v-if="store.items.length > 0"
-          variant="ghost"
-          size="small"
+          variant="secondary"
+          round
           @click="store.clearFinished()"
         >
+          <template #icon>
+            <IconLucideTrash2 />
+          </template>
           {{ t("cloud.upload.clearFinished") }}
         </SButton>
       </div>
