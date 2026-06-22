@@ -629,6 +629,7 @@
       "language": "语言",
       "playback": "播放器",
       "playControl": "播放控制",
+      "scrobble": "听歌打卡",
       "lyricContent": "歌词内容",
       "lyricTTML": "TTML 歌词",
       "lyricExclude": "歌词排除",
@@ -1281,6 +1282,16 @@
     "neteaseRealIp": {
       "label": "使用真实IP地址",
       "description": "在海外或部分地区可能会受到限制，可开启此处尝试解决"
+    },
+    "neteaseScrobbleEnabled": {
+      "label": "启用听歌打卡",
+      "description": "播放达到一定时长后，自动向 NCM 上报听歌记录"
+    },
+    "neteaseScrobbleMode": {
+      "label": "NCM 听歌打卡方式",
+      "description": "选择自动同步 NCM 听歌记录时使用的上报接口",
+      "legacy": "原版日志接口",
+      "ncbl": "NCBL 加密接口"
     },
     "orpheusProtocol": {
       "label": "通过 Orpheus 协议唤起本应用",

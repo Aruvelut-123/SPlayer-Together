@@ -62,6 +62,30 @@ const playerCategory: SettingCategory = {
       ],
     },
     {
+      id: "scrobble",
+      tag: { text: "Beta" },
+      items: [
+        {
+          key: "neteaseScrobbleEnabled",
+          type: "switch",
+          binding: { store: "settings", path: "system.system.neteaseScrobbleEnabled" },
+          defaultValue: false,
+          children: [
+            {
+              key: "neteaseScrobbleMode",
+              type: "select",
+              binding: { store: "settings", path: "system.system.neteaseScrobbleMode" },
+              options: [
+                { value: "legacy", labelKey: "settings.neteaseScrobbleMode.legacy" },
+                { value: "ncbl", labelKey: "settings.neteaseScrobbleMode.ncbl" },
+              ],
+              defaultValue: "ncbl",
+            },
+          ],
+        },
+      ],
+    },
+    {
       id: "playback",
       items: [
         {

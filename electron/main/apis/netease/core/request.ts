@@ -66,6 +66,10 @@ interface NeteaseBody {
 /** weapi 专用 CSRF：从 cookie 中取 __csrf */
 const csrfFrom = (cookie: Record<string, string>): string => cookie["__csrf"] || "";
 
+/** macOS 客户端日志接口需要桌面浏览器 UA */
+const OSX_USER_AGENT =
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
+
 /** 生成 WNMCID（进程级常量）：6 位小写字母.时间戳.01.0 */
 const WNMCID = (() => {
   const chars = "abcdefghijklmnopqrstuvwxyz";
@@ -200,7 +204,8 @@ export const createRequest = async (
       if (cookie.MUSIC_U) header.MUSIC_U = cookie.MUSIC_U;
       if (cookie.MUSIC_A) header.MUSIC_A = cookie.MUSIC_A;
       headers["Cookie"] = cookieObjToString(header);
-      headers["User-Agent"] = options.ua || chooseUserAgent("api", "iphone");
+      headers["User-Agent"] =
+        options.ua || (cookie.os === "osx" ? OSX_USER_AGENT : chooseUserAgent("api", "iphone"));
 
       if (crypto === "eapi") {
         (data as Record<string, unknown>).header = header;

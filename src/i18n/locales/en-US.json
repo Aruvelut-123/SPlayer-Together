@@ -641,6 +641,7 @@
       "language": "Language",
       "playback": "Player",
       "playControl": "Playback Control",
+      "scrobble": "Scrobble",
       "lyricContent": "Lyric Content",
       "lyricTTML": "TTML Lyrics",
       "lyricExclude": "Metadata Stripping",
@@ -1293,6 +1294,16 @@
     "neteaseRealIp": {
       "label": "Use Real IP",
       "description": "May be restricted overseas or in some regions; enable this to try to resolve it"
+    },
+    "neteaseScrobbleEnabled": {
+      "label": "Enable scrobble",
+      "description": "Automatically report listening records to NCM after a track has played long enough"
+    },
+    "neteaseScrobbleMode": {
+      "label": "NCM scrobble method",
+      "description": "Choose which reporting interface is used for automatic NCM listening records",
+      "legacy": "Legacy log API",
+      "ncbl": "NCBL encrypted API"
     },
     "orpheusProtocol": {
       "label": "Wake this app via the Orpheus protocol",
