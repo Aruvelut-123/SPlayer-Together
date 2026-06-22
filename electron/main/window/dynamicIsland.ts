@@ -287,7 +287,6 @@ export const applyDynamicIslandNotchFusion = (enabled: boolean): void => {
   const win = getDynamicIslandWindow();
   if (!win) return;
   const saved = store.get("windowStates.dynamicIsland");
-  if (saved.mode !== "snapped") return;
   if (enabled) {
     store.set("windowStates.dynamicIsland", {
       ...saved,
@@ -295,6 +294,8 @@ export const applyDynamicIslandNotchFusion = (enabled: boolean): void => {
       x: null,
       y: null,
     });
+  } else if (saved.mode !== "snapped") {
+    return;
   }
   const pos = computeSnappedPos();
   win.setBounds({ x: pos.x, y: pos.y, width: cachedSize.width, height: cachedSize.height });
@@ -449,9 +450,9 @@ export const createDynamicIslandWindow = (): BrowserWindow => {
   const saved = store.get("windowStates.dynamicIsland");
   const fusionEnabled = isNotchFusionEnabled();
 
-  const initialDisplay = getCurrentDisplay();
+  const initialDisplay = fusionEnabled ? screen.getPrimaryDisplay() : getCurrentDisplay();
   const floatingPos =
-    saved.mode === "floating" && saved.x !== null && saved.y !== null
+    !fusionEnabled && saved.mode === "floating" && saved.x !== null && saved.y !== null
       ? { x: saved.x, y: saved.y }
       : null;
   const initialNotch = getNotchMetrics(initialDisplay);
