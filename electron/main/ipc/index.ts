@@ -16,6 +16,7 @@ import { registerDownloadIpc } from "./download";
 import { registerExternalApiIpc } from "./externalApi";
 import { registerStatsIpc } from "./stats";
 import { registerUpdateIpc } from "./update";
+import { registerCloudIpc } from "./cloud";
 
 /** 注册所有 IPC 处理 */
 export const registerIpcHandlers = (): void => {
@@ -27,6 +28,7 @@ export const registerIpcHandlers = (): void => {
   registerWindowIpc();
   registerPluginIpc();
   registerApisIpc();
+  registerCloudIpc();
   registerLyricsIpc();
   registerHotkeyIpc();
   registerThemeIpc();

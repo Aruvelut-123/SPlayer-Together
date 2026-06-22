@@ -42,7 +42,7 @@ SPlayer-Next 是基于 **Electron + Vue 3 + TypeScript** 的桌面音乐播放�
 - **状态管理双层**：`src/stores/status.ts` 走 Pinia 响应式（5Hz 更新）；`src/services/playback.ts` 存非响应式时间源，供 60fps 渲染（歌词 / 频谱）用 RAF 采样
 - **Reactivity**：`Track[]` 等大集合用 `shallowRef`，避免深层代理；响应式代理对象存 IndexedDB 会 `DataCloneError`
 - **Store 持久化**：只把轻量数据写 sessionStorage；`TrackDetail`（含歌词大字符串）**禁止**持久化
-- **IPC 监听器清理**：preload 的 `onEvent` 必须先 `removeAllListeners` 再 `on`，防 HMR 累积；渲染端 composable 在 `onBeforeUnmount` 调用 preload 返回的 `unsubscribe`
+- **IPC 监听器**：主进程 push 事件统一走 preload 的 `subscribe` 助手（`ipcRenderer.on` + 返回单 handler 的 `unsubscribe`），**不要**对单个 channel 加 `removeAllListeners`，那会偏离统一模式；有限生命周期消费方（composable / 组件）保存 `unsubscribe` 并在 `onBeforeUnmount` / `onScopeDispose` 调用；应用级单例（只绑一次的 Pinia setup store）绑定后随进程存活、不解绑，属有意为之，不是泄漏
 - **自动生成文件**（不要编辑）：`auto-imports.d.ts`、`components.d.ts`、`native/*/index.d.ts`
 - **Logger**：主进程统一用 `@main/utils/logger` 的 scoped logger（`coreLog` / `playerLog` / `mediaLog` / `trayLog` / `taskbarLog` / `nativeLog` 等），**不要**直接 `import log from "electron-log"`
 
