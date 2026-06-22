@@ -10,7 +10,7 @@ applyTo: "**"
 
 **真实问题优先，风格偏好最后**。优先揪出：
 
-- 运行时 bug、竞态、内存 / 资源泄漏（IPC 监听器、RAF、ResizeObserver、Windows 事件钩子未清理）
+- 运行时 bug、竞态、内存 / 资源泄漏（**有限生命周期消费方**未清理的 IPC 监听器、RAF、ResizeObserver、Windows 事件钩子）
 - 类型与实现不一致（如 preload API 类型声明与实际 resolve 值不匹配）
 - 主进程资源生命周期：窗口 `closed` 事件之外的重复清理会引发双 `stop()` / 双 broadcast
 - 硬编码值掩盖用户设置：检查配置项是否真的生效到底层模块
@@ -26,6 +26,8 @@ applyTo: "**"
 - 不要建议在渲染端直接 `import log from "electron-log"` 或在主进程绕过 `@main/utils/logger`
 - 不要建议为"防御性编程"添加内部代码的运行时校验（只在系统边界校验）
 - 不要建议拆分三行的类似代码为抽象，除非有三个以上真实用例
+- 不要建议给单个 IPC channel 加 `removeAllListeners`：push 事件统一走 preload 的 `subscribe`（`on` + 返回 `unsubscribe`），额外的 `removeAllListeners` 反而破坏统一模式
+- 不要把"应用级单例只绑一次的 push 监听未解绑"当泄漏：随进程存活的单例订阅（如 Pinia setup store 只绑一次的进度推送）不解绑是有意为之，只有有限生命周期消费方才需在卸载时 unsubscribe
 
 ## 评论风格
 

@@ -8,9 +8,13 @@ import IconLucideRefreshCw from "~icons/lucide/refresh-cw";
 import IconLucideListChecks from "~icons/lucide/list-checks";
 import IconLucideCloud from "~icons/lucide/cloud";
 import IconLucideHardDrive from "~icons/lucide/hard-drive";
+import IconLucideCloudUpload from "~icons/lucide/cloud-upload";
 
 const { t } = useI18n();
 const user = useUserStore();
+
+/** 上传弹窗 */
+const uploadDialogOpen = ref(false);
 
 const searchQuery = ref("");
 
@@ -98,6 +102,17 @@ watch(
             </template>
             {{ t("common.playAll") }}
           </SButton>
+          <SButton
+            variant="secondary"
+            round
+            :disabled="!user.isLoggedIn"
+            @click="uploadDialogOpen = true"
+          >
+            <template #icon>
+              <IconLucideCloudUpload />
+            </template>
+            {{ t("cloud.upload.button") }}
+          </SButton>
           <SDropdownMenu :items="moreMenuItems" align="start" @select="handleMoreMenu">
             <template #trigger>
               <SButton variant="secondary" circle :disabled="!user.isLoggedIn">
@@ -160,5 +175,6 @@ watch(
         </div>
       </div>
     </Transition>
+    <CloudUploadDialog v-model:open="uploadDialogOpen" />
   </div>
 </template>

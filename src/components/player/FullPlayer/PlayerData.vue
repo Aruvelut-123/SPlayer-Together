@@ -72,6 +72,7 @@ const goToAlbum = (): void => {
 
 /** 来源标签 */
 const sourceLabel = computed(() => {
+  if (media.track?.cloud) return "CLOUD";
   const source = media.track?.source;
   if (!source) return "LOCAL";
   if (source === "local") return "LOCAL";

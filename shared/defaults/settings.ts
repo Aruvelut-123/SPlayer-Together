@@ -142,6 +142,8 @@ export const defaultSystemConfig: SystemConfig = {
     uiZoom: 100,
     onboardingCompleted: false,
     neteaseRealIp: false,
+    neteaseScrobbleEnabled: false,
+    neteaseScrobbleMode: "ncbl",
     registerOrpheusProtocol: false,
   },
   windowStates: {

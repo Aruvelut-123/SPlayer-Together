@@ -24,6 +24,12 @@ import register_anonimous from "./register_anonimous";
 import user_account from "./user_account";
 import user_cloud from "./user_cloud";
 import user_cloud_del from "./user_cloud_del";
+import cloud_upload_check from "./cloud_upload_check";
+import cloud_nos_token from "./cloud_nos_token";
+import cloud_upload_info from "./cloud_upload_info";
+import cloud_pub from "./cloud_pub";
+import cloud_upload_check_v2 from "./cloud_upload_check_v2";
+import cloud_song_import from "./cloud_song_import";
 import user_detail from "./user_detail";
 import user_detail_new from "./user_detail_new";
 import user_followeds from "./user_followeds";
@@ -56,6 +62,8 @@ import song_download_url from "./song_download_url";
 import playmode_intelligence from "./playmode_intelligence";
 import personal_fm from "./personal_fm";
 import fm_trash from "./fm_trash";
+import scrobble from "./scrobble";
+import scrobble_v1 from "./scrobble_v1";
 
 // 每日推荐 / 发现
 import recommend_songs from "./recommend_songs";
@@ -106,6 +114,12 @@ export const modules: Record<string, NeteaseModule> = {
   user_account,
   user_cloud,
   user_cloud_del,
+  cloud_upload_check,
+  cloud_nos_token,
+  cloud_upload_info,
+  cloud_pub,
+  cloud_upload_check_v2,
+  cloud_song_import,
   user_detail,
   user_detail_new,
   user_followeds,
@@ -135,6 +149,8 @@ export const modules: Record<string, NeteaseModule> = {
   playmode_intelligence,
   personal_fm,
   fm_trash,
+  scrobble,
+  scrobble_v1,
 
   recommend_songs,
   personalized,

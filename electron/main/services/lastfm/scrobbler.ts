@@ -1,3 +1,5 @@
+import { createPlayProgress } from "@main/services/playProgress";
+
 /** scrobbler 对外通知的曲目数据 */
 export interface ScrobbleTrack {
   /** 歌曲名 */
@@ -20,39 +22,18 @@ export interface ScrobblerHandlers {
   onScrobble: (track: ScrobbleTrack) => void;
 }
 
-/** 时长低于该值（秒）不 scrobble */
-const SCROBBLE_MIN_DURATION_SEC = 30;
-/** scrobble 最长等待（秒）：min(时长/2, 240) */
-const SCROBBLE_MAX_WAIT_SEC = 240;
-
 let handlers: ScrobblerHandlers | null = null;
 let current: ScrobbleTrack | null = null;
-/** 暂停前已累计的播放毫秒 */
-let playedMs = 0;
-/** 本段播放开始的墙钟时间戳（ms）；未在播放时为 null */
-let playSince: number | null = null;
-/** 当前曲目是否已 scrobble */
-let scrobbled = false;
 /** 当前曲目是否已发过 now playing */
 let nowPlayingSent = false;
+
+const progress = createPlayProgress<ScrobbleTrack>({
+  onThreshold: (track) => handlers?.onScrobble(track),
+});
 
 /** 注入回调 */
 export const setHandlers = (next: ScrobblerHandlers): void => {
   handlers = next;
-};
-
-/** 当前累计实际播放毫秒 */
-const elapsedMs = (): number => playedMs + (playSince != null ? Date.now() - playSince : 0);
-
-/** 达标则 scrobble 一次 */
-const maybeScrobble = (): void => {
-  if (!current || scrobbled) return;
-  if (current.durationSec <= SCROBBLE_MIN_DURATION_SEC) return;
-  const thresholdMs = Math.min(current.durationSec / 2, SCROBBLE_MAX_WAIT_SEC) * 1000;
-  if (elapsedMs() >= thresholdMs) {
-    scrobbled = true;
-    handlers?.onScrobble(current);
-  }
 };
 
 /** 首次实际播放时上报 now playing */
@@ -60,19 +41,6 @@ const sendNowPlaying = (): void => {
   if (!current || nowPlayingSent) return;
   nowPlayingSent = true;
   handlers?.onNowPlaying(current);
-};
-
-/** 结算当前曲目（切歌/结束前调用），达标则补 scrobble，并清空状态 */
-const flush = (): void => {
-  if (playSince != null) {
-    playedMs += Date.now() - playSince;
-    playSince = null;
-  }
-  maybeScrobble();
-  current = null;
-  playedMs = 0;
-  scrobbled = false;
-  nowPlayingSent = false;
 };
 
 /**
@@ -86,27 +54,19 @@ export const onTrackLoaded = (meta: {
   durationMs: number;
   autoPlay: boolean;
 }): void => {
-  flush();
-  if (meta.durationMs <= 0 || !meta.title) {
-    current = null;
-    return;
-  }
-  current = {
-    title: meta.title,
-    artist: meta.artist,
-    album: meta.album,
-    durationSec: Math.round(meta.durationMs / 1000),
-    timestamp: Math.floor(Date.now() / 1000),
-  };
-  playedMs = 0;
-  scrobbled = false;
+  current =
+    meta.durationMs <= 0 || !meta.title
+      ? null
+      : {
+          title: meta.title,
+          artist: meta.artist,
+          album: meta.album,
+          durationSec: Math.round(meta.durationMs / 1000),
+          timestamp: Math.floor(Date.now() / 1000),
+        };
   nowPlayingSent = false;
-  if (meta.autoPlay) {
-    playSince = Date.now();
-    sendNowPlaying();
-  } else {
-    playSince = null;
-  }
+  progress.load(current?.durationSec ?? 0, current, meta.autoPlay);
+  if (current && meta.autoPlay) sendNowPlaying();
 };
 
 /**
@@ -114,31 +74,25 @@ export const onTrackLoaded = (meta: {
  * @param playing - 是否正在播放
  */
 export const onState = (playing: boolean): void => {
-  if (!current) return;
-  if (playing) {
-    if (playSince == null) playSince = Date.now();
-    sendNowPlaying();
-  } else if (playSince != null) {
-    playedMs += Date.now() - playSince;
-    playSince = null;
-  }
+  if (playing) sendNowPlaying();
+  progress.setPlaying(playing);
 };
 
 /** 播放进度推进（驱动阈值检查） */
 export const onPosition = (): void => {
-  maybeScrobble();
+  progress.tick();
 };
 
 /** 自然播放结束 */
 export const onEnded = (): void => {
-  flush();
+  progress.end();
+  current = null;
+  nowPlayingSent = false;
 };
 
 /** 复位（断开连接 / 关闭总开关时） */
 export const reset = (): void => {
+  progress.reset();
   current = null;
-  playedMs = 0;
-  playSince = null;
-  scrobbled = false;
   nowPlayingSent = false;
 };
