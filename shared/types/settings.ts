@@ -154,6 +154,8 @@ export interface DynamicIslandSettings {
   alwaysOnTop: boolean;
   /** 吸附时是否居中 */
   snapCentered: boolean;
+  /** macOS 刘海融合 */
+  notchFusion: boolean;
   /** 非遮挡模式 */
   nonOcclusive: boolean;
   /** 总是双行 */

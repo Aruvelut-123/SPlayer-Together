@@ -1059,6 +1059,10 @@
       "label": "Always On Top",
       "description": "Keep the Dynamic Island window above others"
     },
+    "dynamicIslandNotchFusion": {
+      "label": "Notch Fusion",
+      "description": "Expand the island from the physical MacBook notch"
+    },
     "dynamicIslandSnapCentered": {
       "label": "Center When Snapped",
       "description": "When off, snapping to the top keeps the dragged horizontal position"

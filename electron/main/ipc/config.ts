@@ -22,6 +22,7 @@ import {
   applyDesktopLyricAlwaysOnTop,
   applyDynamicIslandAlwaysOnTop,
   applyDynamicIslandSnapCentered,
+  applyDynamicIslandNotchFusion,
   applyDynamicIslandNonOcclusive,
   applyTaskbarLyricLayout,
 } from "@main/window";
@@ -82,6 +83,9 @@ const applyConfigChange = (keyPath: string, value: unknown): void => {
       break;
     case "dynamicIsland.snapCentered":
       applyDynamicIslandSnapCentered(value as boolean);
+      break;
+    case "dynamicIsland.notchFusion":
+      applyDynamicIslandNotchFusion(value as boolean);
       break;
     case "dynamicIsland.nonOcclusive":
       applyDynamicIslandNonOcclusive(value as boolean);

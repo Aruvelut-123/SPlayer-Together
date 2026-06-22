@@ -69,6 +69,7 @@ export const defaultSystemConfig: SystemConfig = {
     backgroundColor: "rgba(0, 0, 0, 1)",
     alwaysOnTop: true,
     snapCentered: true,
+    notchFusion: false,
     nonOcclusive: false,
     doubleLine: false,
     showTranslation: false,
