@@ -1030,6 +1030,10 @@
       "label": "窗口置顶",
       "description": "灵动岛窗口始终保持在最前"
     },
+    "dynamicIslandNotchFusion": {
+      "label": "刘海融合",
+      "description": "在 MacBook 刘海屏上让灵动岛从物理刘海向下扩展"
+    },
     "dynamicIslandSnapCentered": {
       "label": "吸附时居中",
       "description": "关闭后吸附到顶部时保留拖动到的水平位置"

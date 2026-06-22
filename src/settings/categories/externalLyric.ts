@@ -1,5 +1,6 @@
 import type { SettingCategory, SettingSection } from "@/types/settings-schema";
 import { useSettingsStore } from "@/stores/settings";
+import { isMac } from "@/utils/config";
 import IconLucideMonitor from "~icons/lucide/monitor";
 
 const desktopLyricSection: SettingSection = {
@@ -208,11 +209,22 @@ const dynamicIslandSection: SettingSection = {
       binding: { store: "settings", path: "system.dynamicIsland.alwaysOnTop" },
       defaultValue: true,
     },
+    ...(isMac
+      ? [
+          {
+            key: "dynamicIslandNotchFusion",
+            type: "switch" as const,
+            binding: { store: "settings" as const, path: "system.dynamicIsland.notchFusion" },
+            defaultValue: false,
+          },
+        ]
+      : []),
     {
       key: "dynamicIslandSnapCentered",
       type: "switch",
       binding: { store: "settings", path: "system.dynamicIsland.snapCentered" },
       defaultValue: true,
+      disabled: () => useSettingsStore().system.dynamicIsland.notchFusion,
     },
     {
       key: "dynamicIslandNonOcclusive",

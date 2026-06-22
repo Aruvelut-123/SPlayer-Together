@@ -7,6 +7,7 @@ import IslandLyricLine from "./components/IslandLyricLine.vue";
 import { pickAdvanceOnEndIndex } from "@shared/utils/lyricSync";
 import { useNowPlayingSync } from "@windows/shared/composables/useNowPlayingSync";
 import { useDragWindow } from "./composables/useDragWindow";
+import { isMac } from "@/utils/config";
 
 const config = reactive<DynamicIslandSettings>({
   scale: 1,
@@ -18,6 +19,7 @@ const config = reactive<DynamicIslandSettings>({
   backgroundColor: "rgba(0, 0, 0, 1)",
   alwaysOnTop: true,
   snapCentered: true,
+  notchFusion: false,
   nonOcclusive: false,
   doubleLine: false,
   showTranslation: false,
@@ -44,6 +46,7 @@ const gap = computed(() => Math.round(mainRowHeight.value * 0.25));
 const coverSize = computed(() => Math.round(mainRowHeight.value * 0.65));
 const coverRadius = computed(() => Math.max(6, Math.round(coverSize.value * 0.35)));
 const fontSize = computed(() => Math.max(13, Math.round(mainRowHeight.value * 0.5)));
+const snapRadius = computed(() => Math.round(mainRowHeight.value * 0.6));
 const shapeBottomRadius = computed(() => Math.max(14, Math.round(coverRadius.value * 2)));
 
 /* 副行尺寸 */
@@ -60,6 +63,8 @@ const { onRootPointerDown } = useDragWindow();
 const mode = ref<"snapped" | "floating">("snapped");
 const viewportWidth = ref(Math.max(MIN_SHAPE_WIDTH, window.innerWidth || MIN_SHAPE_WIDTH));
 const viewportHeight = ref(Math.max(NOTCH_HEIGHT, window.innerHeight || NOTCH_HEIGHT));
+const animatedShapeWidth = ref(viewportWidth.value);
+const notchFusionEnabled = computed(() => isMac && config.notchFusion && mode.value === "snapped");
 
 /* 文本测量：优先使用 config.fontFamily，确保与渲染一致 */
 const measureCtx = document.createElement("canvas").getContext("2d")!;
@@ -106,7 +111,7 @@ const contentHeight = computed(
 
 /* 窗口高度 */
 const windowHeight = computed(
-  () => contentHeight.value + (mode.value === "snapped" ? NOTCH_HEIGHT + NOTCH_TOP_FILL : 0),
+  () => contentHeight.value + (notchFusionEnabled.value ? NOTCH_HEIGHT + NOTCH_TOP_FILL : 0),
 );
 
 // 回弹 easing cubic-bezier(0.34, 1.56, 0.64, 1) 峰值约 1.10
@@ -154,7 +159,7 @@ const getRendererWindowLimit = (): number =>
   );
 
 const fixedContentWidth = computed(() => padX.value * 2 + coverSize.value + gap.value);
-const shapeExtraWidth = computed(() => (mode.value === "snapped" ? SHAPE_SIDE_OVERHANG * 2 : 0));
+const shapeExtraWidth = computed(() => (notchFusionEnabled.value ? SHAPE_SIDE_OVERHANG * 2 : 0));
 
 const maxLyricSlotWidth = computed(() => {
   const windowLimit = getRendererWindowLimit();
@@ -166,20 +171,54 @@ const maxLyricSlotWidth = computed(() => {
 });
 
 const getLyricSlotWidth = (lyricPx: number): number =>
-  Math.min(Math.max(1, Math.round(lyricPx)), maxLyricSlotWidth.value);
+  notchFusionEnabled.value
+    ? Math.min(Math.max(1, Math.round(lyricPx)), maxLyricSlotWidth.value)
+    : Math.max(1, Math.round(lyricPx));
 
 /* 计算窗口宽度 */
 const computeWindowWidth = (lyricPx: number): number => {
   const bounceExtra = Math.ceil(lyricPx * BOUNCE_OVERSHOOT);
   return Math.max(
-    MIN_SHAPE_WIDTH,
+    notchFusionEnabled.value ? MIN_SHAPE_WIDTH : 1,
     fixedContentWidth.value + lyricPx + bounceExtra + shapeExtraWidth.value,
   );
 };
 
 /* 调整窗口宽度 */
 const resizeWindow = (lyricPx: number): void => {
-  window.api.dynamicIsland.resize(computeWindowWidth(lyricPx));
+  const targetWidth = computeWindowWidth(lyricPx);
+  if (!notchFusionEnabled.value) {
+    if (pendingWindowShrinkTimer !== null) {
+      window.clearTimeout(pendingWindowShrinkTimer);
+      pendingWindowShrinkTimer = null;
+    }
+    window.api.dynamicIsland.resize(targetWidth);
+    return;
+  }
+
+  const currentWidth = Math.max(MIN_SHAPE_WIDTH, viewportWidth.value);
+  if (targetWidth >= currentWidth) {
+    if (pendingWindowShrinkTimer !== null) {
+      window.clearTimeout(pendingWindowShrinkTimer);
+      pendingWindowShrinkTimer = null;
+    }
+    window.api.dynamicIsland.resize(targetWidth);
+    requestAnimationFrame(() => {
+      animatedShapeWidth.value = targetWidth;
+    });
+    return;
+  }
+
+  animatedShapeWidth.value = targetWidth;
+  if (pendingWindowShrinkTimer !== null) {
+    window.clearTimeout(pendingWindowShrinkTimer);
+  }
+  pendingWindowShrinkTimer = window.setTimeout(() => {
+    pendingWindowShrinkTimer = null;
+    if (notchFusionEnabled.value) {
+      window.api.dynamicIsland.resize(targetWidth);
+    }
+  }, 520);
 };
 
 const applyMeasuredWidth = (targetPx: number): void => {
@@ -270,6 +309,11 @@ watch([() => config.scale, () => config.fontWeight, () => config.fontFamily], ()
   applyMeasuredWidth(targetPx);
 });
 
+watch(notchFusionEnabled, () => {
+  const targetPx = measureTarget();
+  applyMeasuredWidth(targetPx);
+});
+
 /* 歌词变化 */
 watch([currentLine, fallbackText], () => {
   const newLine = currentLine.value;
@@ -288,6 +332,7 @@ watch([currentLine, fallbackText], () => {
 });
 
 const lyricScale = computed(() => {
+  if (!notchFusionEnabled.value) return 1;
   const rawWidth = Math.max(1, rawLyricWidth.value);
   const slotWidth = Math.max(1, lyricWidth.value);
   return Math.max(MIN_LYRIC_SCALE, Math.min(1, slotWidth / rawWidth));
@@ -326,7 +371,12 @@ const fittedSubText = computed(() =>
   truncateTextToWidth(displaySubText.value, lyricLayoutWidth.value, subFontSize.value),
 );
 
-const shapeWidth = computed(() => Math.max(MIN_SHAPE_WIDTH, Math.round(viewportWidth.value)));
+const shapeWidth = computed(() =>
+  Math.max(
+    MIN_SHAPE_WIDTH,
+    Math.round(notchFusionEnabled.value ? animatedShapeWidth.value : viewportWidth.value),
+  ),
+);
 const shapeHeight = computed(() => Math.max(windowHeight.value, Math.round(viewportHeight.value)));
 
 const notchPath = computed(() => {
@@ -361,10 +411,13 @@ const rootStyle = computed(() => ({
   "--di-gap": `${gap.value}px`,
   "--di-cover": `${coverSize.value}px`,
   "--di-cover-radius": `${coverRadius.value}px`,
-  "--di-side-overhang": `${mode.value === "snapped" ? SHAPE_SIDE_OVERHANG : 0}px`,
+  "--di-side-overhang": `${notchFusionEnabled.value ? SHAPE_SIDE_OVERHANG : 0}px`,
   "--di-row": `${mainRowHeight.value}px`,
   "--di-content-height": `${contentHeight.value}px`,
   "--di-notch": `${NOTCH_HEIGHT}px`,
+  "--di-shape-width": `${shapeWidth.value}px`,
+  "--di-fusion-content-width": `${Math.max(1, shapeWidth.value - SHAPE_SIDE_OVERHANG * 2)}px`,
+  "--di-snap-radius": `${snapRadius.value}px`,
   "--di-lyric-scale": lyricScale.value,
   fontFamily: config.fontFamily || undefined,
 }));
@@ -372,6 +425,9 @@ const rootStyle = computed(() => ({
 const syncViewportSize = (): void => {
   viewportWidth.value = Math.max(MIN_SHAPE_WIDTH, window.innerWidth || MIN_SHAPE_WIDTH);
   viewportHeight.value = Math.max(NOTCH_HEIGHT, window.innerHeight || NOTCH_HEIGHT);
+  if (!notchFusionEnabled.value) {
+    animatedShapeWidth.value = viewportWidth.value;
+  }
 };
 
 watch(
@@ -387,6 +443,7 @@ watch(
 let unsubConfig: (() => void) | null = null;
 let unsubMode: (() => void) | null = null;
 let unsubCursor: (() => void) | null = null;
+let pendingWindowShrinkTimer: number | null = null;
 
 /* 窗口高度变化 */
 watch(
@@ -434,6 +491,10 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   window.removeEventListener("resize", syncViewportSize);
+  if (pendingWindowShrinkTimer !== null) {
+    window.clearTimeout(pendingWindowShrinkTimer);
+    pendingWindowShrinkTimer = null;
+  }
   unsubConfig?.();
   unsubConfig = null;
   unsubMode?.();
@@ -448,13 +509,16 @@ onBeforeUnmount(() => {
     class="root"
     :class="[
       mode === 'snapped' ? 'is-snapped' : 'is-floating',
-      { 'is-hidden': config.nonOcclusive && hovering },
+      {
+        'is-hidden': config.nonOcclusive && hovering,
+        'is-notch-fusion': notchFusionEnabled,
+      },
     ]"
     :style="rootStyle"
     @pointerdown="onRootPointerDown"
   >
     <svg
-      v-if="mode === 'snapped'"
+      v-if="notchFusionEnabled"
       class="notch-shape"
       :viewBox="`0 0 ${shapeWidth} ${shapeHeight}`"
       preserveAspectRatio="none"
@@ -509,20 +573,32 @@ onBeforeUnmount(() => {
 <style scoped>
 .root {
   position: relative;
-  width: 100%;
   height: 100%;
   overflow: hidden;
   box-sizing: border-box;
   cursor: move;
   color: var(--di-played);
-  transition: opacity 0.2s ease-out;
+  transition:
+    border-radius 0.3s cubic-bezier(0.22, 0.61, 0.36, 1),
+    opacity 0.2s ease-out;
 }
 /* opacity 不影响穿透判定，鼠标离开物理区域后自然恢复 */
 .root.is-hidden {
   opacity: 0;
 }
+.root.is-notch-fusion {
+  width: 100%;
+}
+.root:not(.is-notch-fusion) {
+  width: fit-content;
+  background: var(--di-bg);
+}
 .root.is-snapped {
+  border-radius: 0 0 var(--di-snap-radius) var(--di-snap-radius);
+}
+.root.is-snapped.is-notch-fusion {
   background: transparent;
+  border-radius: 0;
 }
 .root.is-floating {
   background: var(--di-bg);
@@ -530,10 +606,13 @@ onBeforeUnmount(() => {
 }
 .notch-shape {
   position: absolute;
-  inset: 0;
-  width: 100%;
+  top: 0;
+  left: 50%;
+  width: var(--di-shape-width);
   height: 100%;
+  transform: translateX(-50%);
   pointer-events: none;
+  transition: width 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 .content {
   position: relative;
@@ -542,18 +621,24 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: var(--di-gap);
   min-width: 0;
-  width: 100%;
   height: 100%;
   padding: 0 var(--di-padx);
   box-sizing: border-box;
 }
-.root.is-snapped .content {
+.root:not(.is-notch-fusion) .content {
+  width: fit-content;
+}
+.root.is-notch-fusion .content {
+  width: 100%;
+}
+.root.is-snapped.is-notch-fusion .content {
   position: absolute;
-  right: var(--di-side-overhang);
+  left: 50%;
   bottom: 0;
-  left: var(--di-side-overhang);
-  width: auto;
+  width: var(--di-fusion-content-width);
   height: var(--di-content-height);
+  transform: translateX(-50%);
+  transition: width 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 .cover {
   flex: 0 0 auto;
