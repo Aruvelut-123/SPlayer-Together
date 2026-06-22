@@ -310,6 +310,7 @@ watch([() => config.scale, () => config.fontWeight, () => config.fontFamily], ()
 });
 
 watch(notchFusionEnabled, () => {
+  if (phase !== "idle") return;
   const targetPx = measureTarget();
   applyMeasuredWidth(targetPx);
 });
@@ -347,7 +348,9 @@ const displayMainText = computed(() =>
 );
 
 const fittedMainText = computed(() =>
-  truncateTextToWidth(displayMainText.value, lyricLayoutWidth.value, fontSize.value),
+  notchFusionEnabled.value
+    ? truncateTextToWidth(displayMainText.value, lyricLayoutWidth.value, fontSize.value)
+    : displayMainText.value,
 );
 
 const mainTextTruncated = computed(() => fittedMainText.value !== displayMainText.value);
@@ -368,7 +371,9 @@ const fittedDisplayLine = computed<LyricLine | null>(() => {
 });
 
 const fittedSubText = computed(() =>
-  truncateTextToWidth(displaySubText.value, lyricLayoutWidth.value, subFontSize.value),
+  notchFusionEnabled.value
+    ? truncateTextToWidth(displaySubText.value, lyricLayoutWidth.value, subFontSize.value)
+    : displaySubText.value,
 );
 
 const shapeWidth = computed(() =>
@@ -382,7 +387,7 @@ const shapeHeight = computed(() => Math.max(windowHeight.value, Math.round(viewp
 const notchPath = computed(() => {
   const width = shapeWidth.value;
   const height = shapeHeight.value;
-  const overhang = mode.value === "snapped" ? Math.min(SHAPE_SIDE_OVERHANG, width / 4) : 0;
+  const overhang = Math.min(SHAPE_SIDE_OVERHANG, width / 4);
   const bodyLeft = overhang;
   const bodyRight = width - overhang;
   const topArc = Math.min(overhang, height / 4);
@@ -544,10 +549,11 @@ onBeforeUnmount(() => {
       >
         <div
           class="lyric-scale"
-          :style="{
-            width: `${lyricLayoutWidth}px`,
-            transform: `scale(${lyricScale})`,
-          }"
+          :style="
+            notchFusionEnabled
+              ? { width: `${lyricLayoutWidth}px`, transform: `scale(${lyricScale})` }
+              : {}
+          "
         >
           <div class="main-line">
             <IslandLyricLine
