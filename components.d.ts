@@ -216,6 +216,7 @@ declare module 'vue' {
     SettingsSearch: typeof import('./src/components/settings/SettingsSearch.vue')['default']
     SettingsSection: typeof import('./src/components/settings/SettingsSection.vue')['default']
     SFormItem: typeof import('./src/components/ui/SFormItem.vue')['default']
+    SIconSwap: typeof import('./src/components/ui/SIconSwap.vue')['default']
     SideBar: typeof import('./src/components/layout/SideBar.vue')['default']
     SideBarLogo: typeof import('./src/components/layout/SideBarLogo.vue')['default']
     SImg: typeof import('./src/components/ui/SImg.vue')['default']

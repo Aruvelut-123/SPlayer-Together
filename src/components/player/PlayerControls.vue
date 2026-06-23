@@ -64,8 +64,10 @@ const hasTrack = computed(() => !!media.track);
       @click="player.togglePlay()"
     >
       <template #icon>
-        <IconLucidePause v-if="isPlaying" />
-        <IconLucidePlay v-else />
+        <SIconSwap :active="isPlaying">
+          <template #on><IconLucidePause /></template>
+          <template #off><IconLucidePlay /></template>
+        </SIconSwap>
       </template>
     </SButton>
     <SButton

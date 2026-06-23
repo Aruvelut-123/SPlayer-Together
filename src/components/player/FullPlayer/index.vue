@@ -481,8 +481,10 @@ const toggleLyric = (): void => {
               @click="fav.toggle(media.track)"
             >
               <template #icon>
-                <IconFavorite v-if="fav.isLiked(media.track)" />
-                <IconFavoriteOutline v-else />
+                <SIconSwap :active="fav.isLiked(media.track)">
+                  <template #on><IconFavorite /></template>
+                  <template #off><IconFavoriteOutline /></template>
+                </SIconSwap>
               </template>
             </SButton>
             <SButton
@@ -550,8 +552,10 @@ const toggleLyric = (): void => {
                 @click="player.togglePlay()"
               >
                 <template #icon>
-                  <IconLucidePause v-if="isPlaying" />
-                  <IconLucidePlay v-else />
+                  <SIconSwap :active="isPlaying">
+                    <template #on><IconLucidePause /></template>
+                    <template #off><IconLucidePlay /></template>
+                  </SIconSwap>
                 </template>
               </SButton>
               <SButton
