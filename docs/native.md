@@ -42,7 +42,7 @@ Windows 任务栏歌词渲染，跟随系统主题与任务栏状态自适应。
 pnpm build:native
 
 # 构建 debug 版本（更快，便于调试）
-pnpm build:native -- --dev
+pnpm build:native --dev
 ```
 
 NAPI-RS 会自动生成各模块的 `index.d.ts` 类型声明，主进程通过路径别名引用：
