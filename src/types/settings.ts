@@ -5,7 +5,7 @@ import { ALL_PLATFORMS } from "@shared/types/platform";
 import type { QualityLevel } from "@/utils/quality";
 
 /** 播放器背景类型 */
-export type PlayerBgType = "blur" | "solid";
+export type PlayerBgType = "blur" | "solid" | "animation";
 export type CoverLayout = "default" | "fullscreen";
 
 /**
@@ -79,6 +79,10 @@ export interface LyricSettings {
   showTranslation: boolean;
   /** 是否显示音译歌词 */
   showRomanization: boolean;
+  /** AMLL 是否显示逐行音译 */
+  amllShowLineRomanization: boolean;
+  /** AMLL 是否显示逐词音译 */
+  amllShowWordRomanization: boolean;
   /** 逐字高亮效果 */
   enableWordHighlight: boolean;
   /** 逐字上浮动画 */
@@ -109,12 +113,36 @@ export interface LyricSettings {
   excludeLyricsUserKeywords: string[];
   /** 用户自定义正则 */
   excludeLyricsUserRegexes: string[];
+  /** 歌词引擎类型 */
+  engine: "physics" | "amll";
+  /** AM 歌词是否启用物理回弹与缩放 */
+  useAMSpring: boolean;
+  /** AMLL 垂直位移弹簧参数 */
+  amllVerticalSpringMass: number;
+  amllVerticalSpringDamping: number;
+  amllVerticalSpringStiffness: number;
+  amllVerticalSpringSoft: boolean;
+  /** AMLL 缩放弹簧参数 */
+  amllScaleSpringMass: number;
+  amllScaleSpringDamping: number;
+  amllScaleSpringStiffness: number;
+  amllScaleSpringSoft: boolean;
 }
 
 /** 播放器设置 */
 export interface PlayerSettings {
   /** 播放器背景类型 */
   playerBgType: PlayerBgType;
+  /** 流体背景帧率（fps） */
+  playerBgFps: number;
+  /** 流体背景流动速度 */
+  playerBgFlowSpeed: number;
+  /** 流体背景渲染缩放 */
+  playerBgRenderScale: number;
+  /** 暂停播放时冻结流体背景 */
+  playerBgFreezeOnPause: boolean;
+  /** 流体背景随低频节拍脉动 */
+  playerBgBeat: boolean;
   /** 全屏播放器封面布局 */
   coverLayout: CoverLayout;
   /** 无歌词时自动居中封面并隐藏歌词区域 */

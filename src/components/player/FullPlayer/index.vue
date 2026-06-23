@@ -9,6 +9,7 @@ import { useFavorite } from "@/composables/useFavorite";
 import { useDownload, buildDownloadQualityItems } from "@/composables/useDownload";
 import { usePlaylistPicker } from "@/composables/usePlaylistPicker";
 import Lyrics from "@/components/player/Lyrics/index.vue";
+import AMLLLyrics from "@/components/player/Lyrics/AMLLLyrics.vue";
 import PlaylistPickerDialog from "@/components/modals/PlaylistPickerDialog.vue";
 import { useWindowControls } from "@/composables/useWindowControls";
 import * as player from "@/core/player";
@@ -39,7 +40,7 @@ const {
 } = storeToRefs(status);
 
 /** 歌词组件引用 */
-const lyricRef = ref<InstanceType<typeof Lyrics>>();
+const lyricRef = ref<InstanceType<typeof Lyrics> | InstanceType<typeof AMLLLyrics>>();
 
 /** 精确播放时间（毫秒）；offset 直接读 status mirror（主进程权威源） */
 const { start: startTick, stop: stopTick } = usePlaybackTime((currentMs) => {
@@ -52,11 +53,6 @@ const { start: startTick, stop: stopTick } = usePlaybackTime((currentMs) => {
 const lyricMounted = ref(false);
 /** 初始播放时间 */
 const initialLyricTimeMs = ref(0);
-
-/** 歌词制作者 GitHub 主页（点击跳转） */
-const authorGitHubUrl = computed(() =>
-  media.lyricAuthor ? `https://github.com/${media.lyricAuthor}` : "",
-);
 
 /** 展开前 */
 const onBeforeEnter = () => {
@@ -119,6 +115,20 @@ watch(
   () => media.parsedLyric,
   () => {
     lyricRef.value?.setCurrentTime(getCurrentTime() + status.lyricOffsetMs);
+  },
+);
+
+// 切换歌词引擎时，重新计算初始并推送时间
+watch(
+  () => settings.lyric.engine,
+  () => {
+    initialLyricTimeMs.value = getCurrentTime() + status.lyricOffsetMs;
+    nextTick(() => {
+      lyricRef.value?.setCurrentTime(getCurrentTime() + status.lyricOffsetMs);
+      if (isPlaying.value) {
+        lyricRef.value?.resume();
+      }
+    });
   },
 );
 
@@ -357,8 +367,38 @@ const toggleLyric = (): void => {
                 fontFamily: settings.lyric.fontFamily || undefined,
               }"
             >
+              <AMLLLyrics
+                v-if="lyricMounted && hasLyric && settings.lyric.engine === 'amll'"
+                ref="lyricRef"
+                :lyric-lines="media.parsedLyric"
+                :initial-time="initialLyricTimeMs"
+                :playing="isPlaying"
+                :align-position="settings.lyric.alignPosition"
+                :word-fade-width="settings.lyric.wordFadeWidth"
+                :hide-passed-lines="settings.lyric.hidePassedLines"
+                :enable-blur="settings.lyric.enableBlur"
+                :show-translation="settings.lyric.showTranslation"
+                :show-line-romanization="settings.lyric.amllShowLineRomanization"
+                :show-word-romanization="settings.lyric.amllShowWordRomanization"
+                @seek="player.seek($event)"
+              >
+                <template #bottom>
+                  <div v-if="media.lyricAuthors.length > 0" class="lyric-credit-line">
+                    <span class="lyric-credit-prefix">{{ $t("player.lyricCredit") }}</span>
+                    <template v-for="(author, idx) in media.lyricAuthors" :key="author">
+                      <span v-if="idx > 0" class="mx-1">,</span>
+                      <span
+                        class="lp-content lyric-credit"
+                        @click.stop="openExternal(`https://github.com/${author}`)"
+                      >
+                        {{ "@" + author }}
+                      </span>
+                    </template>
+                  </div>
+                </template>
+              </AMLLLyrics>
               <Lyrics
-                v-if="lyricMounted && hasLyric"
+                v-else-if="lyricMounted && hasLyric"
                 ref="lyricRef"
                 :lyric-lines="media.parsedLyric"
                 :initial-time="initialLyricTimeMs"
@@ -377,14 +417,17 @@ const toggleLyric = (): void => {
                 @seek="player.seek($event)"
               >
                 <template #bottom>
-                  <div v-if="media.lyricAuthor" class="lyric-credit-line">
-                    {{ $t("player.lyricCredit") }}
-                    <span
-                      class="lp-content lyric-credit"
-                      @click.stop="openExternal(authorGitHubUrl)"
-                    >
-                      {{ "@" + media.lyricAuthor }}
-                    </span>
+                  <div v-if="media.lyricAuthors.length > 0" class="lyric-credit-line">
+                    <span class="lyric-credit-prefix">{{ $t("player.lyricCredit") }}</span>
+                    <template v-for="(author, idx) in media.lyricAuthors" :key="author">
+                      <span v-if="idx > 0" class="mx-1">,</span>
+                      <span
+                        class="lp-content lyric-credit"
+                        @click.stop="openExternal(`https://github.com/${author}`)"
+                      >
+                        {{ "@" + author }}
+                      </span>
+                    </template>
                   </div>
                 </template>
               </Lyrics>
@@ -609,6 +652,12 @@ const toggleLyric = (): void => {
 
 .lyric-credit-line {
   font-size: max(0.5em, 10px);
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  text-align: left;
+  width: 100%;
 }
 
 .lyric-credit {

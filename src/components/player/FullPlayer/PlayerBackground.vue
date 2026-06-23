@@ -4,13 +4,21 @@ import { useThemeStore } from "@/stores/theme";
 import { useMediaStore } from "@/stores/media";
 import { useStatusStore } from "@/stores/status";
 import DEFAULT_COVER from "@/assets/images/song.jpg";
+import BackgroundRender from "./BackgroundRender.vue";
 
 const media = useMediaStore();
 const settings = useSettingsStore();
 const theme = useThemeStore();
 const status = useStatusStore();
 
-const bgType = computed(() => settings.player.playerBgType);
+const bgType = computed(() => settings.player.playerBgType as string);
+
+// 流体背景播放态
+const bgPlaying = computed(() => {
+  if (!status.isExpanded) return false;
+  if (!status.isPlaying && settings.player.playerBgFreezeOnPause) return false;
+  return true;
+});
 
 // 封面颜色（纯色模式）
 const coverColor = computed(() => {
@@ -95,6 +103,19 @@ onBeforeUnmount(() => {
     />
   </div>
 
+  <!-- 流体背景 -->
+  <div v-else-if="bgType === 'animation'" class="absolute inset-0 overflow-hidden -z-1">
+    <BackgroundRender
+      :album="media.track?.cover || DEFAULT_COVER"
+      :playing="bgPlaying"
+      :fps="settings.player.playerBgFps"
+      :flow-speed="settings.player.playerBgFlowSpeed"
+      :render-scale="settings.player.playerBgRenderScale"
+      :has-lyric="media.parsedLyric.length > 0"
+      :enable-beat="settings.player.playerBgBeat"
+    />
+  </div>
+
   <!-- 纯色背景 -->
   <div v-else class="absolute inset-0 overflow-hidden -z-1 bg-solid-wrap">
     <Transition name="fade">
@@ -108,13 +129,13 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-/* 公共：遮罩层 */
 .bg-blur-wrap::after,
 .bg-solid-wrap::after {
   content: "";
   position: absolute;
   inset: 0;
   background-color: rgba(0, 0, 0, 0.5);
+  z-index: 1;
 }
 
 /* 模糊模式 */
