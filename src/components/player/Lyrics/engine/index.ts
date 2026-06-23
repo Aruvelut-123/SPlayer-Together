@@ -110,6 +110,8 @@ export class LyricRenderer {
 
   /** rAF 句柄，0 表示未运行 */
   private animationFrameId = 0;
+  /** 掩码计算的延迟 rAF 句柄 */
+  private maskRafId = 0;
   /** 上一帧的时间戳，用于计算 deltaTime */
   private lastFrameTimestamp = 0;
   /** 页面是否可见（不可见时跳过渲染） */
@@ -268,6 +270,7 @@ export class LyricRenderer {
   /** 销毁渲染器 */
   dispose = () => {
     cancelAnimationFrame(this.animationFrameId);
+    cancelAnimationFrame(this.maskRafId);
     clearTimeout(this.scrollResetTimerId);
     this.lineAnimations.cancelAll();
     this.containerResizeObserver.disconnect();
@@ -374,7 +377,10 @@ export class LyricRenderer {
     this.dotsContainerWidth = this.dotsContainer.offsetWidth || 60;
     this.dotsContainerHeight = this.dotsContainer.offsetHeight || 20;
     this.measureLineHeights();
-    measureAndApplyWordMasks(this.wordMeasurements, this.wordFadeWidth, this.lines);
+    // 掩码计算延迟到下一帧，避免与 DOM 构建/行高测量在同一帧内造成帧丢失
+    this.maskRafId = requestAnimationFrame(() => {
+      measureAndApplyWordMasks(this.wordMeasurements, this.wordFadeWidth, this.lines);
+    });
 
     // 重置时间状态，避免残留旧歌的播放时间影响新歌词定位
     this.pendingPlayTime = -1;

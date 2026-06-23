@@ -57,7 +57,7 @@ const hasTrack = computed(() => !!media.track);
       variant="secondary"
       circle
       ripple
-      :class="compact ? 'mx-0.5' : 'mx-1'"
+      :class="[compact ? 'mx-0.5' : 'mx-1', 'will-change-transform']"
       :size="compact ? 40 : 44"
       :loading="isLoading"
       :disabled="!hasTrack && !isLoading"
