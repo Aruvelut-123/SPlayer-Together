@@ -51,7 +51,7 @@ export const createMainWindow = (): BrowserWindow => {
   // 初始化托盘
   initTray();
 
-  // 自定义任务栏缩略图（仅 Windows + 设置开启时生效，函数内部已判定）
+  // 自定义任务栏缩略图
   enableTaskbarThumbnail(mainWindow);
 
   // 缩略图工具栏

@@ -21,7 +21,7 @@ use windows::Win32::Graphics::Gdi::{
     BI_RGB, BITMAPINFO, BITMAPINFOHEADER, CreateDIBSection, DIB_RGB_COLORS, DeleteObject, HBITMAP,
     HGDIOBJ,
 };
-use windows::Win32::UI::Shell::{DefSubclassProc, RemoveWindowSubclass, SetWindowSubclass};
+use windows::Win32::UI::Shell::{DefSubclassProc, SetWindowSubclass};
 use windows::Win32::UI::WindowsAndMessaging::IsWindow;
 
 /// DWM 请求缩略图位图（lParam 低 32 位打包了请求尺寸，宽高顺序与常规相反）
@@ -178,9 +178,9 @@ unsafe extern "system" fn subclass_proc(
     }
 }
 
-/// 设置 DWM 布尔属性
-unsafe fn set_dwm_flag(hwnd: HWND, attr: windows::Win32::Graphics::Dwm::DWMWINDOWATTRIBUTE, on: bool) {
-    let value: i32 = if on { 1 } else { 0 };
+/// 开启 DWM 布尔属性
+unsafe fn enable_dwm_flag(hwnd: HWND, attr: windows::Win32::Graphics::Dwm::DWMWINDOWATTRIBUTE) {
+    let value: i32 = 1;
     let _ = unsafe {
         DwmSetWindowAttribute(
             hwnd,
@@ -198,30 +198,14 @@ pub fn enable(hwnd_ptr: f64) -> bool {
         return false;
     };
     unsafe {
-        set_dwm_flag(hwnd, DWMWA_FORCE_ICONIC_REPRESENTATION, true);
-        set_dwm_flag(hwnd, DWMWA_HAS_ICONIC_BITMAP, true);
+        enable_dwm_flag(hwnd, DWMWA_FORCE_ICONIC_REPRESENTATION);
+        enable_dwm_flag(hwnd, DWMWA_HAS_ICONIC_BITMAP);
         let ok = SetWindowSubclass(hwnd, Some(subclass_proc), SUBCLASS_ID, 0).as_bool();
         if ok {
             TARGET_HWND.with(|cell| *cell.borrow_mut() = Some(hwnd));
         }
         ok
     }
-}
-
-/// 关闭自定义缩略图：撤销子类与 DWM 属性，恢复默认实时预览
-#[napi]
-pub fn disable() {
-    TARGET_HWND.with(|cell| {
-        if let Some(hwnd) = cell.borrow_mut().take() {
-            unsafe {
-                let _ = RemoveWindowSubclass(hwnd, Some(subclass_proc), SUBCLASS_ID);
-                set_dwm_flag(hwnd, DWMWA_FORCE_ICONIC_REPRESENTATION, false);
-                set_dwm_flag(hwnd, DWMWA_HAS_ICONIC_BITMAP, false);
-                let _ = DwmInvalidateIconicBitmaps(hwnd);
-            }
-        }
-    });
-    COVER.with(|cell| *cell.borrow_mut() = None);
 }
 
 /// 更新封面（BGRA、顶向下、不透明），并让 DWM 失效以重新拉取
@@ -238,13 +222,6 @@ pub fn set_cover(bgra: Buffer, width: i32, height: i32) {
             height,
         });
     });
-    invalidate();
-}
-
-/// 清空封面（无歌曲时）
-#[napi]
-pub fn clear() {
-    COVER.with(|cell| *cell.borrow_mut() = None);
     invalidate();
 }
 
