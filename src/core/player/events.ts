@@ -2,6 +2,7 @@ import type { PlayerEvent } from "@shared/types/player";
 import { useMediaStore } from "@/stores/media";
 import { useStatusStore } from "@/stores/status";
 import { useSettingsStore } from "@/stores/settings";
+import { useFavorite } from "@/composables/useFavorite";
 import * as playback from "@/services/playback";
 import * as autoClose from "@/services/autoClose";
 import * as abLoop from "@/services/abLoop";
@@ -110,6 +111,9 @@ export const handleEvent = async (event: PlayerEvent): Promise<void> => {
       break;
     case "setRepeat":
       setRepeatMode(event.data.mode);
+      break;
+    case "toggleLike":
+      await useFavorite().toggle(useMediaStore().track);
       break;
     case "deviceChanged": {
       refreshDevices();

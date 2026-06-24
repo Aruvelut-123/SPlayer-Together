@@ -143,10 +143,7 @@ onBeforeUnmount(() => {
   </Transition>
   <!-- 流体背景 -->
   <Transition v-else name="bg-fade">
-    <div
-      v-if="bgReady"
-      class="absolute inset-0 overflow-hidden -z-1"
-    >
+    <div v-if="bgReady" class="absolute inset-0 overflow-hidden -z-1">
       <BackgroundRender
         :album="media.track?.cover || DEFAULT_COVER"
         :playing="bgPlaying"

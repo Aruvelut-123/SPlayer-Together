@@ -17,6 +17,7 @@ import * as abLoop from "@/services/abLoop";
 import * as cacheScheduler from "@/services/cacheScheduler";
 import { resolveTrackSource } from "@/services/audioSource";
 import { installPlayStats } from "./stats";
+import { useFavorite } from "@/composables/useFavorite";
 import { extractColorFromUrl } from "@/utils/color";
 import { handleError, isSkippableError } from "@/utils/errors";
 import { toast } from "@/composables/useToast";
@@ -618,7 +619,7 @@ export const setRepeatMode = (mode: RepeatMode): void => {
   if (status.repeatMode === mode) return;
   status.repeatMode = mode;
   syncPlayMode();
-  toast.info(i18n.global.t(`player.repeatMode.${mode}`));
+  toast.info(i18n.global.t(`player.repeatMode.${mode}`), { icon: false });
 };
 
 /** 循环切换循环模式：list → one → off → list */
@@ -659,7 +660,7 @@ export const setShuffleMode = (mode: ShuffleMode): void => {
     }
   }
   syncPlayMode();
-  toast.info(i18n.global.t(`player.shuffleMode.${mode}`));
+  toast.info(i18n.global.t(`player.shuffleMode.${mode}`), { icon: false });
 };
 
 /**
@@ -831,6 +832,13 @@ export const initPlayer = async (): Promise<void> => {
   installPlayStats();
   // 订阅主进程下发的歌词偏移变化
   const media = useMediaStore();
+  // 当前歌曲喜欢状态变化时同步到托盘菜单
+  const fav = useFavorite();
+  watch(
+    () => fav.isLiked(media.track),
+    (liked) => window.api.player.syncLikeState(liked),
+    { immediate: true },
+  );
   window.api.nowPlaying.onLyricOffsetChange(({ offsetMs }) => {
     status.lyricOffsetMs = offsetMs;
     media.updateLyricIndex(playback.getCurrentTime() + offsetMs);
