@@ -40,6 +40,10 @@ const modules: NativeModule[] = [
     name: "taskbar-lyric",
     enabled: process.platform === "win32",
   },
+  {
+    name: "taskbar-thumbnail",
+    enabled: process.platform === "win32",
+  },
 ];
 
 try {
