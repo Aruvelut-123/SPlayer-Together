@@ -102,8 +102,12 @@ const handleVisibility = () => {
   if (document.hidden) {
     pauseRaf();
     playerRef.value?.pause();
-  } else if (props.playing && !isFrozen.value) {
-    playerRef.value?.resume();
+  } else if (!isFrozen.value) {
+    if (props.playing) {
+      playerRef.value?.resume();
+    } else {
+      playerRef.value?.pause();
+    }
     resumeRaf();
   }
 };
@@ -155,8 +159,12 @@ onUnmounted(() => {
 watchEffect(() => {
   const player = playerRef.value;
   if (!player) return;
-  if (props.playing && !isFrozen.value && !document.hidden) {
-    player.resume();
+  if (!isFrozen.value && !document.hidden) {
+    if (props.playing) {
+      player.resume();
+    } else {
+      player.pause();
+    }
     resumeRaf();
   } else {
     pauseRaf();
