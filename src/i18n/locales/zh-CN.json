@@ -472,6 +472,9 @@
       "fileTitle": "删除文件",
       "fileConfirmOne": "确认从磁盘删除「{title}」？此操作不可撤销",
       "fileConfirm": "确认从磁盘删除 {count} 个文件？此操作不可撤销"
+    },
+    "toast": {
+      "addedToNext": "已添加到下一曲播放"
     }
   },
   "quality": {
@@ -1674,7 +1677,7 @@
     "deleteConfirm": "确认删除{type}「{title}」？此操作不可撤销",
     "addTo": "添加到{type}",
     "removeFrom": "从{type}移除",
-    "tracksAdded": "已添加 {count} 首歌曲",
+    "tracksAdded": "添加成功，共 {count} 首",
     "alreadyInPlaylist": "歌曲已在歌单中",
     "edit": "编辑{type}",
     "subscribe": "收藏",

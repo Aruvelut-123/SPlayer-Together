@@ -70,7 +70,7 @@ const buildMenu = (): Menu => {
     { type: "separator" },
     {
       label: shuffleMode === "on" ? t("shuffle") : t("sequential"),
-      icon: menuIcon("shuffle"),
+      icon: menuIcon(shuffleMode === "on" ? "shuffle" : "sequential"),
       submenu: [
         {
           label: t("shuffle"),
