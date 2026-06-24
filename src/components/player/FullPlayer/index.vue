@@ -107,6 +107,11 @@ const coverCentered = computed(() => {
   return !showLyric.value || (settings.player.autoCenterCover && !hasLyric.value);
 });
 
+const handleLyricSeek = async (timeMs: number): Promise<void> => {
+  await player.seek(timeMs);
+  if (!isPlaying.value) await player.play();
+};
+
 const springConfig = computed(() => ({
   mass: settings.lyric.springMass,
   damping: settings.lyric.springDamping,
@@ -297,7 +302,7 @@ const toggleLyric = (): void => {
                 :show-translation="settings.lyric.showTranslation"
                 :show-line-romanization="settings.lyric.amllShowLineRomanization"
                 :show-word-romanization="settings.lyric.amllShowWordRomanization"
-                @seek="player.seek($event)"
+                @seek="handleLyricSeek"
               >
                 <template #bottom>
                   <div v-if="media.lyricAuthors.length > 0" class="lyric-credit-line">
@@ -331,7 +336,7 @@ const toggleLyric = (): void => {
                 :enable-emphasize-effect="settings.lyric.enableEmphasizeEffect"
                 :show-translation="settings.lyric.showTranslation"
                 :show-romanization="settings.lyric.showRomanization"
-                @seek="player.seek($event)"
+                @seek="handleLyricSeek"
               >
                 <template #bottom>
                   <div v-if="media.lyricAuthors.length > 0" class="lyric-credit-line">
