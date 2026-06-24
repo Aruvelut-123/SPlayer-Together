@@ -50,7 +50,7 @@ const hasTrack = computed(() => !!media.track);
 /** 精确播放时间（毫秒） */
 const { start: startTick, stop: stopTick } = usePlaybackTime((currentMs) => {
   if (!status.trackLoading && !media.lyricLoading) {
-    lyricRef.value?.setCurrentTime(currentMs + status.lyricOffsetMs);
+    lyricRef.value?.setCurrentTime(currentMs + status.lyricOffsetMs, player.isSeeking());
   }
 });
 

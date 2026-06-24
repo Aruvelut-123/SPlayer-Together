@@ -211,8 +211,8 @@ watch(processedLyrics, (newLyrics) => {
 });
 
 // 主播放器事件驱动的时间同步接口
-const setCurrentTime = (time: number) => {
-  playerRef.value?.setCurrentTime(time);
+const setCurrentTime = (time: number, isSeek?: boolean) => {
+  playerRef.value?.setCurrentTime(time, isSeek);
 };
 
 // 隐藏界面或休眠时调用
