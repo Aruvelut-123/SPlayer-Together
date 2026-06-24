@@ -44,10 +44,6 @@ const lyricRef = ref<InstanceType<typeof Lyrics> | InstanceType<typeof AMLLLyric
 const lyricMounted = ref(false);
 const initialLyricTimeMs = ref(0);
 
-/** 内容是否就绪 */
-const contentReady = ref(false);
-let initialized = false;
-
 const hasLyric = computed(() => media.parsedLyric.length > 0 || media.lyricLoading);
 const hasTrack = computed(() => !!media.track);
 
@@ -58,36 +54,25 @@ const { start: startTick, stop: stopTick } = usePlaybackTime((currentMs) => {
   }
 });
 
-/** 展开前 */
-const onBeforeEnter = () => {
-  if (lyricMounted.value) {
-    lyricRef.value?.setCurrentTime(getCurrentTime() + status.lyricOffsetMs);
-    lyricRef.value?.resume();
-    startTick();
-  }
-};
-
 /** 展开后 */
 const onAfterEnter = () => {
-  if (!initialized) {
-    initialLyricTimeMs.value = getCurrentTime() + status.lyricOffsetMs;
-    lyricMounted.value = true;
-    initialized = true;
-    nextTick(() => {
-      lyricRef.value?.resume();
-      startTick();
-    });
-    // 等歌词入场动画完成
-    setTimeout(() => {
-      contentReady.value = true;
-    }, 200);
-  }
+  initialLyricTimeMs.value = getCurrentTime() + status.lyricOffsetMs;
+  lyricMounted.value = true;
+  nextTick(() => {
+    lyricRef.value?.resume();
+    startTick();
+  });
 };
 
 /** 收起前 */
 const onBeforeLeave = () => {
   lyricRef.value?.freeze();
   stopTick();
+};
+
+/** 收起后 */
+const onAfterLeave = () => {
+  lyricMounted.value = false;
 };
 
 // 重新挂载时，刷新初始时间
@@ -189,9 +174,9 @@ const toggleLyric = (): void => {
       leave-active-class="transition-transform duration-500 ease-[cubic-bezier(0.7,0,0.3,1)]"
       enter-from-class="translate-y-full"
       leave-to-class="translate-y-full"
-      @before-enter="onBeforeEnter"
       @after-enter="onAfterEnter"
       @before-leave="onBeforeLeave"
+      @after-leave="onAfterLeave"
     >
       <div
         v-show="isExpanded"
