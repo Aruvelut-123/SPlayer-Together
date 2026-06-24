@@ -3,6 +3,7 @@ import { join } from "path";
 import { is } from "@electron-toolkit/utils";
 import { createWindow } from "./create";
 import { initThumbar } from "@main/services/thumbar";
+import { enableTaskbarThumbnail } from "@main/services/thumbnail";
 import { initTray } from "@main/services/tray";
 import { store } from "@main/store";
 import { handleCacheProtocolOnPartition } from "@main/utils/protocol";
@@ -49,6 +50,9 @@ export const createMainWindow = (): BrowserWindow => {
 
   // 初始化托盘
   initTray();
+
+  // 自定义任务栏缩略图
+  enableTaskbarThumbnail(mainWindow);
 
   // 缩略图工具栏
   mainWindow.webContents.once("did-finish-load", () => {

@@ -86,6 +86,7 @@ const handleLineClick = (e: Event) => {
   const lineData = amllEvent.line?.getLine();
   if (lineData && typeof lineData.startTime === "number") {
     emit("seek", lineData.startTime);
+    playerRef.value?.setCurrentTime(lineData.startTime, true);
   }
 };
 
@@ -249,16 +250,6 @@ defineExpose({
   --amll-lp-color: var(--lp-color, #fff);
   width: 100%;
   height: 100%;
-  padding-left: 10%;
-  padding-right: 15%;
-  box-sizing: border-box;
-}
-
-@media (max-width: 990px) {
-  :deep(.amll-lyric-player) {
-    padding-left: 20px;
-    padding-right: 20px;
-  }
 }
 
 :deep(.lp-line.lp-credit) {

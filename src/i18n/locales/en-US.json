@@ -484,6 +484,9 @@
       "fileTitle": "Delete File",
       "fileConfirmOne": "Permanently delete \"{title}\" from disk? This cannot be undone",
       "fileConfirm": "Permanently delete {count} files from disk? This cannot be undone"
+    },
+    "toast": {
+      "addedToNext": "Added to play next"
     }
   },
   "quality": {
@@ -1686,7 +1689,7 @@
     "deleteConfirm": "Delete {type} \"{title}\"? This cannot be undone",
     "addTo": "Add to {type}",
     "removeFrom": "Remove from {type}",
-    "tracksAdded": "{count} songs added",
+    "tracksAdded": "Added successfully, {count} songs",
     "alreadyInPlaylist": "Already in the playlist",
     "edit": "Edit {type}",
     "subscribe": "Subscribe",

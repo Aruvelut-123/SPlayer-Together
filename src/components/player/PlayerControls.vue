@@ -21,6 +21,7 @@ const hasTrack = computed(() => !!media.track);
 <template>
   <div class="flex items-center" :class="compact ? 'gap-0' : 'gap-2.5'">
     <SButton
+      class="will-change-transform"
       type="primary"
       variant="ghost"
       circle
@@ -42,6 +43,7 @@ const hasTrack = computed(() => !!media.track);
       </template>
     </SButton>
     <SButton
+      class="will-change-transform"
       type="primary"
       variant="ghost"
       circle
@@ -57,7 +59,7 @@ const hasTrack = computed(() => !!media.track);
       variant="secondary"
       circle
       ripple
-      :class="compact ? 'mx-0.5' : 'mx-1'"
+      :class="[compact ? 'mx-0.5' : 'mx-1', 'will-change-transform']"
       :size="compact ? 40 : 44"
       :loading="isLoading"
       :disabled="!hasTrack && !isLoading"
@@ -71,6 +73,7 @@ const hasTrack = computed(() => !!media.track);
       </template>
     </SButton>
     <SButton
+      class="will-change-transform"
       type="primary"
       variant="ghost"
       circle
@@ -82,6 +85,7 @@ const hasTrack = computed(() => !!media.track);
       <template #icon><IconLucideSkipForward /></template>
     </SButton>
     <SButton
+      class="will-change-transform"
       variant="ghost"
       circle
       ripple

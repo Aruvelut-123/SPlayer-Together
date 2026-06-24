@@ -26,14 +26,12 @@ defineProps<{
 .s-icon-swap {
   transition:
     opacity 0.3s cubic-bezier(0.2, 0, 0, 1),
-    transform 0.3s cubic-bezier(0.2, 0, 0, 1),
-    filter 0.3s cubic-bezier(0.2, 0, 0, 1);
+    transform 0.3s cubic-bezier(0.2, 0, 0, 1);
 }
 
 .s-icon-swap-hidden {
   opacity: 0;
   transform: scale(0.25);
-  filter: blur(4px);
   pointer-events: none;
 }
 </style>
