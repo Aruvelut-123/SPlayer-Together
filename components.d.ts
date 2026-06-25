@@ -175,6 +175,7 @@ declare module 'vue' {
     PlayerData: typeof import('./src/components/player/FullPlayer/PlayerData.vue')['default']
     PlaylistCreateDialog: typeof import('./src/components/modals/PlaylistCreateDialog.vue')['default']
     PlaylistPickerDialog: typeof import('./src/components/modals/PlaylistPickerDialog.vue')['default']
+    PluginCard: typeof import('./src/components/settings/custom/PluginCard.vue')['default']
     PluginManager: typeof import('./src/components/settings/custom/PluginManager.vue')['default']
     PluginSettingsForm: typeof import('./src/components/settings/custom/PluginSettingsForm.vue')['default']
     PopoverArrow: typeof import('reka-ui')['PopoverArrow']

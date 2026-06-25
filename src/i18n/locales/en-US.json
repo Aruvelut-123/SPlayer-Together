@@ -1512,6 +1512,7 @@
       "enable": "Enable",
       "enabled": "Enabled",
       "uninstall": "Uninstall",
+      "configSubtitle": "Plugin settings",
       "uninstallConfirmTitle": "Uninstall Plugin",
       "uninstallConfirm": "Are you sure you want to uninstall \"{name}\"? This action cannot be undone.",
       "uninstallSuccess": "Plugin uninstalled",

@@ -17,19 +17,19 @@ const valueOf = (item: PluginSettingItem): unknown => props.values[item.key] ?? 
 </script>
 
 <template>
-  <div class="flex flex-col gap-2.5">
+  <div class="flex flex-col gap-2">
     <div
       v-for="item in schema"
       :key="item.key"
-      class="flex items-center justify-between gap-4 rounded-xl bg-on-surface/5 border border-solid border-outline-variant/15 px-4 py-3.5"
+      class="flex items-center justify-between gap-4 rounded-lg bg-on-surface/4 px-4 py-3"
     >
       <div class="min-w-0 flex-1">
-        <div class="text-base">{{ item.label }}</div>
-        <div v-if="item.description" class="text-sm text-on-surface-variant/70 mt-0.5">
+        <div class="text-sm">{{ item.label }}</div>
+        <div v-if="item.description" class="text-xs text-on-surface-variant/60 mt-0.5">
           {{ item.description }}
         </div>
       </div>
-      <div class="shrink-0 w-50 flex justify-end">
+      <div class="shrink-0 w-44 flex justify-end">
         <SSwitch
           v-if="item.type === 'switch'"
           :model-value="Boolean(valueOf(item))"
