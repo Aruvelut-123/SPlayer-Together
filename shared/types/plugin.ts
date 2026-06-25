@@ -25,6 +25,74 @@ export type PluginQuality = "hi-res" | "lossless" | "hq" | "sq" | "lq";
 /** 插件脚本来源平台（用于识别 lx 脚本并启用垫片） */
 export type PluginPlatform = "splayer" | "lx";
 
+/** 插件类型：音源（解析 URL）/ 控制（监听状态 + 反向控制） */
+export type PluginType = "source" | "control";
+
+/** 控制类插件可订阅的高层播放事件 */
+export type PlaybackEventKind = "trackChange" | "lyricLineChange" | "playStateChange" | "seek";
+
+/** 各高层事件的载荷 */
+export interface PlaybackEventData {
+  trackChange: {
+    track: {
+      title: string;
+      artists: string;
+      album?: string;
+      duration: number;
+      cover?: string;
+    } | null;
+  };
+  lyricLineChange: {
+    /** 当前行索引，-1 表示无匹配 */
+    index: number;
+    current: { text: string; translation?: string } | null;
+    next: { text: string } | null;
+    /** 查找用的时间（position + offset，毫秒） */
+    time: number;
+  };
+  playStateChange: { state: "playing" | "paused" | "stopped" };
+  seek: { position: number };
+}
+
+/** 控制类插件注册的配置项类型（安全子集） */
+export type PluginSettingType = "switch" | "number" | "text" | "select";
+
+/** 控制类插件注册的单个配置项 */
+export interface PluginSettingItem {
+  key: string;
+  type: PluginSettingType;
+  /** 纯字符串展示名，不做多语言 */
+  label: string;
+  description?: string;
+  default: boolean | number | string;
+  /** number 专用 */
+  min?: number;
+  max?: number;
+  /** text 专用 */
+  placeholder?: string;
+  /** select 专用 */
+  options?: { label: string; value: string }[];
+}
+
+/** register 入参：音源类用 sources，控制类用 events/controls/settings */
+export interface RegisterArgs {
+  sources?: Record<string, SourceCapability>;
+  events?: PlaybackEventKind[];
+  controls?: boolean;
+  settings?: PluginSettingItem[];
+}
+
+/** 控制类插件可用的播放面 */
+export interface PluginPlayerApi {
+  on<K extends PlaybackEventKind>(kind: K, handler: (data: PlaybackEventData[K]) => void): void;
+  play(): void;
+  pause(): void;
+  next(): void;
+  prev(): void;
+  seek(positionMs: number): void;
+  setVolume(volume: number): void;
+}
+
 /** 插件头部 JSDoc 元数据 */
 export interface PluginManifest {
   /** 插件唯一 ID = name + sha1(source).slice(0,8) */
@@ -41,6 +109,8 @@ export interface PluginManifest {
   homepage?: string;
   /** 脚本平台 */
   platform: PluginPlatform;
+  /** 插件类型，来自 @type 头，缺省 "source" */
+  type?: PluginType;
   /** 声明兼容的 Host API 级别 */
   apiLevel: number;
   /** 源码 SHA1 */
@@ -65,7 +135,14 @@ export interface SourceCapability {
 export type PluginStatus =
   | { state: "unloaded" }
   | { state: "loading" }
-  | { state: "ready"; sources: Record<string, SourceCapability> }
+  | {
+      state: "ready";
+      sources: Record<string, SourceCapability>;
+      /** 控制类附加信息（音源类为 undefined） */
+      events?: PlaybackEventKind[];
+      controls?: boolean;
+      settings?: PluginSettingItem[];
+    }
   | { state: "error"; error: { code: string; message: string } }
   | { state: "disabled" };
 
@@ -88,6 +165,8 @@ export interface PluginInfo {
   status: PluginStatus;
   /** 脚本上报过"有新版本"时填充，用户更新/卸载后清空 */
   updateInfo?: PluginUpdateInfo | null;
+  /** 控制类插件的当前设置值（perPlugin） */
+  settingsValues?: Record<string, unknown>;
 }
 
 /* ========== 调用请求 / 响应 ========== */
