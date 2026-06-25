@@ -11,8 +11,9 @@ import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import zlib from "node:zlib";
-import type { PluginManifest, PluginPlatform } from "@shared/types/plugin";
+import type { PluginManifest, PluginPlatform, PluginType } from "@shared/types/plugin";
 import { HOST_API_LEVEL, PluginErrorCodes } from "@shared/defaults/plugin-api";
+import { pluginLog } from "@main/utils/logger";
 
 const GZ_PREFIX = "gz_";
 
@@ -48,6 +49,7 @@ interface HeaderFields {
   homepage?: string;
   platform?: PluginPlatform;
   apiLevel?: number;
+  type?: PluginType;
 }
 
 const parseHeader = (source: string): HeaderFields => {
@@ -79,6 +81,9 @@ const parseHeader = (source: string): HeaderFields => {
         if (!Number.isNaN(n)) out.apiLevel = n;
         break;
       }
+      case "type":
+        out.type = val === "control" ? "control" : "source";
+        break;
     }
   }
   return out;
@@ -116,6 +121,13 @@ export const loadScript = (rawOrPath: string, isPath: boolean, fileName?: string
 
   const platform: PluginPlatform = header.platform ?? (wasCompressed ? "lx" : "splayer");
   const apiLevel = header.apiLevel ?? 1;
+  const rawType: PluginType = header.type === "control" ? "control" : "source";
+
+  if (rawType === "control" && apiLevel < 2) {
+    pluginLog.warn(
+      `插件 "${name}" 声明 type=control 但 apiLevel=${apiLevel}（需 ≥ 2），控制类功能将在运行时受限`,
+    );
+  }
 
   if (apiLevel > HOST_API_LEVEL) {
     throw Object.assign(
@@ -135,6 +147,7 @@ export const loadScript = (rawOrPath: string, isPath: boolean, fileName?: string
     author: header.author,
     homepage: header.homepage,
     platform,
+    type: rawType,
     apiLevel,
     hash,
     installedAt: Date.now(),
