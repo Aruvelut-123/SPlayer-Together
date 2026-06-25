@@ -431,7 +431,6 @@ const isEmpty = computed(
               <!-- 控制类设置表单（ready 且有 schema 时内联展示） -->
               <PluginSettingsForm
                 v-if="controlSettings(info).length > 0"
-                :plugin-id="info.manifest.id"
                 :schema="controlSettings(info)"
                 :values="info.settingsValues ?? {}"
                 @change="(key, value) => onSettingChange(info.manifest.id, key, value)"

@@ -2,8 +2,6 @@
 import type { PluginSettingItem } from "@shared/types/plugin";
 
 const props = defineProps<{
-  /** 插件 id */
-  pluginId: string;
   /** 插件注册的设置 schema */
   schema: PluginSettingItem[];
   /** 当前值（来自 perPlugin，缺省取 default） */
@@ -54,7 +52,7 @@ const valueOf = (item: PluginSettingItem): unknown => props.values[item.key] ?? 
         />
         <SSelect
           v-else-if="item.type === 'select'"
-          :model-value="valueOf(item) as string | number | boolean"
+          :model-value="(valueOf(item) ?? '') as string"
           :options="item.options ?? []"
           @update:model-value="(val) => emit('change', item.key, val)"
         />

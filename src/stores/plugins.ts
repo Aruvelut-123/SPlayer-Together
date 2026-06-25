@@ -99,15 +99,6 @@ export const usePluginsStore = defineStore("plugins", () => {
   };
 
   /**
-   * 启用指定插件，同时禁用其他所有已启用的音源插件（互斥）。
-   * 保留供现有调用方（PluginManager.vue）使用；内部委托给 setEnabled。
-   * @param id - 要启用的插件 ID
-   */
-  const enableExclusive = async (id: string): Promise<void> => {
-    await setEnabled(id, true);
-  };
-
-  /**
    * 写入控制类插件的单个配置项。
    * @param id - 插件 ID
    * @param key - 配置项 key
@@ -132,7 +123,6 @@ export const usePluginsStore = defineStore("plugins", () => {
     installFromUrl,
     uninstall,
     setEnabled,
-    enableExclusive,
     setSetting,
     dispose,
   };

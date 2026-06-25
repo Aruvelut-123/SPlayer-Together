@@ -15,7 +15,9 @@ import { sendToMain } from "@main/utils/broadcast";
  */
 const seek = (positionMs: number): void => {
   sendToMain("player:event", { type: "seek", data: { position: positionMs } });
-  void getPlayer().seek(positionMs / 1000);
+  void getPlayer()
+    .seek(positionMs / 1000)
+    .catch(() => {});
 };
 
 export const playerControl = {

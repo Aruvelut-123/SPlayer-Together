@@ -167,7 +167,7 @@ export interface PluginInfo {
   status: PluginStatus;
   /** 脚本上报过"有新版本"时填充，用户更新/卸载后清空 */
   updateInfo?: PluginUpdateInfo | null;
-  /** 控制类插件的当前设置值（perPlugin） */
+  /** 控制类插件的当前设置值 */
   settingsValues?: Record<string, unknown>;
 }
 
