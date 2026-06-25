@@ -2,8 +2,9 @@
  * 控制类插件的播放事件桥
  */
 
-import type { Track } from "@shared/types/player";
+import type { Track, PlayerState } from "@shared/types/player";
 import type { LyricLine } from "@shared/types/lyrics";
+import type { PlaybackEventData, PlaybackEventKind } from "@shared/types/plugin";
 import type {
   NowPlayingSnapshot,
   NowPlayingPositionSync,
@@ -12,13 +13,19 @@ import type {
 import * as nowPlaying from "@main/services/nowPlaying";
 import { pluginRegistry } from "./registry";
 
+type PluginPlayState = PlaybackEventData["playStateChange"]["state"];
+
 let lyricLines: LyricLine[] = [];
 let currentIndex = -1;
 let lyricOffsetMs = 0;
-let lastPlaying = false;
+let lastPluginState: PluginPlayState = "paused";
 let unsubscribers: Array<() => void> = [];
-/** 移除注册表 controlActivityChange 监听的句柄 */
-let offControlActivity: (() => void) | null = null;
+/** 移除注册表事件监听的句柄 */
+let offRegistryEvents: (() => void) | null = null;
+
+/** 引擎播放状态 → 插件可见的三态（idle/loading 视为 paused） */
+const toPluginState = (state: PlayerState): PluginPlayState =>
+  state === "playing" ? "playing" : state === "stopped" ? "stopped" : "paused";
 
 /** Track → 插件可见的精简载荷 */
 const trackPayload = (track: Track | null) =>
@@ -60,10 +67,11 @@ const onLyricOffsetChange = (data: NowPlayingLyricOffsetSync): void => {
 };
 
 const onPositionSync = (data: NowPlayingPositionSync): void => {
-  if (data.playing !== lastPlaying) {
-    lastPlaying = data.playing;
+  const pluginState = toPluginState(data.state);
+  if (pluginState !== lastPluginState) {
+    lastPluginState = pluginState;
     pluginRegistry.broadcastPlaybackEvent("playStateChange", {
-      state: data.playing ? "playing" : "paused",
+      state: pluginState,
       position: data.position,
     });
   }
@@ -74,25 +82,25 @@ const onPositionSync = (data: NowPlayingPositionSync): void => {
   pluginRegistry.broadcastPlaybackEvent("lineChange", { index: next, position: data.position });
 };
 
-/** 挂载时立即获取一次 */
-const prime = (): void => {
+/** 挂载时把当前快照灌入本桥内部状态 */
+const primeState = (): void => {
   const snap = nowPlaying.snapshot();
   lyricLines = snap.lyric;
   lyricOffsetMs = snap.lyricOffsetMs;
-  lastPlaying = snap.playing;
-  pluginRegistry.broadcastPlaybackEvent("trackChange", { track: trackPayload(snap.track) });
-  pluginRegistry.broadcastPlaybackEvent("lyricChange", { lines: lyricLines });
-  pluginRegistry.broadcastPlaybackEvent("playStateChange", {
-    state: snap.playing ? "playing" : "paused",
-    position: snap.position,
-  });
+  lastPluginState = toPluginState(snap.state);
   currentIndex = lyricLines.length > 0 ? findIndex(snap.position + lyricOffsetMs) : -1;
-  if (currentIndex >= 0) {
-    pluginRegistry.broadcastPlaybackEvent("lineChange", {
-      index: currentIndex,
-      position: snap.position,
-    });
-  }
+};
+
+/** 给单个刚就绪的控制类插件定向补发当前播放快照 */
+const primePlugin = (id: string): void => {
+  const snap = nowPlaying.snapshot();
+  const send = <K extends PlaybackEventKind>(event: K, data: PlaybackEventData[K]): void =>
+    pluginRegistry.sendPlaybackEventTo(id, event, data);
+  send("trackChange", { track: trackPayload(snap.track) });
+  send("lyricChange", { lines: snap.lyric });
+  send("playStateChange", { state: toPluginState(snap.state), position: snap.position });
+  const index = snap.lyric.length > 0 ? findIndex(snap.position + snap.lyricOffsetMs) : -1;
+  if (index >= 0) send("lineChange", { index, position: snap.position });
 };
 
 /** 挂载所有 nowPlaying 订阅 */
@@ -104,7 +112,7 @@ const attach = (): void => {
     nowPlaying.onLyricOffsetChange(onLyricOffsetChange),
     nowPlaying.onPositionSync(onPositionSync),
   ];
-  prime();
+  primeState();
 };
 
 /** 卸载订阅并清空状态 */
@@ -120,20 +128,25 @@ const detach = (): void => {
   lyricLines = [];
   currentIndex = -1;
   lyricOffsetMs = 0;
-  lastPlaying = false;
+  lastPluginState = "paused";
 };
 
-/** 启动：按当前是否有控制类插件惰性挂载，并随其增减切换 */
+/** 启动：按当前是否有控制类插件惰性挂载，并随其增减切换；每个插件就绪时定向补发快照 */
 export const init = (): void => {
   if (pluginRegistry.hasEnabledControlPlugin()) attach();
   const onControlActivity = (active: boolean): void => (active ? attach() : detach());
+  const onControlReady = (id: string): void => primePlugin(id);
   pluginRegistry.on("controlActivityChange", onControlActivity);
-  offControlActivity = () => pluginRegistry.off("controlActivityChange", onControlActivity);
+  pluginRegistry.on("controlPluginReady", onControlReady);
+  offRegistryEvents = () => {
+    pluginRegistry.off("controlActivityChange", onControlActivity);
+    pluginRegistry.off("controlPluginReady", onControlReady);
+  };
 };
 
 /** 关闭 */
 export const dispose = (): void => {
-  offControlActivity?.();
-  offControlActivity = null;
+  offRegistryEvents?.();
+  offRegistryEvents = null;
   detach();
 };

@@ -170,6 +170,24 @@ export class Sandbox {
     });
   }
 
+  /**
+   * 向子进程投递消息，clone 失败时记日志而非抛出
+   * 主→worker 的载荷可能含歌词等结构化数据，单条不可克隆不应中断派发或冒泡进事件总线
+   * @returns 是否投递成功
+   */
+  private post(msg: SandboxIn): boolean {
+    if (!this.child) return false;
+    try {
+      this.child.postMessage(msg);
+      return true;
+    } catch (err) {
+      this.events.onLog("error", [
+        `postMessage failed for kind=${msg.kind}: ${(err as Error).message}`,
+      ]);
+      return false;
+    }
+  }
+
   /** 把 action call 下发到沙箱 */
   sendCall(requestId: string, action: PluginAction, params: unknown): void {
     if (!this.child || !this.ready) {
@@ -179,30 +197,27 @@ export class Sandbox {
       });
       return;
     }
-    const msg: SandboxIn = { kind: "call", requestId, action, params };
-    this.child.postMessage(msg);
+    this.post({ kind: "call", requestId, action, params });
   }
 
   sendCancel(requestId: string): void {
-    if (!this.child) return;
-    this.child.postMessage({ kind: "cancel", requestId } satisfies SandboxIn);
+    this.post({ kind: "cancel", requestId });
   }
 
   sendHostResult(callId: string, ok: boolean, data?: unknown, error?: PluginErrorPayload): void {
-    if (!this.child) return;
-    this.child.postMessage({ kind: "hostResult", callId, ok, data, error } satisfies SandboxIn);
+    this.post({ kind: "hostResult", callId, ok, data, error });
   }
 
   /** 下发高层播放事件给控制类插件 */
   sendEvent(event: PlaybackEventKind, data: unknown): void {
-    if (!this.child || !this.ready) return;
-    this.child.postMessage({ kind: "event", event, data } satisfies SandboxIn);
+    if (!this.ready) return;
+    this.post({ kind: "event", event, data });
   }
 
   /** 下发设置变更给控制类插件 */
   sendSettingsUpdate(settings: Record<string, unknown>): void {
-    if (!this.child || !this.ready) return;
-    this.child.postMessage({ kind: "settingsUpdate", settings } satisfies SandboxIn);
+    if (!this.ready) return;
+    this.post({ kind: "settingsUpdate", settings });
   }
 
   isAlive(): boolean {
@@ -255,8 +270,8 @@ export class Sandbox {
   ): void {
     switch (msg.kind) {
       case "ready":
-        this.events.onReady(msg.sources);
         done(null, msg.sources);
+        this.events.onReady(msg.sources);
         return;
       case "result":
         this.events.onResult(msg.requestId, msg.ok, msg.data, msg.error);

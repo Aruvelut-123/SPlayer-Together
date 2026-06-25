@@ -325,6 +325,7 @@ class PluginRegistry extends EventEmitter {
             controls: rt.controls,
             settings: rt.settings,
           });
+          this.maybePrimeControl(rt);
         },
         onResult: (requestId, ok, data, error) => {
           const p = rt.pending.get(requestId);
@@ -366,6 +367,7 @@ class PluginRegistry extends EventEmitter {
           } else {
             this.setStatus(rt, { state: "ready", sources: {}, events, controls, settings });
           }
+          this.maybePrimeControl(rt);
         },
         onFatal: (error) => {
           // 同时记录到主日志，避免错误只在 UI 卡片里可见
@@ -447,6 +449,16 @@ class PluginRegistry extends EventEmitter {
     this.notifyControlActivity(before);
   }
 
+  /**
+   * 控制类插件就绪后请求 bridge 定向补发快照
+   * @param rt - 插件运行时
+   */
+  private maybePrimeControl(rt: PluginRuntime): void {
+    if (rt.manifest.type === "control" && rt.status.state === "ready" && rt.sandbox?.isAlive()) {
+      this.emit("controlPluginReady", rt.manifest.id);
+    }
+  }
+
   /** 控制类插件的"有/无"状态翻转时通知（驱动 bridge 惰性挂载/卸载） */
   private notifyControlActivity(before: boolean): void {
     const after = this.hasEnabledControlPlugin();
@@ -477,6 +489,26 @@ class PluginRegistry extends EventEmitter {
       ) {
         rt.sandbox.sendEvent(event, data);
       }
+    }
+  }
+
+  /**
+   * 向单个控制类插件定向下发播放事件（用于新就绪插件的快照补发）
+   * @param id - 插件 ID
+   * @param event - 播放事件类型
+   * @param data - 事件载荷
+   */
+  sendPlaybackEventTo(id: string, event: PlaybackEventKind, data: unknown): void {
+    const rt = this.runtimes.get(id);
+    if (
+      rt &&
+      rt.enabled &&
+      rt.manifest.type === "control" &&
+      rt.status.state === "ready" &&
+      rt.events.includes(event) &&
+      rt.sandbox?.isAlive()
+    ) {
+      rt.sandbox.sendEvent(event, data);
     }
   }
 

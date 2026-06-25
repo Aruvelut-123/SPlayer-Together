@@ -51,7 +51,7 @@ export interface PlaybackEventData {
   /** 当前行索引变化 */
   lineChange: { index: number; position: number };
   /** 播放态变化 */
-  playStateChange: { state: "playing" | "paused"; position: number };
+  playStateChange: { state: "playing" | "paused" | "stopped"; position: number };
 }
 
 /** 控制类插件注册的配置项类型（安全子集） */
@@ -91,7 +91,6 @@ export interface PluginPlayerApi {
   prev(): void;
   seek(positionMs: number): void;
   setVolume(volume: number): void;
-  /** 获取当前播放进度（毫秒） */
   getPosition(): Promise<number>;
 }
 

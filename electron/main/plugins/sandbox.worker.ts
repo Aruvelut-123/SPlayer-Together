@@ -221,6 +221,7 @@ const buildSplayer = (init: Extract<SandboxIn, { kind: "init" }>): HostApi => ({
     prev: () => void hostCall("player.prev", []).catch(() => {}),
     seek: (positionMs: number) => void hostCall("player.seek", [positionMs]).catch(() => {}),
     setVolume: (volume: number) => void hostCall("player.setVolume", [volume]).catch(() => {}),
+    // 偶发查询用；持续进度请读事件载荷里的 position，勿高频轮询此往返
     getPosition: () => hostCall("player.getPosition", []) as Promise<number>,
   },
 
