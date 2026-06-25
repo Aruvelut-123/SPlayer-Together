@@ -371,6 +371,13 @@ export interface PluginsApi {
   uninstall: (id: string) => Promise<{ ok: boolean; error?: string }>;
   /** 启用/禁用 */
   setEnabled: (id: string, enabled: boolean) => Promise<void>;
+  /**
+   * 写入控制类插件的单个配置项
+   * @param id - 插件 ID
+   * @param key - 配置项 key（须在插件 settings schema 中声明）
+   * @param value - 新值，由主进程按 schema 类型校验后写入并推送到沙箱
+   */
+  setSetting: (id: string, key: string, value: unknown) => Promise<void>;
   /** 获取播放 URL */
   resolveUrl: (args: PluginResolveUrlArgs) => Promise<MusicUrlRes>;
   /** 订阅插件状态变化 */

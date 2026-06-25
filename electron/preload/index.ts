@@ -298,6 +298,9 @@ const api = {
     // 启用/禁用
     setEnabled: (id: string, enabled: boolean) =>
       ipcRenderer.invoke("plugin:setEnabled", id, enabled),
+    // 写入控制类插件配置项
+    setSetting: (id: string, key: string, value: unknown) =>
+      ipcRenderer.invoke("plugin:setSetting", id, key, value),
     // 解析播放 URL
     resolveUrl: (args: PluginResolveUrlArgs) => ipcRenderer.invoke("plugin:resolveUrl", args),
     // 订阅插件状态变化
