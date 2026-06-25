@@ -102,8 +102,12 @@ const handleVisibility = () => {
   if (document.hidden) {
     pauseRaf();
     playerRef.value?.pause();
-  } else if (props.playing && !isFrozen.value) {
-    playerRef.value?.resume();
+  } else if (!isFrozen.value) {
+    if (props.playing) {
+      playerRef.value?.resume();
+    } else {
+      playerRef.value?.pause();
+    }
     resumeRaf();
   }
 };
@@ -155,8 +159,12 @@ onUnmounted(() => {
 watchEffect(() => {
   const player = playerRef.value;
   if (!player) return;
-  if (props.playing && !isFrozen.value && !document.hidden) {
-    player.resume();
+  if (!isFrozen.value && !document.hidden) {
+    if (props.playing) {
+      player.resume();
+    } else {
+      player.pause();
+    }
     resumeRaf();
   } else {
     pauseRaf();
@@ -203,8 +211,8 @@ watch(processedLyrics, (newLyrics) => {
 });
 
 // 主播放器事件驱动的时间同步接口
-const setCurrentTime = (time: number) => {
-  playerRef.value?.setCurrentTime(time);
+const setCurrentTime = (time: number, isSeek?: boolean) => {
+  playerRef.value?.setCurrentTime(time, isSeek);
 };
 
 // 隐藏界面或休眠时调用

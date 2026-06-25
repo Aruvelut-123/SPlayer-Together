@@ -11,6 +11,7 @@ import * as playStats from "./stats";
 import {
   hasReachedSeekTarget,
   isSeeking,
+  markSeek,
   nextTrack,
   pause,
   play,
@@ -44,6 +45,9 @@ export const handleEvent = async (event: PlayerEvent): Promise<void> => {
       status.volume = event.data.volume;
       playback.setDuration(event.data.duration);
       playback.setPlaying(event.data.state === "playing");
+      break;
+    case "seek":
+      markSeek(event.data.position);
       break;
     case "position": {
       // 歌曲加载中不更新进度

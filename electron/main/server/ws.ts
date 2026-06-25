@@ -52,6 +52,7 @@ const dispatchCommand = async (ws: WSContext, msg: ClientMessage): Promise<void>
         if (!Number.isFinite(positionMs) || positionMs < 0) {
           return fail(ws, msg.op, "positionMs (number, >=0) required");
         }
+        sendToMain("player:event", { type: "seek", data: { position: positionMs } });
         await getPlayer().seek(positionMs / 1000);
         return ack(ws, msg.op);
       }

@@ -59,6 +59,7 @@ export const buildRoutes = (): Hono => {
     if (!Number.isFinite(positionMs) || positionMs < 0) {
       return c.json({ error: "positionMs (number, >=0) required" }, 400);
     }
+    sendToMain("player:event", { type: "seek", data: { position: positionMs } });
     await getPlayer().seek(positionMs / 1000);
     return c.json({ ok: true });
   });
