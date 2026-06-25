@@ -320,7 +320,13 @@ export type HostCallMethod =
   | "storage.get"
   | "storage.set"
   | "storage.remove"
-  | "storage.keys";
+  | "storage.keys"
+  | "player.play"
+  | "player.pause"
+  | "player.next"
+  | "player.prev"
+  | "player.seek"
+  | "player.setVolume";
 
 /* ========== 渲染端 ↔ 主进程的 IPC 请求参数 ========== */
 
