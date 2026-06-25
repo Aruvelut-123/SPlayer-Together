@@ -18,6 +18,8 @@ SPlayer-Next 内置一套插件系统，允许用第三方 JavaScript 扩展应�
 
 一个脚本只能是其中一种类型，由头部 `@type` 决定，缺省为 `source`。
 
+插件系统仍在持续演进，上表是目前已支持的类型，后续会按需引入更多类型。新类型同样通过 `@type` 声明，并在 [API 级别](#api-级别) 中标注所需级别——已有插件不受影响。
+
 ## 技术架构
 
 ### 进程模型
@@ -280,11 +282,3 @@ await window.api.plugins.setSetting("my-plugin-xxxxxxxx", "someKey", true);
 ```
 
 插件内的 `console.*` / `splayer.log.*` 输出会汇入应用主日志（`{userData}/app-data/logs/`）。修改脚本后重新导入一次即可，旧版本会被自动替换。
-
-## 兼容 lx 插件
-
-SPlayer-Next 提供 `lx` 垫片，覆盖 [lx-music-desktop](https://github.com/lyswhut/lx-music-desktop) user*api 的常用接口（`lx.request` / `lx.on("request")` / `lx.send("inited")` / `lx.utils`），多数现有 lx 音源脚本无需修改即可运行。头部写 `@platform lx`，或以 `gz*` 压缩分发，会自动启用垫片。
-
-::: tip
-编写**新插件**请直接使用 `splayer.*` 原生 API；lx 垫片仅用于兼容存量脚本，且只覆盖音源能力（控制类能力为 SPlayer-Next 原生特性，无 lx 对应物）。
-:::

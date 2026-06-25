@@ -5,7 +5,7 @@
 阅读本文前请先了解 [插件总览与架构](/plugins/)，其中的通用 API 对控制插件同样适用。
 
 ::: warning 需要 apiLevel 2
-控制类能力是 SPlayer-Next 原生特性，无 lx 对应物。脚本头部必须声明 `@type control` 与 `@apiLevel 2`，否则控制能力在运行时受限。
+脚本头部必须声明 `@type control` 与 `@apiLevel 2`，否则控制能力在运行时不可用。
 :::
 
 ## 快速开始
@@ -90,16 +90,30 @@ splayer.player.on(kind, (data) => { ... });
 | ------- | ------------- | ---------------------- |
 | `lines` | `LyricLine[]` | 当前曲目的完整解析歌词 |
 
-每个 `LyricLine` 的常用字段：
+`LyricLine`（一行歌词）的全部字段：
 
-| 字段              | 类型          | 说明                                     |
-| ----------------- | ------------- | ---------------------------------------- |
-| `words`           | `LyricWord[]` | 该行的逐字内容，`words[i].word` 为字符串 |
-| `translatedLyric` | `string`      | 该行翻译（无则空串）                     |
-| `startTime`       | `number`      | 行起始时间（毫秒）                       |
-| `endTime`         | `number`      | 行结束时间（毫秒）                       |
+| 字段              | 类型          | 说明                                         |
+| ----------------- | ------------- | -------------------------------------------- |
+| `words`           | `LyricWord[]` | 该行逐字内容（见下）；逐行格式时只有一个元素 |
+| `translatedLyric` | `string`      | 该行翻译，无则为空串                         |
+| `romanLyric`      | `string`      | 该行音译 / 罗马音，无则为空串                |
+| `startTime`       | `number`      | 行起始时间（毫秒）                           |
+| `endTime`         | `number`      | 行结束时间（毫秒）                           |
+| `isBG`            | `boolean`     | 是否为背景和声行                             |
+| `isDuet`          | `boolean`     | 是否为对唱行（通常右对齐显示）               |
 
-拼接整行文本：`line.words.map((w) => w.word).join("")`。
+其中 `LyricWord`（逐字）：
+
+| 字段        | 类型           | 说明                               |
+| ----------- | -------------- | ---------------------------------- |
+| `word`      | `string`       | 字 / 词文本                        |
+| `startTime` | `number`       | 该字起始时间（毫秒）               |
+| `endTime`   | `number`       | 该字结束时间（毫秒）               |
+| `romanWord` | `string?`      | 该字的音译                         |
+| `obscene`   | `boolean?`     | 是否敏感词                         |
+| `ruby`      | `LyricSpan[]?` | 注音（如日文假名标注），通常用不到 |
+
+整行纯文本：`line.words.map((w) => w.word).join("")`。逐行（LRC 类）歌词的逐字时间通常与行时间一致，不必关心 `words` 内部时间。
 
 ### `lineChange` — 当前歌词行变化
 
@@ -174,18 +188,27 @@ splayer.register({
 });
 ```
 
-`PluginSettingItem`：
+先按 `type` 选一种控件，它决定了渲染出的界面、设置值的类型，以及哪些专用字段生效：
 
-| 字段          | 类型                                         | 适用类型 | 说明               |
-| ------------- | -------------------------------------------- | -------- | ------------------ |
-| `key`         | `string`                                     | 全部     | 设置键名           |
-| `type`        | `"switch" \| "number" \| "text" \| "select"` | 全部     | 控件类型           |
-| `label`       | `string`                                     | 全部     | 展示名（纯字符串） |
-| `description` | `string?`                                    | 全部     | 副标题说明         |
-| `default`     | `boolean \| number \| string`                | 全部     | 默认值             |
-| `min` / `max` | `number?`                                    | number   | 数值范围           |
-| `placeholder` | `string?`                                    | text     | 占位提示           |
-| `options`     | `{ label, value }[]`                         | select   | 可选项             |
+| `type`   | 渲染控件   | 设置值类型 | 专用字段      | 说明                            |
+| -------- | ---------- | ---------- | ------------- | ------------------------------- |
+| `switch` | 开关       | `boolean`  | —             | 布尔开关                        |
+| `number` | 数字输入框 | `number`   | `min` / `max` | 超出范围会被夹取到 `[min, max]` |
+| `text`   | 单行文本框 | `string`   | `placeholder` | 任意文本                        |
+| `select` | 下拉选择   | `string`   | `options`     | 从 `options` 里选一个 `value`   |
+
+`PluginSettingItem` 的全部字段：
+
+| 字段          | 类型                                         | 必填 | 适用 `type` | 说明                                 |
+| ------------- | -------------------------------------------- | ---- | ----------- | ------------------------------------ |
+| `key`         | `string`                                     | ✅   | 全部        | 设置键名，`getSetting(key)` 用它     |
+| `type`        | `"switch" \| "number" \| "text" \| "select"` | ✅   | 全部        | 控件类型，见上表                     |
+| `label`       | `string`                                     | ✅   | 全部        | 展示名（纯字符串，不做多语言）       |
+| `default`     | `boolean \| number \| string`                | ✅   | 全部        | 默认值，类型需与 `type` 的值类型一致 |
+| `description` | `string?`                                    |      | 全部        | 副标题说明，显示在标题下方           |
+| `min` / `max` | `number?`                                    |      | `number`    | 取值范围                             |
+| `placeholder` | `string?`                                    |      | `text`      | 输入框占位提示                       |
+| `options`     | `{ label: string; value: string }[]`         |      | `select`    | 下拉项；`label` 展示、`value` 存储   |
 
 ### 读取与监听
 
@@ -203,45 +226,77 @@ splayer.onSettingChange("enabled", (value) => {
 
 ## 完整示例
 
-把当前播放状态打印出来的最小「状态同步」骨架：
+比如这是一个把当前歌词（含翻译）推送到 [ClassIsland](https://github.com/ClassIsland/ClassIsland) 主界面的控制插件：订阅曲目/歌词/行变化，按用户设置决定端口、是否带翻译、无翻译时是否回退到下一行。
 
 ```js
 /**
- * @name        Now Playing Logger
- * @version     1.0.0
- * @description 示例：跟踪并打印播放状态
- * @author      you
- * @type        control
- * @apiLevel    2
+ * @name ClassIsland 联动
+ * @version 1.0.0
+ * @author imsyy
+ * @type control
+ * @apiLevel 2
+ * @description 把当前歌词推送到 ClassIsland 主界面
  */
+splayer.register({
+  events: ["trackChange", "lyricChange", "lineChange"],
+  settings: [
+    {
+      key: "port",
+      type: "number",
+      label: "端口",
+      default: 50063,
+      min: 1024,
+      max: 65535,
+    },
+    {
+      key: "showTranslation",
+      type: "switch",
+      label: "显示翻译",
+      default: true,
+    },
+    {
+      key: "showNextLine",
+      type: "switch",
+      label: "无翻译时显示下一行",
+      default: true,
+    },
+  ],
+});
+
+const post = (lyric, extra) => {
+  const port = splayer.getSetting("port") || 50063;
+  splayer
+    .request(`http://127.0.0.1:${port}/component/lyrics/lyrics/`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ lyric, extra }),
+    })
+    .catch(() => {});
+};
+
+/** 一行歌词 → 纯文本 */
+const lineText = (line) => (line && line.words ? line.words.map((w) => w.word).join("") : "");
 
 let lines = [];
-let enabled = true;
-
-splayer.register({
-  events: ["trackChange", "lyricChange", "lineChange", "playStateChange"],
-  controls: false,
-  settings: [{ key: "enabled", type: "switch", label: "启用日志", default: true }],
-});
-
-enabled = splayer.getSetting("enabled") ?? true;
-splayer.onSettingChange("enabled", (v) => (enabled = Boolean(v)));
 
 splayer.player.on("trackChange", ({ track }) => {
-  if (!enabled) return;
-  splayer.log.info("曲目：", track ? `${track.title} - ${track.artists}` : "(无)");
+  if (track) post(track.title, track.artists);
 });
 
-splayer.player.on("lyricChange", ({ lines: next }) => (lines = next));
+splayer.player.on("lyricChange", ({ lines: ls }) => {
+  lines = ls || [];
+});
 
 splayer.player.on("lineChange", ({ index }) => {
-  if (!enabled || index < 0) return;
-  splayer.log.info("歌词：", lines[index].words.map((w) => w.word).join(""));
-});
-
-splayer.player.on("playStateChange", ({ state, position }) => {
-  if (!enabled) return;
-  splayer.log.info(`状态：${state} @ ${position}ms`);
+  const cur = lines[index];
+  const lyric = lineText(cur);
+  let extra = "";
+  if (splayer.getSetting("showTranslation") && cur && cur.translatedLyric) {
+    extra = cur.translatedLyric;
+  } else if (splayer.getSetting("showNextLine") && lines[index + 1]) {
+    extra = lineText(lines[index + 1]);
+  }
+  post(lyric, extra);
 });
 ```
 
@@ -251,7 +306,7 @@ splayer.player.on("playStateChange", ({ state, position }) => {
 
 ```js
 // 实时下发一次设置变更（触发 onSettingChange）
-await window.api.plugins.setSetting("now-playing-logger-xxxxxxxx", "enabled", false);
+await window.api.plugins.setSetting("classisland-xxxxxxxx", "showTranslation", false);
 
 // 查看插件状态（含已订阅事件 / 是否声明控制 / 设置项）
 await window.api.plugins.list();
