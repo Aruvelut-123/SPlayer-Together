@@ -73,6 +73,9 @@ export const dispatchHostCall = async (
         data = undefined;
         break;
       }
+      case "player.getPosition":
+        data = playerControl.getPosition();
+        break;
       default:
         throw Object.assign(new Error(`unknown host method: ${method}`), {
           code: PluginErrorCodes.UNKNOWN,

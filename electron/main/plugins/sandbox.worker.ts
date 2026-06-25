@@ -221,6 +221,7 @@ const buildSplayer = (init: Extract<SandboxIn, { kind: "init" }>): HostApi => ({
     prev: () => void hostCall("player.prev", []).catch(() => {}),
     seek: (positionMs: number) => void hostCall("player.seek", [positionMs]).catch(() => {}),
     setVolume: (volume: number) => void hostCall("player.setVolume", [volume]).catch(() => {}),
+    getPosition: () => hostCall("player.getPosition", []) as Promise<number>,
   },
 
   onSettingChange: (key: string, handler: (value: unknown) => void) => {

@@ -1,9 +1,5 @@
 /**
  * 控制类插件的播放事件桥
- *
- * 订阅 nowPlaying 总线，集中算出当前歌词行（只算一次），把高层语义事件
- * 扇出给已启用的控制类插件。position-sync(5Hz) 只在本进程消费，仅行索引
- * 变化才向插件下发，避免 5Hz IPC 外泄。
  */
 
 import type { Track } from "@shared/types/player";
@@ -19,12 +15,22 @@ import { pluginRegistry } from "./registry";
 let lyricLines: LyricLine[] = [];
 let currentIndex = -1;
 let lyricOffsetMs = 0;
+let lastPlaying = false;
 let unsubscribers: Array<() => void> = [];
 /** 移除注册表 controlActivityChange 监听的句柄 */
 let offControlActivity: (() => void) | null = null;
 
-/** 拼一行歌词纯文本 */
-const lineToText = (line: LyricLine): string => line.words.map((word) => word.word).join("");
+/** Track → 插件可见的精简载荷 */
+const trackPayload = (track: Track | null) =>
+  track
+    ? {
+        title: track.title,
+        artists: track.artists.map((artist) => artist.name).join(", "),
+        album: track.album?.name,
+        duration: track.duration,
+        cover: track.cover,
+      }
+    : null;
 
 /** 找 startTime <= time 的最后一行 */
 const findIndex = (time: number): number => {
@@ -39,24 +45,14 @@ const findIndex = (time: number): number => {
 const onTrackChange = (data: { track: Track | null }): void => {
   lyricLines = [];
   currentIndex = -1;
-  const track = data.track;
-  pluginRegistry.broadcastPlaybackEvent("trackChange", {
-    track: track
-      ? {
-          title: track.title,
-          artists: track.artists.map((artist) => artist.name).join(", "),
-          album: track.album?.name,
-          duration: track.duration,
-          cover: track.cover,
-        }
-      : null,
-  });
+  pluginRegistry.broadcastPlaybackEvent("trackChange", { track: trackPayload(data.track) });
 };
 
 const onLyricChange = (snap: NowPlayingSnapshot): void => {
   lyricLines = snap.lyric;
   currentIndex = -1;
   lyricOffsetMs = snap.lyricOffsetMs;
+  pluginRegistry.broadcastPlaybackEvent("lyricChange", { lines: lyricLines });
 };
 
 const onLyricOffsetChange = (data: NowPlayingLyricOffsetSync): void => {
@@ -64,21 +60,39 @@ const onLyricOffsetChange = (data: NowPlayingLyricOffsetSync): void => {
 };
 
 const onPositionSync = (data: NowPlayingPositionSync): void => {
+  if (data.playing !== lastPlaying) {
+    lastPlaying = data.playing;
+    pluginRegistry.broadcastPlaybackEvent("playStateChange", {
+      state: data.playing ? "playing" : "paused",
+      position: data.position,
+    });
+  }
   if (lyricLines.length === 0) return;
-  const time = data.position + lyricOffsetMs;
-  const next = findIndex(time);
+  const next = findIndex(data.position + lyricOffsetMs);
   if (next === currentIndex) return;
   currentIndex = next;
-  const current = next >= 0 ? lyricLines[next] : null;
-  const nextLine = next + 1 < lyricLines.length ? lyricLines[next + 1] : null;
-  pluginRegistry.broadcastPlaybackEvent("lyricLineChange", {
-    index: next,
-    current: current
-      ? { text: lineToText(current), translation: current.translatedLyric || undefined }
-      : null,
-    next: nextLine ? { text: lineToText(nextLine) } : null,
-    time,
+  pluginRegistry.broadcastPlaybackEvent("lineChange", { index: next, position: data.position });
+};
+
+/** 挂载时立即获取一次 */
+const prime = (): void => {
+  const snap = nowPlaying.snapshot();
+  lyricLines = snap.lyric;
+  lyricOffsetMs = snap.lyricOffsetMs;
+  lastPlaying = snap.playing;
+  pluginRegistry.broadcastPlaybackEvent("trackChange", { track: trackPayload(snap.track) });
+  pluginRegistry.broadcastPlaybackEvent("lyricChange", { lines: lyricLines });
+  pluginRegistry.broadcastPlaybackEvent("playStateChange", {
+    state: snap.playing ? "playing" : "paused",
+    position: snap.position,
   });
+  currentIndex = lyricLines.length > 0 ? findIndex(snap.position + lyricOffsetMs) : -1;
+  if (currentIndex >= 0) {
+    pluginRegistry.broadcastPlaybackEvent("lineChange", {
+      index: currentIndex,
+      position: snap.position,
+    });
+  }
 };
 
 /** 挂载所有 nowPlaying 订阅 */
@@ -90,6 +104,7 @@ const attach = (): void => {
     nowPlaying.onLyricOffsetChange(onLyricOffsetChange),
     nowPlaying.onPositionSync(onPositionSync),
   ];
+  prime();
 };
 
 /** 卸载订阅并清空状态 */
@@ -105,6 +120,7 @@ const detach = (): void => {
   lyricLines = [];
   currentIndex = -1;
   lyricOffsetMs = 0;
+  lastPlaying = false;
 };
 
 /** 启动：按当前是否有控制类插件惰性挂载，并随其增减切换 */

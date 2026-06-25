@@ -3,6 +3,8 @@
  * 用于主进程、预加载、渲染进程、沙箱子进程之间的契约
  */
 
+import type { LyricLine } from "./lyrics";
+
 /**
  * 支持的插件动作
  * 当前仅有 musicUrl。扩展新动作的步骤：
@@ -31,7 +33,7 @@ export const PLUGIN_TYPES = ["source", "control"] as const;
 export type PluginType = (typeof PLUGIN_TYPES)[number];
 
 /** 控制类插件可订阅的高层播放事件 */
-export type PlaybackEventKind = "trackChange" | "lyricLineChange" | "playStateChange" | "seek";
+export type PlaybackEventKind = "trackChange" | "lyricChange" | "lineChange" | "playStateChange";
 
 /** 各高层事件的载荷 */
 export interface PlaybackEventData {
@@ -44,16 +46,12 @@ export interface PlaybackEventData {
       cover?: string;
     } | null;
   };
-  lyricLineChange: {
-    /** 当前行索引，-1 表示无匹配 */
-    index: number;
-    current: { text: string; translation?: string } | null;
-    next: { text: string } | null;
-    /** 查找用的时间（position + offset，毫秒） */
-    time: number;
-  };
-  playStateChange: { state: "playing" | "paused" | "stopped" };
-  seek: { position: number };
+  /** 歌词数据 */
+  lyricChange: { lines: LyricLine[] };
+  /** 当前行索引变化 */
+  lineChange: { index: number; position: number };
+  /** 播放态变化 */
+  playStateChange: { state: "playing" | "paused"; position: number };
 }
 
 /** 控制类插件注册的配置项类型（安全子集） */
@@ -93,6 +91,8 @@ export interface PluginPlayerApi {
   prev(): void;
   seek(positionMs: number): void;
   setVolume(volume: number): void;
+  /** 获取当前播放进度（毫秒） */
+  getPosition(): Promise<number>;
 }
 
 /** 插件头部 JSDoc 元数据 */
@@ -341,7 +341,8 @@ export type HostCallMethod =
   | "player.next"
   | "player.prev"
   | "player.seek"
-  | "player.setVolume";
+  | "player.setVolume"
+  | "player.getPosition";
 
 /* ========== 渲染端 ↔ 主进程的 IPC 请求参数 ========== */
 

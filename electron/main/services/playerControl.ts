@@ -7,10 +7,10 @@
 
 import { getPlayer } from "@main/services/engine";
 import { sendToMain } from "@main/utils/broadcast";
+import { toMs } from "@main/utils/time";
 
 /**
  * 跳转（毫秒）
- * 先通知渲染层补 seek 记账（使歌词引擎按跳转处理、屏蔽旧 position），再跳引擎。
  * @param positionMs - 目标位置（毫秒）
  */
 const seek = (positionMs: number): void => {
@@ -31,4 +31,6 @@ export const playerControl = {
   prev: (): void => sendToMain("player:event", { type: "prev" }),
   seek,
   setVolume: (volume: number): void => getPlayer().setVolume(volume),
+  /** 当前播放进度（毫秒） */
+  getPosition: (): number => toMs(getPlayer().getPosition()),
 };
