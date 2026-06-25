@@ -160,6 +160,9 @@ class PluginRegistry extends EventEmitter {
       enabled: rt.enabled,
       status: rt.status,
       updateInfo: rt.updateInfo,
+      settingsValues:
+        (store.get(`plugins.perPlugin.${rt.manifest.id}` as never) as Record<string, unknown>) ??
+        {},
     }));
   }
 
@@ -429,6 +432,9 @@ class PluginRegistry extends EventEmitter {
       enabled: rt.enabled,
       status,
       updateInfo: rt.updateInfo,
+      settingsValues:
+        (store.get(`plugins.perPlugin.${rt.manifest.id}` as never) as Record<string, unknown>) ??
+        {},
     } satisfies PluginInfo);
     this.notifyControlActivity(before);
   }

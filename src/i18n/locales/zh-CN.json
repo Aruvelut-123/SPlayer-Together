@@ -1515,7 +1515,9 @@
         "error": "错误",
         "disabled": "已禁用",
         "unloaded": "未加载"
-      }
+      },
+      "sectionSource": "音源插件",
+      "sectionControl": "控制插件"
     },
     "pluginManager": {
       "label": "插件管理",

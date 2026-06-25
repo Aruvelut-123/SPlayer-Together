@@ -1527,7 +1527,9 @@
         "error": "Error",
         "disabled": "Disabled",
         "unloaded": "Unloaded"
-      }
+      },
+      "sectionSource": "Source Plugins",
+      "sectionControl": "Control Plugins"
     },
     "pluginManager": {
       "label": "Plugin Manager",
