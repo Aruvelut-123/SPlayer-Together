@@ -20,6 +20,8 @@ let lyricLines: LyricLine[] = [];
 let currentIndex = -1;
 let lyricOffsetMs = 0;
 let unsubscribers: Array<() => void> = [];
+/** 移除注册表 controlActivityChange 监听的句柄 */
+let offControlActivity: (() => void) | null = null;
 
 /** 拼一行歌词纯文本 */
 const lineToText = (line: LyricLine): string => line.words.map((word) => word.word).join("");
@@ -108,13 +110,14 @@ const detach = (): void => {
 /** 启动：按当前是否有控制类插件惰性挂载，并随其增减切换 */
 export const init = (): void => {
   if (pluginRegistry.hasEnabledControlPlugin()) attach();
-  pluginRegistry.on("controlActivityChange", (active: boolean) => {
-    if (active) attach();
-    else detach();
-  });
+  const onControlActivity = (active: boolean): void => (active ? attach() : detach());
+  pluginRegistry.on("controlActivityChange", onControlActivity);
+  offControlActivity = () => pluginRegistry.off("controlActivityChange", onControlActivity);
 };
 
 /** 关闭 */
 export const dispose = (): void => {
+  offControlActivity?.();
+  offControlActivity = null;
   detach();
 };
