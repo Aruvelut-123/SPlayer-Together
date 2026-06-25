@@ -236,8 +236,8 @@ export interface HostApi {
   /** 发起网络请求 */
   request: (url: string, opts?: HostRequestOptions) => Promise<HostRequestResult>;
 
-  /** 声明支持的源与动作 */
-  register: (caps: { sources: Record<string, SourceCapability> }) => void;
+  /** 声明能力：音源类传 sources，控制类传 events/controls/settings */
+  register: (args: RegisterArgs) => void;
 
   /** 注册动作处理器 */
   on: <A extends PluginAction>(
@@ -253,6 +253,12 @@ export interface HostApi {
 
   /** 用户在设置里为此插件配置的值 */
   getSetting: <T = unknown>(key: string) => T | undefined;
+
+  /** 控制类播放面：监听高层事件 + 反向控制 */
+  player: PluginPlayerApi;
+
+  /** 控制类设置变更回调：用户改设置后触发 */
+  onSettingChange: (key: string, handler: (value: unknown) => void) => void;
 }
 
 /* ========== 沙箱 ↔ 主进程消息协议 ========== */
@@ -290,7 +296,9 @@ export type SandboxIn =
       data?: unknown;
       error?: PluginErrorPayload;
     }
-  | { kind: "ping" };
+  | { kind: "ping" }
+  | { kind: "event"; event: PlaybackEventKind; data: unknown }
+  | { kind: "settingsUpdate"; settings: Record<string, unknown> };
 
 /** worker → 主 */
 export type SandboxOut =
@@ -312,7 +320,14 @@ export type SandboxOut =
   | { kind: "fatal"; error: PluginErrorPayload }
   | { kind: "pong" }
   /** sources 增量上报 */
-  | { kind: "sourcesUpdate"; sources: Record<string, SourceCapability> };
+  | { kind: "sourcesUpdate"; sources: Record<string, SourceCapability> }
+  /** 控制类注册上报：声明订阅事件 / 是否反向控制 / 设置项 */
+  | {
+      kind: "registered";
+      events: PlaybackEventKind[];
+      controls: boolean;
+      settings: PluginSettingItem[];
+    };
 
 /** worker 调用回宿主的方法名 */
 export type HostCallMethod =

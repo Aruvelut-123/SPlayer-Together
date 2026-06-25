@@ -13,9 +13,11 @@ import path from "node:path";
 import { utilityProcess, type UtilityProcess, app } from "electron";
 import type {
   HostCallMethod,
+  PlaybackEventKind,
   PluginAction,
   PluginErrorPayload,
   PluginManifest,
+  PluginSettingItem,
   PluginUpdateInfo,
   SandboxIn,
   SandboxOut,
@@ -38,6 +40,12 @@ export interface SandboxEvents {
   onUpdateAvailable: (info: PluginUpdateInfo) => void;
   /** sources 增量上报 */
   onSourcesUpdate: (sources: Record<string, SourceCapability>) => void;
+  /** 控制类注册上报：订阅事件 / 是否反向控制 / 设置项 */
+  onRegistered?: (
+    events: PlaybackEventKind[],
+    controls: boolean,
+    settings: PluginSettingItem[],
+  ) => void;
   /** 子进程退出（可能是崩溃或主动 kill）。isCrash=true 表示非主动 kill */
   onExit: (isCrash: boolean, code: number | null) => void;
 }
@@ -185,6 +193,18 @@ export class Sandbox {
     this.child.postMessage({ kind: "hostResult", callId, ok, data, error } satisfies SandboxIn);
   }
 
+  /** 下发高层播放事件给控制类插件 */
+  sendEvent(event: PlaybackEventKind, data: unknown): void {
+    if (!this.child || !this.ready) return;
+    this.child.postMessage({ kind: "event", event, data } satisfies SandboxIn);
+  }
+
+  /** 下发设置变更给控制类插件 */
+  sendSettingsUpdate(settings: Record<string, unknown>): void {
+    if (!this.child || !this.ready) return;
+    this.child.postMessage({ kind: "settingsUpdate", settings } satisfies SandboxIn);
+  }
+
   isAlive(): boolean {
     return this.child != null && this.ready && !this.disposed;
   }
@@ -249,6 +269,9 @@ export class Sandbox {
         return;
       case "sourcesUpdate":
         this.events.onSourcesUpdate(msg.sources);
+        return;
+      case "registered":
+        this.events.onRegistered?.(msg.events, msg.controls, msg.settings);
         return;
       case "log":
         this.events.onLog(msg.level, msg.args);
