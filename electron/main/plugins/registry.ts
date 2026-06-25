@@ -316,7 +316,15 @@ class PluginRegistry extends EventEmitter {
       {
         onReady: (sources) => {
           rt.restartAttempts = 0;
-          this.setStatus(rt, { state: "ready", sources });
+          // 控制类同步 register 时 registered 先于 ready 到达，ready 必须保留已登记的
+          // events/controls/settings，否则会覆盖掉控制信息、导致设置表单不渲染
+          this.setStatus(rt, {
+            state: "ready",
+            sources,
+            events: rt.events,
+            controls: rt.controls,
+            settings: rt.settings,
+          });
         },
         onResult: (requestId, ok, data, error) => {
           const p = rt.pending.get(requestId);
