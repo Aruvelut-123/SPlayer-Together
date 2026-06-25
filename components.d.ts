@@ -176,6 +176,7 @@ declare module 'vue' {
     PlaylistCreateDialog: typeof import('./src/components/modals/PlaylistCreateDialog.vue')['default']
     PlaylistPickerDialog: typeof import('./src/components/modals/PlaylistPickerDialog.vue')['default']
     PluginManager: typeof import('./src/components/settings/custom/PluginManager.vue')['default']
+    PluginSettingsForm: typeof import('./src/components/settings/custom/PluginSettingsForm.vue')['default']
     PopoverArrow: typeof import('reka-ui')['PopoverArrow']
     PopoverContent: typeof import('reka-ui')['PopoverContent']
     PopoverPortal: typeof import('reka-ui')['PopoverPortal']
