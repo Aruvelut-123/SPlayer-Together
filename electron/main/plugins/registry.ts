@@ -273,6 +273,9 @@ class PluginRegistry extends EventEmitter {
   async setEnabled(id: string, enabled: boolean): Promise<void> {
     const rt = this.runtimes.get(id);
     if (!rt) return;
+    // 在翻转 enabled 标志前取样：禁用路径里 setStatus 观测不到这次"启用→禁用"的翻转
+    // （disabled/unloaded 状态本就非 ready，谓词两侧均为 false），需在此处补发
+    const before = this.hasEnabledControlPlugin();
     rt.enabled = enabled;
     const enabledMap = {
       ...(store.get("plugins.enabled") as Record<string, boolean>),
@@ -281,10 +284,12 @@ class PluginRegistry extends EventEmitter {
     store.set("plugins.enabled", enabledMap);
 
     if (enabled) {
+      // 启用路径的"无→有"翻转由 start() 内的 setStatus(ready) 负责发出，无需在此重复
       if (rt.status.state !== "ready") await this.start(rt).catch(() => {});
     } else {
       await this.stop(rt);
       this.setStatus(rt, { state: "disabled" });
+      this.notifyControlActivity(before);
     }
   }
 
@@ -344,14 +349,12 @@ class PluginRegistry extends EventEmitter {
           rt.events = events;
           rt.controls = controls;
           rt.settings = settings;
-          const wasActive = this.hasEnabledControlPlugin();
+          // ready 状态由此建立；"无→有"的 controlActivityChange 由 setStatus 内集中发出
           if (rt.status.state === "ready") {
             this.setStatus(rt, { ...rt.status, events, controls, settings });
           } else {
             this.setStatus(rt, { state: "ready", sources: {}, events, controls, settings });
           }
-          const nowActive = this.hasEnabledControlPlugin();
-          if (wasActive !== nowActive) this.emit("controlActivityChange", nowActive);
         },
         onFatal: (error) => {
           // 同时记录到主日志，避免错误只在 UI 卡片里可见
@@ -419,6 +422,7 @@ class PluginRegistry extends EventEmitter {
   }
 
   private setStatus(rt: PluginRuntime, status: PluginStatus): void {
+    const before = this.hasEnabledControlPlugin();
     rt.status = status;
     this.emit("status", {
       manifest: rt.manifest,
@@ -426,6 +430,13 @@ class PluginRegistry extends EventEmitter {
       status,
       updateInfo: rt.updateInfo,
     } satisfies PluginInfo);
+    this.notifyControlActivity(before);
+  }
+
+  /** 控制类插件的"有/无"状态翻转时通知（驱动 bridge 惰性挂载/卸载） */
+  private notifyControlActivity(before: boolean): void {
+    const after = this.hasEnabledControlPlugin();
+    if (before !== after) this.emit("controlActivityChange", after);
   }
 
   /** 是否存在已启用且 ready 的控制类插件 */
