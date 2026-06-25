@@ -25,8 +25,10 @@ export type PluginQuality = "hi-res" | "lossless" | "hq" | "sq" | "lq";
 /** 插件脚本来源平台（用于识别 lx 脚本并启用垫片） */
 export type PluginPlatform = "splayer" | "lx";
 
+/** 插件类型清单：运行时校验与分类的唯一来源，新增类型只改这里 */
+export const PLUGIN_TYPES = ["source", "control"] as const;
 /** 插件类型：音源（解析 URL）/ 控制（监听状态 + 反向控制） */
-export type PluginType = "source" | "control";
+export type PluginType = (typeof PLUGIN_TYPES)[number];
 
 /** 控制类插件可订阅的高层播放事件 */
 export type PlaybackEventKind = "trackChange" | "lyricLineChange" | "playStateChange" | "seek";

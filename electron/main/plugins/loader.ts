@@ -11,7 +11,12 @@ import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import zlib from "node:zlib";
-import type { PluginManifest, PluginPlatform, PluginType } from "@shared/types/plugin";
+import {
+  PLUGIN_TYPES,
+  type PluginManifest,
+  type PluginPlatform,
+  type PluginType,
+} from "@shared/types/plugin";
 import { HOST_API_LEVEL, PluginErrorCodes } from "@shared/defaults/plugin-api";
 import { pluginLog } from "@main/utils/logger";
 
@@ -82,7 +87,9 @@ const parseHeader = (source: string): HeaderFields => {
         break;
       }
       case "type":
-        out.type = val === "control" ? "control" : "source";
+        out.type = (PLUGIN_TYPES as readonly string[]).includes(val)
+          ? (val as PluginType)
+          : "source";
         break;
     }
   }
@@ -121,11 +128,11 @@ export const loadScript = (rawOrPath: string, isPath: boolean, fileName?: string
 
   const platform: PluginPlatform = header.platform ?? (wasCompressed ? "lx" : "splayer");
   const apiLevel = header.apiLevel ?? 1;
-  const rawType: PluginType = header.type === "control" ? "control" : "source";
+  const rawType: PluginType = header.type ?? "source";
 
   if (rawType === "control" && apiLevel < 2) {
     pluginLog.warn(
-      `插件 "${name}" 声明 type=control 但 apiLevel=${apiLevel}（需 ≥ 2），控制类功能将在运行时受限`,
+      `插件 "${name}" 声明 type=control 但 apiLevel=${apiLevel}（需 >= 2），控制类功能将在运行时受限`,
     );
   }
 
