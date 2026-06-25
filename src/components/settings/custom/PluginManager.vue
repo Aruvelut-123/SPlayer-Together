@@ -16,6 +16,8 @@ const importing = ref(false);
 const urlDialogOpen = ref(false);
 const urlInput = ref("");
 const urlSubmitting = ref(false);
+const settingsDialogOpen = ref(false);
+const settingsDialogId = ref<string | null>(null);
 
 onMounted(() => {
   if (!loaded.value) void pluginsStore.load();
@@ -118,6 +120,27 @@ const handleConfirmUninstall = async (): Promise<void> => {
 /** 写入控制类插件的单个设置项 */
 const onSettingChange = async (pluginId: string, key: string, value: unknown): Promise<void> => {
   await pluginsStore.setSetting(pluginId, key, value);
+};
+
+/** 当前打开配置弹窗的控制类插件 */
+const settingsDialogInfo = computed(
+  () => controlPlugins.value.find((info) => info.manifest.id === settingsDialogId.value) ?? null,
+);
+/** 弹窗内设置表单的 schema 与当前值 */
+const settingsDialogSchema = computed(() =>
+  settingsDialogInfo.value ? controlSettings(settingsDialogInfo.value) : [],
+);
+const settingsDialogValues = computed(() => settingsDialogInfo.value?.settingsValues ?? {});
+
+/** 打开某控制类插件的配置弹窗 */
+const openSettingsDialog = (id: string): void => {
+  settingsDialogId.value = id;
+  settingsDialogOpen.value = true;
+};
+
+/** 弹窗内修改某设置项 */
+const onDialogSettingChange = (key: string, value: unknown): void => {
+  if (settingsDialogId.value) void onSettingChange(settingsDialogId.value, key, value);
 };
 
 /** 当前待卸载的插件名（对话框提示） */
@@ -299,6 +322,17 @@ const isEmpty = computed(
             <!-- 操作区 -->
             <div class="shrink-0 flex items-center gap-2">
               <SButton
+                v-if="controlSettings(info).length > 0"
+                variant="secondary"
+                size="small"
+                @click="openSettingsDialog(info.manifest.id)"
+              >
+                <template #icon>
+                  <IconLucideSettings2 class="size-4" />
+                </template>
+                {{ t("common.configure") }}
+              </SButton>
+              <SButton
                 :variant="info.enabled ? 'filled' : 'secondary'"
                 size="small"
                 :type="info.enabled ? 'primary' : 'default'"
@@ -427,18 +461,21 @@ const isEmpty = computed(
                   {{ info.updateInfo.log }}
                 </div>
               </div>
-
-              <!-- 控制类设置表单（ready 且有 schema 时内联展示） -->
-              <PluginSettingsForm
-                v-if="controlSettings(info).length > 0"
-                :schema="controlSettings(info)"
-                :values="info.settingsValues ?? {}"
-                @change="(key, value) => onSettingChange(info.manifest.id, key, value)"
-              />
             </div>
 
             <!-- 操作区 -->
             <div class="shrink-0 flex items-center gap-2">
+              <SButton
+                v-if="controlSettings(info).length > 0"
+                variant="secondary"
+                size="small"
+                @click="openSettingsDialog(info.manifest.id)"
+              >
+                <template #icon>
+                  <IconLucideSettings2 class="size-4" />
+                </template>
+                {{ t("common.configure") }}
+              </SButton>
               <SButton
                 :variant="info.enabled ? 'filled' : 'secondary'"
                 size="small"
@@ -510,6 +547,22 @@ const isEmpty = computed(
         <SButton variant="secondary" type="error" @click="handleConfirmUninstall">
           {{ t("common.confirm") }}
         </SButton>
+      </template>
+    </SDialog>
+
+    <!-- 控制类插件配置 -->
+    <SDialog
+      v-model:open="settingsDialogOpen"
+      :title="settingsDialogInfo?.manifest.name ?? ''"
+      width="520px"
+    >
+      <PluginSettingsForm
+        :schema="settingsDialogSchema"
+        :values="settingsDialogValues"
+        @change="onDialogSettingChange"
+      />
+      <template #footer="{ close }">
+        <SButton variant="secondary" @click="close">{{ t("common.close") }}</SButton>
       </template>
     </SDialog>
   </div>

@@ -106,6 +106,12 @@ export const usePluginsStore = defineStore("plugins", () => {
    */
   const setSetting = async (id: string, key: string, value: unknown): Promise<void> => {
     await window.api.plugins.setSetting(id, key, value);
+    // 乐观更新 settingsValues，让受控的设置控件立即反映新值（否则受控值不变、开关弹回看似无响应）
+    list.value = list.value.map((info) =>
+      info.manifest.id === id
+        ? { ...info, settingsValues: { ...(info.settingsValues ?? {}), [key]: value } }
+        : info,
+    );
   };
 
   const dispose = (): void => {

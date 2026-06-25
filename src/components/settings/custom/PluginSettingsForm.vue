@@ -17,19 +17,19 @@ const valueOf = (item: PluginSettingItem): unknown => props.values[item.key] ?? 
 </script>
 
 <template>
-  <div class="flex flex-col gap-2 mt-2 pt-2 border-t border-solid border-outline-variant/15">
+  <div class="flex flex-col gap-2.5">
     <div
       v-for="item in schema"
       :key="item.key"
-      class="flex items-center justify-between gap-4 py-1"
+      class="flex items-center justify-between gap-4 rounded-xl bg-surface-panel border border-solid border-outline-variant/15 px-4 py-3.5"
     >
-      <div class="flex flex-col min-w-0 flex-1">
-        <span class="text-xs text-on-surface">{{ item.label }}</span>
-        <span v-if="item.description" class="text-xs text-on-surface-variant/60 mt-0.5">
+      <div class="min-w-0 flex-1">
+        <div class="text-base">{{ item.label }}</div>
+        <div v-if="item.description" class="text-sm text-on-surface-variant/70 mt-0.5">
           {{ item.description }}
-        </span>
+        </div>
       </div>
-      <div class="shrink-0">
+      <div class="shrink-0 w-50 flex justify-end">
         <SSwitch
           v-if="item.type === 'switch'"
           :model-value="Boolean(valueOf(item))"
@@ -40,20 +40,21 @@ const valueOf = (item: PluginSettingItem): unknown => props.values[item.key] ?? 
           :model-value="valueOf(item) != null ? Number(valueOf(item)) : null"
           :min="item.min"
           :max="item.max"
-          size="small"
+          class="w-full"
           @update:model-value="(val) => emit('change', item.key, val)"
         />
         <SInput
           v-else-if="item.type === 'text'"
           :model-value="String(valueOf(item) ?? '')"
           :placeholder="item.placeholder"
-          size="small"
+          class="w-full"
           @update:model-value="(val) => emit('change', item.key, val)"
         />
         <SSelect
           v-else-if="item.type === 'select'"
           :model-value="(valueOf(item) ?? '') as string"
           :options="item.options ?? []"
+          class="w-full"
           @update:model-value="(val) => emit('change', item.key, val)"
         />
       </div>
