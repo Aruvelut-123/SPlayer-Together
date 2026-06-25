@@ -12,9 +12,11 @@ import path from "node:path";
 import { EventEmitter } from "node:events";
 import { writeFileSync as atomicWriteSync } from "atomically";
 import type {
+  PlaybackEventKind,
   PluginAction,
   PluginInfo,
   PluginManifest,
+  PluginSettingItem,
   PluginStatus,
   PluginUpdateInfo,
 } from "@shared/types/plugin";
@@ -67,6 +69,12 @@ interface PluginRuntime {
   restartAttempts: number;
   /** 脚本上报的"有新版本"信息，null/undefined 表示没提示过 */
   updateInfo: PluginUpdateInfo | null;
+  /** 控制类：订阅的播放事件列表，音源类为 [] */
+  events: PlaybackEventKind[];
+  /** 控制类：是否注册了反向控制能力 */
+  controls: boolean;
+  /** 控制类：声明的用户配置项 */
+  settings: PluginSettingItem[];
   /** router 注册的 pending 调用 */
   pending: Map<
     string,
@@ -77,6 +85,29 @@ interface PluginRuntime {
     }
   >;
 }
+
+/** 按 schema 校验/强转设置值 */
+const sanitizeSettingValue = (item: PluginSettingItem | undefined, value: unknown): unknown => {
+  if (!item) return value;
+  switch (item.type) {
+    case "switch":
+      return Boolean(value);
+    case "number": {
+      let num = Number(value);
+      if (!Number.isFinite(num)) num = Number(item.default);
+      if (item.min != null) num = Math.max(item.min, num);
+      if (item.max != null) num = Math.min(item.max, num);
+      return num;
+    }
+    case "select": {
+      const ok = item.options?.some((opt) => opt.value === value);
+      return ok ? value : item.default;
+    }
+    case "text":
+    default:
+      return String(value ?? "");
+  }
+};
 
 class PluginRegistry extends EventEmitter {
   private runtimes = new Map<string, PluginRuntime>();
@@ -109,6 +140,9 @@ class PluginRegistry extends EventEmitter {
         sandbox: null,
         restartAttempts: 0,
         updateInfo: null,
+        events: [],
+        controls: false,
+        settings: [],
         pending: new Map(),
       });
     }
@@ -173,12 +207,17 @@ class PluginRegistry extends EventEmitter {
     stored.plugins[manifest.id] = manifest;
     writeStored(stored);
 
-    // 互斥：新装的插件默认启用，先把其他已启用的插件停掉（sandbox + 配置 + 状态广播）
-    const others = [...this.runtimes.values()].filter(
-      (rt) => rt.manifest.id !== manifest.id && rt.enabled,
-    );
-    for (const other of others) {
-      await this.setEnabled(other.manifest.id, false);
+    // 互斥：仅 source 类插件之间互斥——新装 source 时，先停掉其他已启用的 source 插件
+    if ((manifest.type ?? "source") === "source") {
+      const others = [...this.runtimes.values()].filter(
+        (other) =>
+          other.manifest.id !== manifest.id &&
+          other.enabled &&
+          (other.manifest.type ?? "source") === "source",
+      );
+      for (const other of others) {
+        await this.setEnabled(other.manifest.id, false);
+      }
     }
 
     // 默认启用新插件
@@ -199,6 +238,9 @@ class PluginRegistry extends EventEmitter {
       sandbox: null,
       restartAttempts: 0,
       updateInfo: null,
+      events: [],
+      controls: false,
+      settings: [],
       pending: new Map(),
     };
     this.runtimes.set(manifest.id, rt);
@@ -298,6 +340,19 @@ class PluginRegistry extends EventEmitter {
           const merged = { ...rt.status.sources, ...sources };
           this.setStatus(rt, { state: "ready", sources: merged });
         },
+        onRegistered: (events, controls, settings) => {
+          rt.events = events;
+          rt.controls = controls;
+          rt.settings = settings;
+          const wasActive = this.hasEnabledControlPlugin();
+          if (rt.status.state === "ready") {
+            this.setStatus(rt, { ...rt.status, events, controls, settings });
+          } else {
+            this.setStatus(rt, { state: "ready", sources: {}, events, controls, settings });
+          }
+          const nowActive = this.hasEnabledControlPlugin();
+          if (wasActive !== nowActive) this.emit("controlActivityChange", nowActive);
+        },
         onFatal: (error) => {
           // 同时记录到主日志，避免错误只在 UI 卡片里可见
           coreLog.error(`[plugin:${rt.manifest.id}] fatal ${error.code}: ${error.message}`);
@@ -371,6 +426,52 @@ class PluginRegistry extends EventEmitter {
       status,
       updateInfo: rt.updateInfo,
     } satisfies PluginInfo);
+  }
+
+  /** 是否存在已启用且 ready 的控制类插件 */
+  hasEnabledControlPlugin(): boolean {
+    for (const rt of this.runtimes.values()) {
+      if (rt.enabled && rt.manifest.type === "control" && rt.status.state === "ready") return true;
+    }
+    return false;
+  }
+
+  /**
+   * 扇出高层播放事件给订阅了该事件的控制类插件
+   * @param event - 播放事件类型
+   * @param data - 事件载荷
+   */
+  broadcastPlaybackEvent(event: PlaybackEventKind, data: unknown): void {
+    for (const rt of this.runtimes.values()) {
+      if (
+        rt.enabled &&
+        rt.manifest.type === "control" &&
+        rt.status.state === "ready" &&
+        rt.events.includes(event) &&
+        rt.sandbox?.isAlive()
+      ) {
+        rt.sandbox.sendEvent(event, data);
+      }
+    }
+  }
+
+  /**
+   * 写入某插件单个设置并实时下发沙箱
+   * @param id - 插件 ID
+   * @param key - 设置键名
+   * @param value - 待写入值（经 schema 校验后存储）
+   */
+  async setSetting(id: string, key: string, value: unknown): Promise<void> {
+    const rt = this.runtimes.get(id);
+    if (!rt) return;
+    const item = rt.settings.find((setting) => setting.key === key);
+    const sanitized = sanitizeSettingValue(item, value);
+    const all = {
+      ...((store.get(`plugins.perPlugin.${id}` as never) as Record<string, unknown>) ?? {}),
+      [key]: sanitized,
+    };
+    store.set(`plugins.perPlugin.${id}` as never, all);
+    if (rt.sandbox?.isAlive()) rt.sandbox.sendSettingsUpdate({ [key]: sanitized });
   }
 
   /** 应用退出前调用 */
