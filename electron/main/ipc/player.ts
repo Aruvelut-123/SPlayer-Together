@@ -582,6 +582,7 @@ export const registerPlayerIpc = (): void => {
         case "Seek":
           if (event.positionMs != null) {
             const targetMs = event.positionMs;
+            sendToMain("player:event", { type: "seek", data: { position: targetMs } });
             void inst.seek(targetMs / 1000).then(() => {
               mediaService.setTimeline({
                 currentMs: targetMs,

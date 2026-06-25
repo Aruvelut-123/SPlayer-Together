@@ -163,6 +163,7 @@ export interface AudioDevice {
 export type PlayerEvent =
   | { type: "status"; data: PlayerStatus }
   | { type: "position"; data: { position: number; duration: number } }
+  | { type: "seek"; data: { position: number } }
   | { type: "ended" }
   | { type: "sourceError" }
   | { type: "play" }

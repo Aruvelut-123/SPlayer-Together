@@ -338,6 +338,19 @@ export const seek = async (posMs: number): Promise<void> => {
 };
 
 /**
+ * 标记一次非渲染层发起的 seek
+ * @param posMs - 目标位置（毫秒）
+ */
+export const markSeek = (posMs: number): void => {
+  const status = useStatusStore();
+  if (status.trackLoading) return;
+  playback.setSeeking(true);
+  status.position = posMs;
+  playback.setCurrentTime(posMs);
+  seekTarget = posMs;
+};
+
+/**
  * 设置音量
  * @param vol - 音量值（0.0 ~ 1.0）
  */
