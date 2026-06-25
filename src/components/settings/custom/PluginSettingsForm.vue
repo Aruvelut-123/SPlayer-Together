@@ -21,7 +21,7 @@ const valueOf = (item: PluginSettingItem): unknown => props.values[item.key] ?? 
     <div
       v-for="item in schema"
       :key="item.key"
-      class="flex items-center justify-between gap-4 rounded-xl bg-surface-panel border border-solid border-outline-variant/15 px-4 py-3.5"
+      class="flex items-center justify-between gap-4 rounded-xl bg-on-surface/5 border border-solid border-outline-variant/15 px-4 py-3.5"
     >
       <div class="min-w-0 flex-1">
         <div class="text-base">{{ item.label }}</div>
