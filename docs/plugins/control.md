@@ -62,7 +62,7 @@ splayer.register({
 | `settings` | `PluginSettingItem[]` |      | 用户可配置项，渲染到插件管理的设置弹窗             |
 
 ::: tip 只发订阅的事件
-宿主只会向插件下发它在 `events` 里声明过的事件，这是有意的——避免无谓的跨进程开销。插件启用时，宿主会立即补发一次当前状态快照（当前曲目、歌词、播放态、当前行），无需自己拉取初始值。
+宿主只会向插件推送它在 `events` 里声明过的事件，未声明的不会推送。插件启用时，宿主会立即补发一次当前状态快照（当前曲目、歌词、播放态、当前行），无需自己拉取初始值。
 :::
 
 ## 监听播放事件
@@ -145,7 +145,7 @@ splayer.player.on("lineChange", ({ index }) => {
 以上控制方法（除 `getPosition`）均为「即发即忘」，不返回结果；非法入参（如负的 `seek`、越界音量）会被宿主忽略。
 
 ::: tip getPosition 的正确用法
-`getPosition()` 走一次跨进程往返，**仅用于偶发的一次性查询**。需要持续跟踪进度时，请直接读 `lineChange` / `playStateChange` 载荷里已经带上的 `position`，不要高频轮询 `getPosition`。
+`getPosition()` 每次调用都有一次往返开销，**仅用于偶发的一次性查询**。需要持续跟踪进度时，请直接读 `lineChange` / `playStateChange` 载荷里已经带上的 `position`，不要高频轮询 `getPosition`。
 :::
 
 ## 设置项
