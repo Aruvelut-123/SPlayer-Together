@@ -19,6 +19,7 @@ const urlSubmitting = ref(false);
 const settingsDialogOpen = ref(false);
 const settingsDialogId = ref<string | null>(null);
 const updatingId = ref<string | null>(null);
+const checkingId = ref<string | null>(null);
 
 onMounted(() => {
   if (!loaded.value) void pluginsStore.load();
@@ -79,7 +80,23 @@ const handleToggleEnabled = async (id: string, currentlyEnabled: boolean): Promi
 };
 
 /**
- * 一键更新插件：拉取脚本自报的新版原地覆盖，成功/失败均给 toast 反馈。
+ * 手动检查插件更新：拉远端 @version 与本地比对，按结果 toast 反馈。
+ * @param id - 插件 ID
+ */
+const handleCheckUpdate = async (id: string): Promise<void> => {
+  checkingId.value = id;
+  try {
+    const res = await pluginsStore.checkUpdate(id);
+    if (!res.ok) toast.error(t("settings.plugins.checkUpdateFailed"));
+    else if (res.hasUpdate) toast.success(t("settings.plugins.updateFound"));
+    else toast.info(t("settings.plugins.updateLatest"));
+  } finally {
+    checkingId.value = null;
+  }
+};
+
+/**
+ * 一键更新插件：拉取新版原地覆盖，成功/失败均给 toast 反馈。
  * 失败时卡片上的「查看更新」外链仍可手动打开。
  * @param id - 插件 ID
  */
@@ -203,9 +220,11 @@ const isEmpty = computed(
           :key="info.manifest.id"
           :info="info"
           :updating="updatingId === info.manifest.id"
+          :checking="checkingId === info.manifest.id"
           @toggle="handleToggleEnabled"
           @uninstall="openUninstallConfirm"
           @configure="openSettingsDialog"
+          @check="handleCheckUpdate"
           @update="handleUpdate"
         />
       </div>
@@ -222,9 +241,11 @@ const isEmpty = computed(
           :key="info.manifest.id"
           :info="info"
           :updating="updatingId === info.manifest.id"
+          :checking="checkingId === info.manifest.id"
           @toggle="handleToggleEnabled"
           @uninstall="openUninstallConfirm"
           @configure="openSettingsDialog"
+          @check="handleCheckUpdate"
           @update="handleUpdate"
         />
       </div>

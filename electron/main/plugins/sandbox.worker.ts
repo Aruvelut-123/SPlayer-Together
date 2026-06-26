@@ -128,9 +128,6 @@ const nextCallId = (): string => `c${++callSeq}`;
 /** 用户设置缓存（init 时传入，getSetting 同步读） */
 let userSettingsCache: Record<string, unknown> = {};
 
-/** notifyUpdate 一次性守卫 */
-let updateReported = false;
-
 /** 调用主进程，返回主进程 hostResult 的 data */
 const hostCall = (method: HostCallMethod, args: unknown[]): Promise<unknown> => {
   const callId = nextCallId();
@@ -238,20 +235,6 @@ const buildSplayer = (init: Extract<SandboxIn, { kind: "init" }>): HostApi => ({
     const list = settingChangeHandlers.get(key) ?? [];
     list.push(handler);
     settingChangeHandlers.set(key, list);
-  },
-
-  notifyUpdate: (info) => {
-    if (updateReported) return;
-    updateReported = true;
-    send({
-      kind: "updateAvailable",
-      info: {
-        version: typeof info?.version === "string" ? info.version : undefined,
-        log: typeof info?.log === "string" ? info.log : undefined,
-        updateUrl: typeof info?.updateUrl === "string" ? info.updateUrl : undefined,
-        updatedAt: Date.now(),
-      },
-    });
   },
 });
 

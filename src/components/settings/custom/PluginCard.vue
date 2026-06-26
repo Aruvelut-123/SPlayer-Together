@@ -2,12 +2,13 @@
 import type { PluginInfo } from "@shared/types/plugin";
 import { isExternalUrl, openExternal } from "@/utils/url";
 
-const props = defineProps<{ info: PluginInfo; updating?: boolean }>();
+const props = defineProps<{ info: PluginInfo; updating?: boolean; checking?: boolean }>();
 
 const emit = defineEmits<{
   (event: "toggle", id: string, enabled: boolean): void;
   (event: "uninstall", id: string): void;
   (event: "configure", id: string): void;
+  (event: "check", id: string): void;
   (event: "update", id: string): void;
 }>();
 
@@ -164,8 +165,20 @@ const settings = computed(() =>
         </div>
       </div>
 
-      <!-- 操作区：配置（控制类有 schema 才显示）+ 启用 + 卸载 -->
+      <!-- 操作区：检查更新（声明了 @updateUrl 才显示）+ 配置 + 启用 + 卸载 -->
       <div class="shrink-0 flex items-center gap-2">
+        <SButton
+          v-if="info.manifest.updateUrl"
+          variant="secondary"
+          size="small"
+          :loading="checking"
+          @click="emit('check', info.manifest.id)"
+        >
+          <template #icon>
+            <IconLucideRefreshCw class="size-4" />
+          </template>
+          {{ t("settings.plugins.checkUpdate") }}
+        </SButton>
         <SButton
           v-if="settings.length > 0"
           variant="secondary"

@@ -10,8 +10,41 @@ import type { HostRequestOptions, HostRequestResult } from "@shared/types/plugin
 import {
   REQUEST_DEFAULT_TIMEOUT,
   REQUEST_MAX_TIMEOUT,
+  INSTALL_URL_MAX_SIZE,
+  INSTALL_URL_TIMEOUT,
   PluginErrorCodes,
 } from "@shared/defaults/plugin-api";
+
+/**
+ * 拉取远端脚本源码，带协议白名单、大小与超时限制
+ *
+ * 供在线导入、一键更新、更新检查复用；仅允许 https（loopback 放行 http 便于本地调试）。
+ * @param url - 脚本地址（应指向 raw .js）
+ * @returns 脚本源码文本
+ */
+export const fetchScript = async (url: string): Promise<string> => {
+  const parsed = new URL(url);
+  const isLoopback = parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1";
+  if (parsed.protocol !== "https:" && !(parsed.protocol === "http:" && isLoopback)) {
+    throw new Error(`protocol not allowed: ${parsed.protocol}`);
+  }
+  const resp = await net.fetch(url, {
+    method: "GET",
+    redirect: "follow",
+    signal: AbortSignal.timeout(INSTALL_URL_TIMEOUT),
+  });
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  // Content-Length 预检（仅提示，不强信任）
+  const lenHeader = resp.headers.get("content-length");
+  if (lenHeader && Number(lenHeader) > INSTALL_URL_MAX_SIZE) {
+    throw new Error("PLUGIN_INSTALL_URL_TOO_LARGE");
+  }
+  const buf = await resp.arrayBuffer();
+  if (buf.byteLength > INSTALL_URL_MAX_SIZE) {
+    throw new Error("PLUGIN_INSTALL_URL_TOO_LARGE");
+  }
+  return new TextDecoder("utf-8").decode(buf);
+};
 
 /** 校验并发起请求；抛出的错误携带 code 字段 */
 export const hostRequest = async (

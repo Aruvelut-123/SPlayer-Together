@@ -96,7 +96,7 @@ export interface PluginPlayerApi {
 
 /** 插件头部 JSDoc 元数据 */
 export interface PluginManifest {
-  /** 插件唯一 ID = slugify(name) + platform，源码更新不变 */
+  /** 插件唯一 ID：作者声明的 @id 优先，否则按 `平台.名称` 兜底；跨版本/改源码均不变 */
   id: string;
   /** 展示名 */
   name: string;
@@ -114,8 +114,12 @@ export interface PluginManifest {
   type?: PluginType;
   /** 声明兼容的 Host API 级别 */
   apiLevel: number;
-  /** 源码 SHA1（内容指纹，用于判断原地更新时内容是否真变） */
+  /** 源码 SHA1（内容指纹，用于校验下载完整性） */
   hash: string;
+  /** 更新检查地址（来自 @updateUrl，指向 raw .js）；宿主拉取后读其 @version 与本地比对 */
+  updateUrl?: string;
+  /** 更新说明（来自 @changelog）；检查到新版时取远端这一份展示在卡片上 */
+  changelog?: string;
   /** 安装时间戳（ms） */
   installedAt: number;
   /** 末次原地更新时间戳（ms），未更新过则缺省 */
@@ -260,9 +264,6 @@ export interface HostApi {
 
   /** 控制类设置变更回调：用户改设置后触发 */
   onSettingChange: (key: string, handler: (value: unknown) => void) => void;
-
-  /** 脚本自报"有新版本"，宿主据此提示用户更新（一次性，updateUrl 指向 raw .js 才能一键更新） */
-  notifyUpdate: (info: Pick<PluginUpdateInfo, "version" | "log" | "updateUrl">) => void;
 }
 
 /* ========== 沙箱 ↔ 主进程消息协议 ========== */
@@ -384,7 +385,15 @@ export interface PluginsApi {
    */
   setSetting: (id: string, key: string, value: unknown) => Promise<void>;
   /**
-   * 一键更新：拉取插件自报的 updateUrl(raw .js) 原地覆盖，保留启用态/设置/数据
+   * 手动检查更新：拉 @updateUrl 读远端 @version 与本地比对，有新版则置 updateInfo
+   * @param id - 插件 ID
+   * @returns ok 是否成功联网比对；hasUpdate 是否发现新版；plugin 最新信息
+   */
+  checkUpdate: (
+    id: string,
+  ) => Promise<{ ok: boolean; hasUpdate: boolean; plugin?: PluginInfo; error?: string }>;
+  /**
+   * 一键更新：拉取 updateUrl(raw .js) 原地覆盖，保留启用态/设置/数据
    * @param id - 插件 ID
    * @returns ok 成功;失败时 fallbackUrl 为可手动打开的更新地址(若有)
    */

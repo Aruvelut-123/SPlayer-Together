@@ -32,9 +32,6 @@ export const HEARTBEAT_MAX_MISSES = 3;
 /** 自动重启次数 */
 export const RESTART_MAX_ATTEMPTS = 3;
 
-/** 每插件并发上限 */
-export const PER_PLUGIN_CONCURRENCY = 4;
-
 /** 错误码 */
 export const PluginErrorCodes = {
   /** 未知错误 */

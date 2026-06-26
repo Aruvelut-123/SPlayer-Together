@@ -106,7 +106,25 @@ export const usePluginsStore = defineStore("plugins", () => {
   };
 
   /**
-   * 一键更新插件：拉取脚本自报的 updateUrl 原地覆盖，成功后用返回的最新信息替换列表项。
+   * 手动检查插件更新：有新版时用返回的最新信息替换列表项，卡片随即显示更新提示。
+   * @param id - 插件 ID
+   * @returns ok 是否成功联网比对；hasUpdate 是否发现新版
+   */
+  const checkUpdate = async (
+    id: string,
+  ): Promise<{ ok: boolean; hasUpdate: boolean; plugin?: PluginInfo; error?: string }> => {
+    const res = await window.api.plugins.checkUpdate(id);
+    if (res.plugin) {
+      const next = list.value.slice();
+      const idx = next.findIndex((item) => item.manifest.id === id);
+      if (idx >= 0) next[idx] = res.plugin;
+      list.value = next;
+    }
+    return res;
+  };
+
+  /**
+   * 一键更新插件：拉取 updateUrl 原地覆盖，成功后用返回的最新信息替换列表项。
    * @param id - 插件 ID
    * @returns ok 成功;失败时 fallbackUrl 为可手动打开的更新地址(若有)
    */
@@ -139,6 +157,7 @@ export const usePluginsStore = defineStore("plugins", () => {
     uninstall,
     setEnabled,
     setSetting,
+    checkUpdate,
     applyUpdate,
     dispose,
   };
