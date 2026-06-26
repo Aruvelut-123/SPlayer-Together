@@ -105,6 +105,24 @@ export const usePluginsStore = defineStore("plugins", () => {
     await window.api.plugins.setSetting(id, key, value);
   };
 
+  /**
+   * 一键更新插件：拉取脚本自报的 updateUrl 原地覆盖，成功后用返回的最新信息替换列表项。
+   * @param id - 插件 ID
+   * @returns ok 成功;失败时 fallbackUrl 为可手动打开的更新地址(若有)
+   */
+  const applyUpdate = async (
+    id: string,
+  ): Promise<{ ok: boolean; plugin?: PluginInfo; error?: string; fallbackUrl?: string }> => {
+    const res = await window.api.plugins.applyUpdate(id);
+    if (res.ok && res.plugin) {
+      const next = list.value.slice();
+      const idx = next.findIndex((item) => item.manifest.id === id);
+      if (idx >= 0) next[idx] = res.plugin;
+      list.value = next;
+    }
+    return res;
+  };
+
   const dispose = (): void => {
     unsubscribe?.();
     unsubscribe = null;
@@ -121,6 +139,7 @@ export const usePluginsStore = defineStore("plugins", () => {
     uninstall,
     setEnabled,
     setSetting,
+    applyUpdate,
     dispose,
   };
 });

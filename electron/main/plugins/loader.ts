@@ -3,7 +3,7 @@
  *
  * - 读取脚本文件（.js 或 gz_ 压缩文本）
  * - 解析头部 JSDoc 元数据（`@name` / `@version` / ...）
- * - 生成稳定的 pluginId（name + sha1(source).slice(0,8)）
+ * - 生成稳定的 pluginId（slugify(name) + platform），同名同平台即同插件，支持原地更新
  * - 返回 { source, manifest }
  */
 
@@ -144,7 +144,9 @@ export const loadScript = (rawOrPath: string, isPath: boolean, fileName?: string
     );
   }
 
-  const id = `${slugify(name)}-${hash.slice(0, 8)}`;
+  // 稳定 id：同名同平台即同插件，源码更新不改变 id，从而支持原地更新与状态保留。
+  // 无 @name 的脚本其 name 已含 hash（见上），id 仍确定但实际按内容区分、不享受原地更新。
+  const id = `${slugify(name)}-${platform}`;
   const finalFileName = fileName ?? (isPath ? path.basename(rawOrPath) : `${id}.js`);
 
   const manifest: PluginManifest = {

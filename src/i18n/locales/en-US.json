@@ -1526,6 +1526,9 @@
       "updateAvailable": "Update",
       "newVersion": "New version available",
       "openUpdateUrl": "Open update page",
+      "update": "Update",
+      "updateSuccess": "Plugin updated",
+      "updateFailed": "Update failed, use \"Open update page\" to install manually",
       "status": {
         "ready": "Ready",
         "loading": "Loading",

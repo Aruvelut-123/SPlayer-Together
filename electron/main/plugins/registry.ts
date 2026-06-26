@@ -254,6 +254,68 @@ class PluginRegistry extends EventEmitter {
     return { manifest, enabled: rt.enabled, status: rt.status, updateInfo: rt.updateInfo };
   }
 
+  /** 取插件当前自报的更新地址 */
+  getUpdateUrl(id: string): string | undefined {
+    return this.runtimes.get(id)?.updateInfo?.updateUrl ?? undefined;
+  }
+
+  /**
+   * 用新源码原地更新插件：保留 id / 启用态 / 用户设置 / 每插件存储
+   * @param id - 现有插件 ID
+   * @param rawSource - 新版脚本源码
+   * @returns 更新后的插件信息
+   */
+  async applyUpdateFromSource(id: string, rawSource: string): Promise<PluginInfo> {
+    const rt = this.runtimes.get(id);
+    if (!rt) {
+      throw Object.assign(new Error("plugin not found"), { code: PluginErrorCodes.NOT_FOUND });
+    }
+    const { source, manifest } = loadScript(rawSource, false);
+    // 不变量守卫：名称（含平台）或类型变化 = 非同一插件，拒绝原地更新
+    if (manifest.id !== id) {
+      throw Object.assign(new Error("plugin name changed, please reinstall manually"), {
+        code: PluginErrorCodes.INVALID_MANIFEST,
+      });
+    }
+    if ((manifest.type ?? "source") !== (rt.manifest.type ?? "source")) {
+      throw Object.assign(new Error("plugin type changed, please reinstall manually"), {
+        code: PluginErrorCodes.INVALID_MANIFEST,
+      });
+    }
+
+    // 固定文件名、保留安装时间、补更新时间
+    manifest.fileName = `${id}.js`;
+    manifest.installedAt = rt.manifest.installedAt;
+    manifest.updatedAt = Date.now();
+
+    fs.writeFileSync(path.join(scriptsDir(), manifest.fileName), source, "utf-8");
+    const stored = readStored();
+    stored.plugins[id] = manifest;
+    writeStored(stored);
+
+    // enabled / 用户设置 / 每插件存储均按 id 关联，id 不变即天然保留
+    rt.updateInfo = null;
+    await this.stop(rt);
+    rt.manifest = manifest;
+    rt.source = source;
+    rt.restartAttempts = 0;
+    rt.events = [];
+    rt.controls = false;
+    rt.settings = [];
+
+    if (rt.enabled) await this.start(rt).catch(() => {});
+    else this.setStatus(rt, { state: "disabled" });
+
+    return {
+      manifest: rt.manifest,
+      enabled: rt.enabled,
+      status: rt.status,
+      updateInfo: rt.updateInfo,
+      settingsValues:
+        (store.get(`plugins.perPlugin.${id}` as never) as Record<string, unknown>) ?? {},
+    };
+  }
+
   async uninstall(id: string): Promise<void> {
     const rt = this.runtimes.get(id);
     if (!rt) return;

@@ -2,12 +2,13 @@
 import type { PluginInfo } from "@shared/types/plugin";
 import { isExternalUrl, openExternal } from "@/utils/url";
 
-const props = defineProps<{ info: PluginInfo }>();
+const props = defineProps<{ info: PluginInfo; updating?: boolean }>();
 
 const emit = defineEmits<{
   (event: "toggle", id: string, enabled: boolean): void;
   (event: "uninstall", id: string): void;
   (event: "configure", id: string): void;
+  (event: "update", id: string): void;
 }>();
 
 const { t } = useI18n();
@@ -125,18 +126,34 @@ const settings = computed(() =>
                 <template v-if="info.updateInfo.version">v{{ info.updateInfo.version }}</template>
               </span>
             </div>
-            <SButton
+            <div
               v-if="isExternalUrl(info.updateInfo.updateUrl)"
-              variant="secondary"
-              size="tiny"
-              type="warning"
-              @click="openExternal(info.updateInfo.updateUrl)"
+              class="flex items-center gap-2 shrink-0"
             >
-              <template #icon>
-                <IconLucideExternalLink class="size-3" />
-              </template>
-              {{ t("settings.plugins.openUpdateUrl") }}
-            </SButton>
+              <SButton
+                variant="filled"
+                size="tiny"
+                type="warning"
+                :loading="updating"
+                @click="emit('update', info.manifest.id)"
+              >
+                <template #icon>
+                  <IconLucideArrowUpCircle class="size-3" />
+                </template>
+                {{ t("settings.plugins.update") }}
+              </SButton>
+              <SButton
+                variant="secondary"
+                size="tiny"
+                type="warning"
+                @click="openExternal(info.updateInfo.updateUrl)"
+              >
+                <template #icon>
+                  <IconLucideExternalLink class="size-3" />
+                </template>
+                {{ t("settings.plugins.openUpdateUrl") }}
+              </SButton>
+            </div>
           </div>
           <div
             v-if="info.updateInfo.log"

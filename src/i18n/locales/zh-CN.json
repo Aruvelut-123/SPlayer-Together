@@ -1514,6 +1514,9 @@
       "updateAvailable": "有更新",
       "newVersion": "发现新版本",
       "openUpdateUrl": "查看更新",
+      "update": "更新",
+      "updateSuccess": "插件已更新",
+      "updateFailed": "更新失败，可点「查看更新」手动安装",
       "status": {
         "ready": "已就绪",
         "loading": "加载中",

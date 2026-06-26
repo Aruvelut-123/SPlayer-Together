@@ -18,6 +18,7 @@ const urlInput = ref("");
 const urlSubmitting = ref(false);
 const settingsDialogOpen = ref(false);
 const settingsDialogId = ref<string | null>(null);
+const updatingId = ref<string | null>(null);
 
 onMounted(() => {
   if (!loaded.value) void pluginsStore.load();
@@ -75,6 +76,22 @@ const handleImportFromUrl = async (): Promise<void> => {
  */
 const handleToggleEnabled = async (id: string, currentlyEnabled: boolean): Promise<void> => {
   await pluginsStore.setEnabled(id, !currentlyEnabled);
+};
+
+/**
+ * 一键更新插件：拉取脚本自报的新版原地覆盖，成功/失败均给 toast 反馈。
+ * 失败时卡片上的「查看更新」外链仍可手动打开。
+ * @param id - 插件 ID
+ */
+const handleUpdate = async (id: string): Promise<void> => {
+  updatingId.value = id;
+  try {
+    const res = await pluginsStore.applyUpdate(id);
+    if (res.ok) toast.success(t("settings.plugins.updateSuccess"));
+    else toast.error(t("settings.plugins.updateFailed"));
+  } finally {
+    updatingId.value = null;
+  }
 };
 
 const openUninstallConfirm = (id: string): void => {
@@ -185,9 +202,11 @@ const isEmpty = computed(
           v-for="info in sourcePlugins"
           :key="info.manifest.id"
           :info="info"
+          :updating="updatingId === info.manifest.id"
           @toggle="handleToggleEnabled"
           @uninstall="openUninstallConfirm"
           @configure="openSettingsDialog"
+          @update="handleUpdate"
         />
       </div>
     </div>
@@ -202,9 +221,11 @@ const isEmpty = computed(
           v-for="info in controlPlugins"
           :key="info.manifest.id"
           :info="info"
+          :updating="updatingId === info.manifest.id"
           @toggle="handleToggleEnabled"
           @uninstall="openUninstallConfirm"
           @configure="openSettingsDialog"
+          @update="handleUpdate"
         />
       </div>
     </div>

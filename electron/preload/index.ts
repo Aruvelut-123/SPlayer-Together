@@ -301,6 +301,8 @@ const api = {
     // 写入控制类插件配置项
     setSetting: (id: string, key: string, value: unknown) =>
       ipcRenderer.invoke("plugin:setSetting", id, key, value),
+    // 一键更新
+    applyUpdate: (id: string) => ipcRenderer.invoke("plugin:applyUpdate", id),
     // 解析播放 URL
     resolveUrl: (args: PluginResolveUrlArgs) => ipcRenderer.invoke("plugin:resolveUrl", args),
     // 订阅插件状态变化

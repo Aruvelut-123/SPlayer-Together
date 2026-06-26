@@ -188,6 +188,10 @@ splayer.on("musicUrl", async (req) => {
 - 当多个已启用插件支持同一平台时，由播放器按用户设置的**优先级**自动选用第一个就绪的插件；它失败再尝试下一个。
 - 音源插件之间**互斥**：安装一个新音源插件时，已启用的其他音源插件会被自动停用（新装者优先）。用户仍可在插件管理中手动启停。
 
+## 更新支持
+
+音源插件可在脚本里自检新版后调用 `splayer.notifyUpdate({ version, log, updateUrl })`（lx 音源脚本用 `updateAlert`），用户即可在插件管理里一键原地更新。完整说明见 [插件更新](/plugins/update)。
+
 ## 兼容 lx 插件
 
 SPlayer-Next 提供 `lx` 垫片，覆盖 [lx-music-desktop](https://github.com/lyswhut/lx-music-desktop) `user_api` 脚本的常用接口（`lx.request` / `lx.on("request")` / `lx.send("inited")` / `lx.utils`），多数现有 lx 音源脚本无需修改即可导入运行。头部写 `@platform lx`，或以 `gz_` 前缀压缩分发，会自动启用垫片。
@@ -202,7 +206,7 @@ SPlayer-Next 提供 `lx` 垫片，覆盖 [lx-music-desktop](https://github.com/l
 
 ```js
 await window.api.plugins.resolveUrl({
-  pluginId: "example-xxxxxxxx",
+  pluginId: "example-splayer",
   source: "wy",
   quality: "hq",
   musicInfo: { songmid: "歌曲ID", name: "歌名", singer: "歌手" },

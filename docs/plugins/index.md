@@ -6,6 +6,7 @@ SPlayer-Next 内置一套插件系统，允许用第三方 JavaScript 扩展应�
 
 - [音源插件](/plugins/source)：解析歌曲的播放地址（`musicUrl`）。
 - [控制插件](/plugins/control)：监听播放状态、反向控制播放、声明自己的设置项。
+- [插件更新](/plugins/update)：脚本如何自报新版本、用户如何一键更新（两类插件通用）。
 
 最终用户的安装与管理方式见 [插件使用](/plugins-usage)。
 
@@ -99,7 +100,7 @@ SPlayer-Next 内置一套插件系统，允许用第三方 JavaScript 扩展应�
 | `@apiLevel`    |      | 声明兼容的 [API 级别](#api-级别)，当前宿主为 `2`；控制插件需声明 `2` |
 
 ::: warning
-缺少 `@name` 或 `@version` 会导致导入失败。插件 ID 由宿主依据「名称 + 源码哈希」自动生成，**无需也无法手动指定**——同一份脚本的 ID 始终一致，改动脚本会生成新 ID。
+缺少 `@name` 或 `@version` 会导致导入失败。插件 ID 由宿主依据「名称 + 平台」自动生成，**无需也无法手动指定**——同名同平台的脚本视为同一插件，改动脚本内容**不会**改变 ID，因此重新导入即原地更新（不会产生重复条目）。发布新版时请只改 `@version` 与脚本内容，保持 `@name` 不变，详见 [插件更新](/plugins/update)。
 :::
 
 ## API 级别
@@ -216,6 +217,10 @@ console.log(resp.status, resp.body);
 | `utils.base64` | `encode` / `decode`                                                                             |
 | `utils.zlib`   | `inflate` / `deflate` / `gunzip` / `gzip`                                                       |
 
+### `splayer.notifyUpdate(info)`
+
+脚本自检出有新版本后调用，向宿主上报更新提示（每次运行只取首次）。`info` 为 `{ version?, log?, updateUrl? }`：`updateUrl` 指向 **raw .js** 时用户可一键原地更新。详见 [插件更新](/plugins/update)。
+
 ## 资源约束与安全
 
 | 约束         | 值    | 说明                                     |
@@ -271,14 +276,14 @@ await window.api.plugins.list();
 
 // 直接触发一次音源解析
 await window.api.plugins.resolveUrl({
-  pluginId: "my-plugin-xxxxxxxx",
+  pluginId: "my-plugin-splayer",
   source: "sa",
   quality: "hq",
   musicInfo: { songmid: "123" },
 });
 
 // 修改某控制类插件的设置（会实时下发到插件）
-await window.api.plugins.setSetting("my-plugin-xxxxxxxx", "someKey", true);
+await window.api.plugins.setSetting("my-plugin-splayer", "someKey", true);
 ```
 
 插件内的 `console.*` / `splayer.log.*` 输出会汇入应用主日志（`{userData}/app-data/logs/`）。修改脚本后重新导入一次即可，旧版本会被自动替换。

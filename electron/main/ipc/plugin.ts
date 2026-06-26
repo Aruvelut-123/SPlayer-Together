@@ -112,6 +112,24 @@ export const registerPluginIpc = (): void => {
     await pluginRegistry.setSetting(id, key, value);
   });
 
+  // 一键更新：拉取脚本自报的 updateUrl(raw .js) 原地覆盖；失败回退到手动打开下载页
+  ipcMain.handle("plugin:applyUpdate", async (_evt, id: string) => {
+    const updateUrl = pluginRegistry.getUpdateUrl(id);
+    if (!updateUrl) return { ok: false, error: "PLUGIN_NO_UPDATE_URL" };
+    try {
+      const source = await fetchScriptFromUrl(updateUrl);
+      const plugin = await pluginRegistry.applyUpdateFromSource(id, source);
+      return { ok: true, plugin };
+    } catch (err) {
+      coreLog.warn("[plugin] applyUpdate failed:", err);
+      return {
+        ok: false,
+        error: err instanceof Error ? err.message : String(err),
+        fallbackUrl: updateUrl,
+      };
+    }
+  });
+
   ipcMain.handle("plugin:resolveUrl", async (_evt, args) => {
     return resolveUrl(args);
   });
