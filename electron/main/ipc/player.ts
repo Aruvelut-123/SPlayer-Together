@@ -27,7 +27,7 @@ import * as songCache from "@main/services/songCache";
 import { parseArtists, parseAlbum, formatArtists } from "@main/utils/metadata";
 import { playerLog } from "@main/utils/logger";
 import { ErrorCode } from "@shared/types/errors";
-import type { LoadOptions, RepeatMode, ShuffleMode } from "@shared/types/player";
+import type { LoadOptions, RepeatMode, ShuffleMode, PlayerState } from "@shared/types/player";
 import type { MediaEvent } from "@main/services/media";
 import { JsPlayerEvent } from "@splayer/audio-engine";
 
@@ -50,7 +50,7 @@ const registerNativeEvents = (inst: InstanceType<AudioEngineModule["AudioPlayer"
   inst.onEvent((event: JsPlayerEvent) => {
     switch (event.type) {
       case "stateChanged": {
-        const state = event.state ?? "idle";
+        const state = (event.state ?? "idle") as PlayerState;
         // 更新缩略图工具栏和托盘菜单
         getThumbar()?.updateThumbar(state === "playing");
         setTrayPlayState(state === "playing" ? "playing" : "paused");
@@ -66,7 +66,7 @@ const registerNativeEvents = (inst: InstanceType<AudioEngineModule["AudioPlayer"
           mediaService.setPlayState({ status: "Paused" });
           setTaskbarProgress(-1);
         }
-        nowPlaying.onPlayStateChange(state === "playing");
+        nowPlaying.onPlayStateChange(state);
         lastfm.onState(state === "playing");
         neteaseScrobble.onState(state === "playing");
         const statusEvent = {

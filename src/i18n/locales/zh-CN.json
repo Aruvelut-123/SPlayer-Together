@@ -1500,6 +1500,7 @@
       "enable": "启用",
       "enabled": "已启用",
       "uninstall": "卸载",
+      "configSubtitle": "插件配置",
       "uninstallConfirmTitle": "卸载插件",
       "uninstallConfirm": "确定要卸载插件「{name}」吗？此操作不可撤销。",
       "uninstallSuccess": "插件已卸载",
@@ -1515,7 +1516,9 @@
         "error": "错误",
         "disabled": "已禁用",
         "unloaded": "未加载"
-      }
+      },
+      "sectionSource": "音源插件",
+      "sectionControl": "控制插件"
     },
     "pluginManager": {
       "label": "插件管理",
