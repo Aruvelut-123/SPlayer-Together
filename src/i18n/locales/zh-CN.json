@@ -1379,6 +1379,10 @@
       "label": "任务栏播放进度",
       "description": "在任务栏图标上显示当前播放进度"
     },
+    "taskbarThumbnailCover": {
+      "label": "任务栏封面预览",
+      "description": "悬停任务栏时以专辑封面作为窗口预览，关闭则显示系统默认的实时窗口"
+    },
     "neteaseRealIp": {
       "label": "使用真实IP地址",
       "description": "在海外或部分地区可能会受到限制，可开启此处尝试解决"

@@ -385,6 +385,8 @@ export interface SystemConfig {
     rememberWindowState: boolean;
     /** 在任务栏显示播放进度 */
     taskbarProgress: boolean;
+    /** 悬停任务栏时以专辑封面作为窗口预览（仅 Windows） */
+    taskbarThumbnailCover: boolean;
     /** 界面缩放百分比（50-200，默认 100） */
     uiZoom: number;
     /** 首启引导是否已完成 */

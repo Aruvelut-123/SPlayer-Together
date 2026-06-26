@@ -188,7 +188,6 @@ export const registerPlayerIpc = (): void => {
         getMainWindow()?.setTitle(header);
         setTraySongName(header);
         setTrayPlayState(autoPlay ? "playing" : "paused");
-        setTaskbarThumbnailCover(coverData);
       };
       // 流媒体乐观更新
       if (authoritative) {
@@ -211,6 +210,7 @@ export const registerPlayerIpc = (): void => {
       // 本地封面
       const localCover = isRemote ? null : (inst.getCoverRaw() ?? null);
       applyDisplay(displayTitle, displayArtist, displayAlbum, localCover ?? undefined, durationMs);
+      if (!isRemote) setTaskbarThumbnailCover(meta.cover);
       // Last.fm
       const primaryArtist =
         authoritative?.artists?.[0]?.name ??

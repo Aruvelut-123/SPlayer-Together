@@ -1391,6 +1391,10 @@
       "label": "Taskbar Progress",
       "description": "Show playback progress on the taskbar icon"
     },
+    "taskbarThumbnailCover": {
+      "label": "Taskbar Cover Preview",
+      "description": "Use the album cover as the window preview when hovering the taskbar; disable to show the system's live window"
+    },
     "neteaseRealIp": {
       "label": "Use Real IP",
       "description": "May be restricted overseas or in some regions; enable this to try to resolve it"

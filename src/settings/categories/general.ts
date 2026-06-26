@@ -36,6 +36,13 @@ const generalCategory: SettingCategory = {
           defaultValue: true,
         },
         {
+          key: "taskbarThumbnailCover",
+          type: "switch",
+          binding: { store: "settings", path: "system.system.taskbarThumbnailCover" },
+          defaultValue: true,
+          visible: () => navigator.platform.startsWith("Win"),
+        },
+        {
           key: "orpheusProtocol",
           type: "switch",
           binding: { store: "settings", path: "system.system.registerOrpheusProtocol" },
