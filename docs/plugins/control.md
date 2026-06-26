@@ -226,7 +226,7 @@ splayer.onSettingChange("enabled", (value) => {
 
 ## 更新支持
 
-控制插件可在脚本里自检新版后调用 `splayer.notifyUpdate({ version, log, updateUrl })`，用户即可在插件管理里一键原地更新（保留已配置的设置项与插件数据）。完整说明见 [插件更新](/plugins/update)。
+控制插件在脚本头声明 `@updateUrl` 后，宿主会拉取它读 `@version` 与本地比对，发现新版即在卡片上提示，用户可一键原地更新（保留已配置的设置项与插件数据）。完整说明见 [插件更新](/plugins/update)。
 
 ## 完整示例
 

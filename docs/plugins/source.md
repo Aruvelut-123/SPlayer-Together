@@ -190,7 +190,7 @@ splayer.on("musicUrl", async (req) => {
 
 ## 更新支持
 
-音源插件可在脚本里自检新版后调用 `splayer.notifyUpdate({ version, log, updateUrl })`（lx 音源脚本用 `updateAlert`），用户即可在插件管理里一键原地更新。完整说明见 [插件更新](/plugins/update)。
+音源插件在脚本头声明 `@updateUrl`，宿主即会检查 `@version` 并提示用户一键原地更新（lx 音源脚本沿用运行时的 `updateAlert`）。完整说明见 [插件更新](/plugins/update)。
 
 ## 兼容 lx 插件
 
