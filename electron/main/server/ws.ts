@@ -51,7 +51,7 @@ const dispatchCommand = async (ws: WSContext, msg: ClientMessage): Promise<void>
         if (!Number.isFinite(positionMs) || positionMs < 0) {
           return fail(ws, msg.op, "positionMs (number, >=0) required");
         }
-        playerControl.seek(positionMs);
+        await playerControl.seek(positionMs);
         return ack(ws, msg.op);
       }
       case "setVolume": {

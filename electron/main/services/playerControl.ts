@@ -11,13 +11,13 @@ import { toMs } from "@main/utils/time";
 
 /**
  * 跳转（毫秒）
+ *
+ * 返回的 Promise 透传引擎结果：WS/REST 等外部入口据此反馈失败；插件侧即发即忘，自行忽略即可。
  * @param positionMs - 目标位置（毫秒）
  */
-const seek = (positionMs: number): void => {
+const seek = (positionMs: number): Promise<void> => {
   sendToMain("player:event", { type: "seek", data: { position: positionMs } });
-  void getPlayer()
-    .seek(positionMs / 1000)
-    .catch(() => {});
+  return getPlayer().seek(positionMs / 1000);
 };
 
 export const playerControl = {

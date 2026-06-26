@@ -171,7 +171,7 @@ splayer.player.on("lineChange", ({ index }) => {
 ```js
 splayer.register({
   settings: [
-    { key: "token", type: "text", label: "访问令牌", placeholder: "粘贴 token" },
+    { key: "token", type: "text", label: "访问令牌", default: "", placeholder: "粘贴 token" },
     { key: "interval", type: "number", label: "上报间隔(秒)", default: 30, min: 5, max: 600 },
     { key: "enabled", type: "switch", label: "启用上报", default: true },
     {

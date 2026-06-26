@@ -18,7 +18,6 @@ import {
   type PluginType,
 } from "@shared/types/plugin";
 import { HOST_API_LEVEL, PluginErrorCodes } from "@shared/defaults/plugin-api";
-import { pluginLog } from "@main/utils/logger";
 
 const GZ_PREFIX = "gz_";
 
@@ -130,9 +129,11 @@ export const loadScript = (rawOrPath: string, isPath: boolean, fileName?: string
   const apiLevel = header.apiLevel ?? 1;
   const rawType: PluginType = header.type ?? "source";
 
+  // 控制类依赖 level 2 宿主 API（splayer.player / onSettingChange），低于 2 直接拒绝，和文档"否则不可用"一致
   if (rawType === "control" && apiLevel < 2) {
-    pluginLog.warn(
-      `插件 "${name}" 声明 type=control 但 apiLevel=${apiLevel}（需 >= 2），控制类功能将在运行时受限`,
+    throw Object.assign(
+      new Error(`control plugin "${name}" requires apiLevel >= 2 (declared ${apiLevel})`),
+      { code: PluginErrorCodes.API_LEVEL_MISMATCH },
     );
   }
 

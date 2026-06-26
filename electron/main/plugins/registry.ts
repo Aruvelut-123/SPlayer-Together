@@ -84,11 +84,12 @@ interface PluginRuntime {
       timer: NodeJS.Timeout;
     }
   >;
+  /** 崩溃后的重启定时器句柄；stop 时必须清除，否则卸载/替换后插件会被复活成孤儿 worker */
+  restartTimer: NodeJS.Timeout | null;
 }
 
 /** 按 schema 校验/强转设置值 */
-const sanitizeSettingValue = (item: PluginSettingItem | undefined, value: unknown): unknown => {
-  if (!item) return value;
+const sanitizeSettingValue = (item: PluginSettingItem, value: unknown): unknown => {
   switch (item.type) {
     case "switch":
       return Boolean(value);
@@ -144,6 +145,7 @@ class PluginRegistry extends EventEmitter {
         controls: false,
         settings: [],
         pending: new Map(),
+        restartTimer: null,
       });
     }
 
@@ -245,6 +247,7 @@ class PluginRegistry extends EventEmitter {
       controls: false,
       settings: [],
       pending: new Map(),
+      restartTimer: null,
     };
     this.runtimes.set(manifest.id, rt);
     await this.start(rt).catch(() => {});
@@ -287,6 +290,8 @@ class PluginRegistry extends EventEmitter {
     store.set("plugins.enabled", enabledMap);
 
     if (enabled) {
+      // 手动启用：重置崩溃计数，恢复重启额度（曾达上限的插件不会一崩就直接 error）
+      rt.restartAttempts = 0;
       // 启用路径的"无→有"翻转由 start() 内的 setStatus(ready) 负责发出，无需在此重复
       if (rt.status.state !== "ready") await this.start(rt).catch(() => {});
     } else {
@@ -299,6 +304,11 @@ class PluginRegistry extends EventEmitter {
   /** 启动单个插件的 sandbox */
   private async start(rt: PluginRuntime): Promise<void> {
     if (rt.sandbox?.isAlive()) return;
+    // 既然现在就要启动，取消可能挂着的崩溃重启定时器
+    if (rt.restartTimer) {
+      clearTimeout(rt.restartTimer);
+      rt.restartTimer = null;
+    }
     this.setStatus(rt, { state: "loading" });
 
     const userSettings =
@@ -315,6 +325,7 @@ class PluginRegistry extends EventEmitter {
       },
       {
         onReady: (sources) => {
+          if (rt.sandbox !== sandbox) return; // 过期实例的回调（期间已被 stop/替换），丢弃
           rt.restartAttempts = 0;
           // 控制类同步 register 时 registered 先于 ready 到达，ready 必须保留已登记的
           // events/controls/settings，否则会覆盖掉控制信息、导致设置表单不渲染
@@ -355,7 +366,8 @@ class PluginRegistry extends EventEmitter {
           // 异步 lx.send('inited') / splayer.register 触发
           if (rt.status.state !== "ready") return;
           const merged = { ...rt.status.sources, ...sources };
-          this.setStatus(rt, { state: "ready", sources: merged });
+          // 保留已登记的 events/controls/settings，避免增量补报 sources 时被清掉
+          this.setStatus(rt, { ...rt.status, sources: merged });
         },
         onRegistered: (events, controls, settings) => {
           rt.events = events;
@@ -370,18 +382,17 @@ class PluginRegistry extends EventEmitter {
           this.maybePrimeControl(rt);
         },
         onFatal: (error) => {
+          if (rt.sandbox !== sandbox) return; // 过期实例，忽略
           // 同时记录到主日志，避免错误只在 UI 卡片里可见
           coreLog.error(`[plugin:${rt.manifest.id}] fatal ${error.code}: ${error.message}`);
           this.setStatus(rt, { state: "error", error });
-          // 把所有 pending 失败掉
-          for (const p of rt.pending.values()) {
-            clearTimeout(p.timer);
-            p.reject(Object.assign(new Error(error.message), { code: error.code }));
-          }
-          rt.pending.clear();
+          this.rejectAllPending(rt, error.message, error.code);
         },
         onExit: (isCrash) => {
+          if (rt.sandbox !== sandbox) return; // 过期实例退出，忽略
           if (!isCrash) return;
+          // 崩溃使在途调用永无结果，立即失败掉而非挂到各自超时
+          this.rejectAllPending(rt, "plugin crashed", PluginErrorCodes.WORKER_CRASHED);
           rt.restartAttempts++;
           if (rt.restartAttempts > RESTART_MAX_ATTEMPTS) {
             this.setStatus(rt, {
@@ -394,7 +405,8 @@ class PluginRegistry extends EventEmitter {
             return;
           }
           const delayMs = [2_000, 8_000, 30_000][rt.restartAttempts - 1] ?? 30_000;
-          setTimeout(() => {
+          rt.restartTimer = setTimeout(() => {
+            rt.restartTimer = null;
             if (rt.enabled) this.start(rt).catch(() => {});
           }, delayMs);
         },
@@ -405,6 +417,7 @@ class PluginRegistry extends EventEmitter {
     try {
       await sandbox.start();
     } catch (err) {
+      if (rt.sandbox !== sandbox) return; // 期间已被 stop/替换，别用陈旧结果覆盖新状态
       const code = ((err as any)?.code as string) ?? PluginErrorCodes.UNKNOWN;
       const message = err instanceof Error ? err.message : String(err);
       coreLog.error(`[plugin:${rt.manifest.id}] start failed ${code}: ${message}`);
@@ -417,21 +430,26 @@ class PluginRegistry extends EventEmitter {
   }
 
   private async stop(rt: PluginRuntime): Promise<void> {
+    // 取消可能挂着的崩溃重启定时器，否则卸载/替换后插件会被复活
+    if (rt.restartTimer) {
+      clearTimeout(rt.restartTimer);
+      rt.restartTimer = null;
+    }
     if (rt.sandbox) {
       await rt.sandbox.dispose();
       rt.sandbox = null;
     }
-    // 失败掉残留 pending
-    for (const p of rt.pending.values()) {
-      clearTimeout(p.timer);
-      p.reject(
-        Object.assign(new Error("plugin stopped"), {
-          code: PluginErrorCodes.NOT_READY,
-        }),
-      );
+    this.rejectAllPending(rt, "plugin stopped", PluginErrorCodes.NOT_READY);
+    this.setStatus(rt, { state: "unloaded" });
+  }
+
+  /** 失败并清空某插件的全部在途调用 */
+  private rejectAllPending(rt: PluginRuntime, message: string, code: string): void {
+    for (const pendingCall of rt.pending.values()) {
+      clearTimeout(pendingCall.timer);
+      pendingCall.reject(Object.assign(new Error(message), { code }));
     }
     rt.pending.clear();
-    this.setStatus(rt, { state: "unloaded" });
   }
 
   private setStatus(rt: PluginRuntime, status: PluginStatus): void {
@@ -522,6 +540,8 @@ class PluginRegistry extends EventEmitter {
     const rt = this.runtimes.get(id);
     if (!rt) return;
     const item = rt.settings.find((setting) => setting.key === key);
+    // 未在 schema 声明的 key 一律忽略，插件只能读写自己声明过的设置
+    if (!item) return;
     const sanitized = sanitizeSettingValue(item, value);
     const all = {
       ...((store.get(`plugins.perPlugin.${id}` as never) as Record<string, unknown>) ?? {}),

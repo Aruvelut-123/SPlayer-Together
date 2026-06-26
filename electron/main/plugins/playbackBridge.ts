@@ -55,15 +55,25 @@ const onTrackChange = (data: { track: Track | null }): void => {
   pluginRegistry.broadcastPlaybackEvent("trackChange", { track: trackPayload(data.track) });
 };
 
+/** 按给定进度重算当前行，与上次不同才补发；暂停态没有后续 position-sync，靠这里纠正 */
+const reEmitLine = (position: number): void => {
+  const next = lyricLines.length > 0 ? findIndex(position + lyricOffsetMs) : -1;
+  if (next === currentIndex) return;
+  currentIndex = next;
+  pluginRegistry.broadcastPlaybackEvent("lineChange", { index: next, position });
+};
+
 const onLyricChange = (snap: NowPlayingSnapshot): void => {
   lyricLines = snap.lyric;
   currentIndex = -1;
   lyricOffsetMs = snap.lyricOffsetMs;
   pluginRegistry.broadcastPlaybackEvent("lyricChange", { lines: lyricLines });
+  reEmitLine(snap.position);
 };
 
 const onLyricOffsetChange = (data: NowPlayingLyricOffsetSync): void => {
   lyricOffsetMs = data.offsetMs;
+  reEmitLine(nowPlaying.snapshot().position);
 };
 
 const onPositionSync = (data: NowPlayingPositionSync): void => {

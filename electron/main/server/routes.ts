@@ -59,7 +59,11 @@ export const buildRoutes = (): Hono => {
     if (!Number.isFinite(positionMs) || positionMs < 0) {
       return c.json({ error: "positionMs (number, >=0) required" }, 400);
     }
-    playerControl.seek(positionMs);
+    try {
+      await playerControl.seek(positionMs);
+    } catch (err) {
+      return c.json({ error: err instanceof Error ? err.message : String(err) }, 500);
+    }
     return c.json({ ok: true });
   });
 

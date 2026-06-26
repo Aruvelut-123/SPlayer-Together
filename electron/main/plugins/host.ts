@@ -63,7 +63,10 @@ export const dispatchHostCall = async (
         break;
       case "player.seek": {
         const positionMs = Number(args[0]);
-        if (Number.isFinite(positionMs) && positionMs >= 0) playerControl.seek(positionMs);
+        // 插件侧即发即忘：吞掉引擎 rejection，不阻塞 hostCall 返回
+        if (Number.isFinite(positionMs) && positionMs >= 0) {
+          void playerControl.seek(positionMs).catch(() => {});
+        }
         data = undefined;
         break;
       }

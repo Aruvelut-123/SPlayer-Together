@@ -69,33 +69,25 @@ export const usePluginsStore = defineStore("plugins", () => {
     const info = list.value.find((item) => item.manifest.id === id);
     if (!info) return;
 
-    if (info.manifest.type === "control") {
-      // 控制类：直接独立切换，不影响其他插件
-      await window.api.plugins.setEnabled(id, enabled);
-      // 乐观更新：立即反映该插件的启用状态，避免等 onStatus 回环造成 UI 滞后
-      list.value = list.value.map((item) =>
-        item.manifest.id === id ? { ...item, enabled } : item,
-      );
-      return;
-    }
-
-    // 音源类：启用时先关闭其他已启用的音源（互斥）
+    // 音源类启用时互斥：需要一并关闭的其他已启用音源
     const disabledIds = new Set<string>();
-    if (enabled) {
+    if (info.manifest.type !== "control" && enabled) {
       for (const other of sourcePlugins.value) {
-        if (other.manifest.id !== id && other.enabled) {
-          await window.api.plugins.setEnabled(other.manifest.id, false);
-          disabledIds.add(other.manifest.id);
-        }
+        if (other.manifest.id !== id && other.enabled) disabledIds.add(other.manifest.id);
       }
     }
-    await window.api.plugins.setEnabled(id, enabled);
-    // 乐观更新：目标置为 enabled，互斥关闭的其他音源置为 false
+
+    // 本地先改，受控开关即时反映
     list.value = list.value.map((item) => {
       if (item.manifest.id === id) return { ...item, enabled };
       if (disabledIds.has(item.manifest.id)) return { ...item, enabled: false };
       return item;
     });
+
+    for (const otherId of disabledIds) {
+      await window.api.plugins.setEnabled(otherId, false);
+    }
+    await window.api.plugins.setEnabled(id, enabled);
   };
 
   /**
@@ -105,13 +97,12 @@ export const usePluginsStore = defineStore("plugins", () => {
    * @param value - 新值
    */
   const setSetting = async (id: string, key: string, value: unknown): Promise<void> => {
-    await window.api.plugins.setSetting(id, key, value);
-    // 乐观更新 settingsValues，让受控的设置控件立即反映新值（否则受控值不变、开关弹回看似无响应）
     list.value = list.value.map((info) =>
       info.manifest.id === id
         ? { ...info, settingsValues: { ...(info.settingsValues ?? {}), [key]: value } }
         : info,
     );
+    await window.api.plugins.setSetting(id, key, value);
   };
 
   const dispose = (): void => {
