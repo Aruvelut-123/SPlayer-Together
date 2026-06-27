@@ -1491,6 +1491,8 @@
       "done": "全部数据已清除"
     },
     "plugins": {
+      "securityWarningTitle": "安装前请注意安全风险",
+      "securityWarning": "插件为第三方代码，软件已尽可能做了沙箱隔离，但仍无法完全杜绝风险，恶意插件可能访问你的数据或执行危险操作。请仅安装来自可信来源的插件。",
       "hint": "从本地或在线安装",
       "hintDetail": "通过插件扩展软件功能，详见",
       "docs": "插件文档",
@@ -1515,7 +1517,6 @@
       "by": "作者",
       "sources": "支持源",
       "pendingUpdate": "待更新",
-      "newVersion": "发现新版本",
       "noChangelog": "暂无更新说明",
       "openUpdateUrl": "查看更新",
       "checkUpdate": "检查更新",

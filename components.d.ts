@@ -180,7 +180,6 @@ declare module 'vue' {
     PluginCard: typeof import('./src/components/settings/custom/PluginCard.vue')['default']
     PluginImport: typeof import('./src/components/settings/custom/PluginImport.vue')['default']
     PluginList: typeof import('./src/components/settings/custom/PluginList.vue')['default']
-    PluginManager: typeof import('./src/components/settings/custom/PluginManager.vue')['default']
     PluginSettingsForm: typeof import('./src/components/settings/custom/PluginSettingsForm.vue')['default']
     PopoverArrow: typeof import('reka-ui')['PopoverArrow']
     PopoverContent: typeof import('reka-ui')['PopoverContent']

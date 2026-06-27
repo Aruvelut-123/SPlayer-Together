@@ -57,31 +57,37 @@ const handleImportFromUrl = async (): Promise<void> => {
 </script>
 
 <template>
-  <div
-    class="flex items-center justify-between gap-4 rounded-xl bg-surface-panel border border-solid border-outline-variant/15 px-4 py-3"
-  >
-    <div class="min-w-0 flex-1">
-      <div class="text-sm text-on-surface">{{ t("settings.plugins.hint") }}</div>
-      <div class="text-xs text-on-surface-variant/60 mt-0.5 flex items-center gap-0.5 flex-wrap">
-        <span>{{ t("settings.plugins.hintDetail") }}</span>
-        <SButton variant="text" type="primary" size="tiny" @click="openExternal(DOCS_URL)">
-          {{ t("settings.plugins.docs") }}
+  <div class="flex flex-col gap-3">
+    <SAlert type="warning" :title="t('settings.plugins.securityWarningTitle')">
+      {{ t("settings.plugins.securityWarning") }}
+    </SAlert>
+
+    <div
+      class="flex items-center justify-between gap-4 rounded-xl bg-surface-panel border border-solid border-outline-variant/15 px-4 py-3"
+    >
+      <div class="min-w-0 flex-1">
+        <div class="text-sm text-on-surface">{{ t("settings.plugins.hint") }}</div>
+        <div class="text-xs text-on-surface-variant/60 mt-0.5 flex items-center gap-0.5 flex-wrap">
+          <span>{{ t("settings.plugins.hintDetail") }}</span>
+          <SButton variant="text" type="primary" size="tiny" @click="openExternal(DOCS_URL)">
+            {{ t("settings.plugins.docs") }}
+          </SButton>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 shrink-0">
+        <SButton variant="secondary" size="small" :loading="importing" @click="handleImportLocal">
+          <template #icon>
+            <IconLucideFolderOpen class="size-4" />
+          </template>
+          {{ t("settings.plugins.importLocal") }}
+        </SButton>
+        <SButton variant="secondary" size="small" @click="openUrlDialog">
+          <template #icon>
+            <IconLucideLink class="size-4" />
+          </template>
+          {{ t("settings.plugins.importFromUrl") }}
         </SButton>
       </div>
-    </div>
-    <div class="flex items-center gap-2 shrink-0">
-      <SButton variant="secondary" size="small" :loading="importing" @click="handleImportLocal">
-        <template #icon>
-          <IconLucideFolderOpen class="size-4" />
-        </template>
-        {{ t("settings.plugins.importLocal") }}
-      </SButton>
-      <SButton variant="secondary" size="small" @click="openUrlDialog">
-        <template #icon>
-          <IconLucideLink class="size-4" />
-        </template>
-        {{ t("settings.plugins.importFromUrl") }}
-      </SButton>
     </div>
 
     <!-- URL 导入 -->

@@ -1503,6 +1503,8 @@
       "done": "All data has been cleared"
     },
     "plugins": {
+      "securityWarningTitle": "Mind the security risks before installing",
+      "securityWarning": "Plugins are third-party code. The app sandboxes them as much as possible, but the risk cannot be fully eliminated — a malicious plugin may access your data or perform dangerous actions. Only install plugins from sources you trust.",
       "hint": "Install from local file or URL",
       "hintDetail": "Extend the app with plugins. See the",
       "docs": "plugin docs",
@@ -1527,7 +1529,6 @@
       "by": "By",
       "sources": "Sources",
       "pendingUpdate": "Update",
-      "newVersion": "New version available",
       "noChangelog": "No release notes",
       "openUpdateUrl": "Open update page",
       "checkUpdate": "Check update",
