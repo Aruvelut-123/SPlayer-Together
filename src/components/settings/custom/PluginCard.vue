@@ -1,15 +1,19 @@
 <script setup lang="ts">
 import type { PluginInfo } from "@shared/types/plugin";
+import type { DropdownMenuItem } from "@/components/ui/SDropdownMenu.vue";
 import { isExternalUrl, openExternal } from "@/utils/url";
+import IconSettings2 from "~icons/lucide/settings-2";
+import IconRefreshCw from "~icons/lucide/refresh-cw";
+import IconTrash2 from "~icons/lucide/trash-2";
 
-const props = defineProps<{ info: PluginInfo; updating?: boolean; checking?: boolean }>();
+const props = defineProps<{ info: PluginInfo; checking?: boolean }>();
 
 const emit = defineEmits<{
   (event: "toggle", id: string, enabled: boolean): void;
   (event: "uninstall", id: string): void;
   (event: "configure", id: string): void;
   (event: "check", id: string): void;
-  (event: "update", id: string): void;
+  (event: "viewUpdate", id: string): void;
 }>();
 
 const { t } = useI18n();
@@ -39,159 +43,115 @@ const sourceNames = computed<string[]>(() =>
   props.info.status.state === "ready" ? Object.keys(props.info.status.sources) : [],
 );
 
-/** ready 时控制类声明的设置 schema（决定是否显示「配置」按钮） */
 const settings = computed(() =>
   props.info.status.state === "ready" ? (props.info.status.settings ?? []) : [],
 );
+
+const menuItems = computed<DropdownMenuItem[]>(() => [
+  {
+    key: "check",
+    label: t("settings.plugins.checkUpdate"),
+    icon: markRaw(IconRefreshCw),
+    show: !!props.info.manifest.updateUrl,
+    disabled: props.checking,
+  },
+  {
+    key: "uninstall",
+    label: t("settings.plugins.uninstall"),
+    icon: markRaw(IconTrash2),
+    separator: !!props.info.manifest.updateUrl,
+  },
+]);
+
+const onMenuSelect = (key: string): void => {
+  const id = props.info.manifest.id;
+  if (key === "check") emit("check", id);
+  else if (key === "uninstall") emit("uninstall", id);
+};
 </script>
 
 <template>
   <div
-    class="rounded-xl bg-surface-panel border border-solid border-outline-variant/15 px-4 py-3.5"
+    class="flex flex-col h-full gap-1.5 rounded-xl bg-surface-panel border border-solid border-outline-variant/15 px-3.5 py-3"
   >
-    <div class="flex items-start gap-3">
-      <!-- 主体信息 -->
-      <div class="flex-1 min-w-0">
-        <!-- 标题行：名字 + 外链 + 版本 + 状态 -->
-        <div class="flex items-center gap-2 flex-wrap">
-          <span class="text-sm font-medium text-on-surface truncate">{{ info.manifest.name }}</span>
-          <button
-            v-if="isExternalUrl(info.manifest.homepage)"
-            type="button"
-            class="p-0 border-none bg-transparent text-on-surface-variant/50 hover:text-primary cursor-pointer transition-colors leading-0"
-            :title="info.manifest.homepage"
-            @click="openExternal(info.manifest.homepage)"
-          >
-            <IconLucideExternalLink class="size-3.5" />
-          </button>
-          <STag size="tiny" type="default" variant="soft">v{{ info.manifest.version }}</STag>
-          <STag size="tiny" :type="statusTag.type" variant="soft">
-            {{ t(`settings.plugins.status.${statusTag.key}`) }}
-          </STag>
-          <STag v-if="info.updateInfo" size="tiny" type="warning" variant="soft">
-            {{ t("settings.plugins.updateAvailable") }}
-          </STag>
-        </div>
-
-        <!-- 简介 -->
-        <div
-          v-if="info.manifest.description"
-          class="mt-1.5 flex items-start gap-1.5 text-xs text-on-surface-variant/70"
-        >
-          <IconLucideInfo class="size-3.5 shrink-0 mt-0.5 opacity-60" />
-          <span class="line-clamp-2">{{ info.manifest.description }}</span>
-        </div>
-
-        <!-- 作者 + 支持源 -->
-        <div
-          v-if="info.manifest.author || sourceNames.length"
-          class="mt-1.5 flex items-center gap-3 flex-wrap text-xs text-on-surface-variant/60"
-        >
-          <span v-if="info.manifest.author" class="flex items-center gap-1">
-            <IconLucideUser class="size-3.5 opacity-60" />
-            {{ info.manifest.author }}
-          </span>
-          <span v-if="sourceNames.length" class="flex items-center gap-1 flex-wrap">
-            <STag
-              v-for="src in sourceNames"
-              :key="src"
-              size="tiny"
-              variant="soft"
-              type="primary"
-              class="gap-1"
-            >
-              <IconLucideDatabase class="size-3" />
-              {{ src }}
-            </STag>
-          </span>
-        </div>
-
-        <!-- 错误信息 -->
-        <div
-          v-if="info.status.state === 'error'"
-          class="mt-2 rounded-md bg-red-500/10 px-2 py-1 text-xs text-red-500 break-all"
-        >
-          {{ info.status.error.message }}
-        </div>
-
-        <!-- 更新提示 -->
-        <div
+    <!-- 标题行 -->
+    <div class="flex items-center gap-1.5">
+      <div class="flex items-center gap-1 min-w-0 flex-1">
+        <span class="truncate text-sm font-medium leading-none text-on-surface">
+          {{ info.manifest.name }}
+        </span>
+        <SButton
           v-if="info.updateInfo"
-          class="mt-2 rounded-md bg-amber-500/10 px-3 py-2 flex flex-col gap-1.5"
+          class="shrink-0"
+          size="tiny"
+          variant="secondary"
+          type="success"
+          round
+          @click="emit('viewUpdate', info.manifest.id)"
         >
-          <div class="flex items-center justify-between gap-2">
-            <div class="flex items-center gap-1.5 text-xs font-medium text-amber-600">
-              <IconLucideArrowUpCircle class="size-3.5" />
-              <span>
-                {{ t("settings.plugins.newVersion") }}
-                <template v-if="info.updateInfo.version">v{{ info.updateInfo.version }}</template>
-              </span>
-            </div>
-            <div
-              v-if="isExternalUrl(info.updateInfo.updateUrl)"
-              class="flex items-center gap-2 shrink-0"
-            >
-              <SButton
-                variant="filled"
-                size="tiny"
-                type="warning"
-                :loading="updating"
-                @click="emit('update', info.manifest.id)"
-              >
-                <template #icon>
-                  <IconLucideArrowUpCircle class="size-3" />
-                </template>
-                {{ t("settings.plugins.update") }}
-              </SButton>
-              <SButton
-                variant="secondary"
-                size="tiny"
-                type="warning"
-                @click="openExternal(info.updateInfo.updateUrl)"
-              >
-                <template #icon>
-                  <IconLucideExternalLink class="size-3" />
-                </template>
-                {{ t("settings.plugins.openUpdateUrl") }}
-              </SButton>
-            </div>
-          </div>
-          <div
-            v-if="info.updateInfo.log"
-            class="text-xs text-on-surface-variant/80 whitespace-pre-wrap break-words"
-          >
-            {{ info.updateInfo.log }}
-          </div>
-        </div>
+          <template #icon><IconLucideArrowUpCircle /></template>
+          {{ t("settings.plugins.pendingUpdate") }}
+        </SButton>
       </div>
+      <SButton
+        v-if="isExternalUrl(info.manifest.homepage)"
+        circle
+        size="tiny"
+        variant="text"
+        :title="info.manifest.homepage"
+        @click="openExternal(info.manifest.homepage)"
+      >
+        <template #icon><IconLucideExternalLink /></template>
+      </SButton>
+      <STag size="small" round type="default" variant="soft">v{{ info.manifest.version }}</STag>
+      <STag size="small" round :type="statusTag.type" variant="soft">
+        {{ t(`settings.plugins.status.${statusTag.key}`) }}
+      </STag>
+    </div>
 
-      <!-- 操作区：检查更新（声明了 @updateUrl 才显示）+ 配置 + 启用 + 卸载 -->
-      <div class="shrink-0 flex items-center gap-2">
+    <!-- 简介 -->
+    <p
+      v-if="info.manifest.description"
+      class="m-0 text-xs leading-relaxed text-on-surface-variant/70 line-clamp-2"
+    >
+      {{ info.manifest.description }}
+    </p>
+
+    <!-- 作者 + 支持源 -->
+    <div
+      v-if="info.manifest.author || sourceNames.length"
+      class="flex items-center gap-2.5 flex-wrap text-xs text-on-surface-variant/60"
+    >
+      <span v-if="info.manifest.author" class="flex items-center gap-1 min-w-0">
+        <IconLucideUser class="size-3.5 shrink-0 opacity-60" />
+        <span class="truncate">{{ info.manifest.author }}</span>
+      </span>
+      <STag
+        v-for="src in sourceNames"
+        :key="src"
+        size="tiny"
+        variant="soft"
+        type="primary"
+        class="gap-1"
+      >
+        <IconLucideDatabase class="size-3" />
+        {{ src }}
+      </STag>
+    </div>
+
+    <!-- 错误信息 -->
+    <div
+      v-if="info.status.state === 'error'"
+      class="rounded-md bg-red-500/10 px-2 py-1 text-xs text-red-500 break-all line-clamp-2"
+    >
+      {{ info.status.error.message }}
+    </div>
+
+    <!-- 底部操作 -->
+    <div class="mt-auto pt-1.5 flex items-center justify-between gap-2">
+      <div class="flex items-center gap-1.5 min-w-0">
         <SButton
-          v-if="info.manifest.updateUrl"
           variant="secondary"
-          size="small"
-          :loading="checking"
-          @click="emit('check', info.manifest.id)"
-        >
-          <template #icon>
-            <IconLucideRefreshCw class="size-4" />
-          </template>
-          {{ t("settings.plugins.checkUpdate") }}
-        </SButton>
-        <SButton
-          v-if="settings.length > 0"
-          variant="secondary"
-          size="small"
-          @click="emit('configure', info.manifest.id)"
-        >
-          <template #icon>
-            <IconLucideSettings2 class="size-4" />
-          </template>
-          {{ t("common.configure") }}
-        </SButton>
-        <SButton
-          :variant="info.enabled ? 'filled' : 'secondary'"
           size="small"
           :type="info.enabled ? 'primary' : 'default'"
           @click="emit('toggle', info.manifest.id, info.enabled)"
@@ -203,16 +163,24 @@ const settings = computed(() =>
           {{ info.enabled ? t("settings.plugins.enabled") : t("settings.plugins.enable") }}
         </SButton>
         <SButton
+          v-if="settings.length > 0"
           variant="secondary"
           size="small"
-          type="error"
-          @click="emit('uninstall', info.manifest.id)"
+          @click="emit('configure', info.manifest.id)"
         >
-          <template #icon>
-            <IconLucideTrash2 class="size-4" />
-          </template>
-          {{ t("settings.plugins.uninstall") }}
+          <template #icon><IconSettings2 class="size-4" /></template>
+          {{ t("common.configure") }}
         </SButton>
+      </div>
+      <div class="shrink-0">
+        <SDropdownMenu :items="menuItems" align="end" @select="onMenuSelect">
+          <template #trigger>
+            <SButton variant="secondary" size="small">
+              <template #icon><IconLucideMoreHorizontal class="size-4" /></template>
+              {{ t("common.more") }}
+            </SButton>
+          </template>
+        </SDropdownMenu>
       </div>
     </div>
   </div>

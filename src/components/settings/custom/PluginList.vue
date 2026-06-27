@@ -2,7 +2,7 @@
 import type { PluginInfo } from "@shared/types/plugin";
 import { usePluginsStore } from "@/stores/plugins";
 import { toast } from "@/composables/useToast";
-import { isExternalUrl } from "@/utils/url";
+import { isExternalUrl, openExternal } from "@/utils/url";
 
 defineOptions({ inheritAttrs: false });
 
@@ -12,14 +12,12 @@ const { sourcePlugins, controlPlugins, loaded } = storeToRefs(pluginsStore);
 
 const confirmOpen = ref(false);
 const pendingUninstallId = ref<string | null>(null);
-const importing = ref(false);
-const urlDialogOpen = ref(false);
-const urlInput = ref("");
-const urlSubmitting = ref(false);
 const settingsDialogOpen = ref(false);
 const settingsDialogId = ref<string | null>(null);
 const updatingId = ref<string | null>(null);
 const checkingId = ref<string | null>(null);
+const updateDialogOpen = ref(false);
+const updateDialogId = ref<string | null>(null);
 
 onMounted(() => {
   if (!loaded.value) void pluginsStore.load();
@@ -29,43 +27,6 @@ onMounted(() => {
 const controlSettings = (info: PluginInfo) => {
   if (info.status.state !== "ready") return [];
   return info.status.settings ?? [];
-};
-
-const handleImportLocal = async (): Promise<void> => {
-  importing.value = true;
-  try {
-    const res = await pluginsStore.pickAndInstall();
-    if (res.cancelled) return;
-    if (res.ok) toast.success(t("settings.plugins.importSuccess"));
-    else toast.error(res.error ?? t("settings.plugins.importFailed"));
-  } finally {
-    importing.value = false;
-  }
-};
-
-const openUrlDialog = (): void => {
-  urlInput.value = "";
-  urlDialogOpen.value = true;
-};
-
-const handleImportFromUrl = async (): Promise<void> => {
-  const url = urlInput.value.trim();
-  if (!isExternalUrl(url)) {
-    toast.error(t("settings.plugins.importUrlInvalid"));
-    return;
-  }
-  urlSubmitting.value = true;
-  try {
-    const res = await pluginsStore.installFromUrl(url);
-    if (res.ok) {
-      toast.success(t("settings.plugins.importSuccess"));
-      urlDialogOpen.value = false;
-    } else {
-      toast.error(res.error ?? t("settings.plugins.importFailed"));
-    }
-  } finally {
-    urlSubmitting.value = false;
-  }
 };
 
 /**
@@ -80,7 +41,7 @@ const handleToggleEnabled = async (id: string, currentlyEnabled: boolean): Promi
 };
 
 /**
- * 手动检查插件更新：拉远端 @version 与本地比对，按结果 toast 反馈。
+ * 手动检查插件更新：拉远端 @version 与本地比对，按结果 toast 反馈
  * @param id - 插件 ID
  */
 const handleCheckUpdate = async (id: string): Promise<void> => {
@@ -96,20 +57,45 @@ const handleCheckUpdate = async (id: string): Promise<void> => {
 };
 
 /**
- * 一键更新插件：拉取新版原地覆盖，成功/失败均给 toast 反馈。
- * 失败时卡片上的「查看更新」外链仍可手动打开。
+ * 一键更新插件：拉取新版原地覆盖，成功后关闭弹窗
+ * 失败时弹窗内的「查看更新」外链仍可手动打开
  * @param id - 插件 ID
  */
 const handleUpdate = async (id: string): Promise<void> => {
   updatingId.value = id;
   try {
     const res = await pluginsStore.applyUpdate(id);
-    if (res.ok) toast.success(t("settings.plugins.updateSuccess"));
-    else toast.error(t("settings.plugins.updateFailed"));
+    if (res.ok) {
+      toast.success(t("settings.plugins.updateSuccess"));
+      updateDialogOpen.value = false;
+    } else {
+      toast.error(t("settings.plugins.updateFailed"));
+    }
   } finally {
     updatingId.value = null;
   }
 };
+
+/** 打开某插件的更新详情弹窗 */
+const openUpdateDialog = (id: string): void => {
+  updateDialogId.value = id;
+  updateDialogOpen.value = true;
+};
+
+/** 弹窗内点「更新」 */
+const confirmUpdate = (): void => {
+  if (updateDialogId.value) void handleUpdate(updateDialogId.value);
+};
+
+/** 当前更新弹窗对应的插件 */
+const updateDialogInfo = computed(() => {
+  if (!updateDialogId.value) return null;
+  const allPlugins = [...sourcePlugins.value, ...controlPlugins.value];
+  return allPlugins.find((info) => info.manifest.id === updateDialogId.value) ?? null;
+});
+
+/** 更新地址（用于「查看更新」外链） */
+const updateDialogUrl = computed(() => updateDialogInfo.value?.updateInfo?.updateUrl ?? "");
 
 const openUninstallConfirm = (id: string): void => {
   pendingUninstallId.value = id;
@@ -168,33 +154,7 @@ const isEmpty = computed(
 </script>
 
 <template>
-  <div class="flex flex-col gap-3">
-    <!-- 顶部操作条：说明 + 导入按钮 -->
-    <div
-      class="flex items-center justify-between gap-4 rounded-xl bg-surface-panel border border-solid border-outline-variant/15 px-4 py-3"
-    >
-      <div class="min-w-0 flex-1">
-        <div class="text-sm text-on-surface">{{ t("settings.plugins.hint") }}</div>
-        <div class="text-xs text-on-surface-variant/60 mt-0.5">
-          {{ t("settings.plugins.hintDetail") }}
-        </div>
-      </div>
-      <div class="flex items-center gap-2 shrink-0">
-        <SButton variant="secondary" size="small" :loading="importing" @click="handleImportLocal">
-          <template #icon>
-            <IconLucideFolderOpen class="size-4" />
-          </template>
-          {{ t("settings.plugins.importLocal") }}
-        </SButton>
-        <SButton variant="secondary" size="small" @click="openUrlDialog">
-          <template #icon>
-            <IconLucideLink class="size-4" />
-          </template>
-          {{ t("settings.plugins.importFromUrl") }}
-        </SButton>
-      </div>
-    </div>
-
+  <div class="flex flex-col gap-4">
     <!-- 空态 -->
     <div
       v-if="isEmpty"
@@ -214,18 +174,17 @@ const isEmpty = computed(
       <div class="text-xs font-medium text-on-surface-variant/60 px-1">
         {{ t("settings.plugins.sectionSource") }}
       </div>
-      <div class="flex flex-col gap-2.5">
+      <div class="grid gap-2.5 [grid-template-columns:repeat(auto-fill,minmax(220px,1fr))]">
         <PluginCard
           v-for="info in sourcePlugins"
           :key="info.manifest.id"
           :info="info"
-          :updating="updatingId === info.manifest.id"
           :checking="checkingId === info.manifest.id"
           @toggle="handleToggleEnabled"
           @uninstall="openUninstallConfirm"
           @configure="openSettingsDialog"
           @check="handleCheckUpdate"
-          @update="handleUpdate"
+          @view-update="openUpdateDialog"
         />
       </div>
     </div>
@@ -235,49 +194,20 @@ const isEmpty = computed(
       <div class="text-xs font-medium text-on-surface-variant/60 px-1">
         {{ t("settings.plugins.sectionControl") }}
       </div>
-      <div class="flex flex-col gap-2.5">
+      <div class="grid gap-2.5 [grid-template-columns:repeat(auto-fill,minmax(220px,1fr))]">
         <PluginCard
           v-for="info in controlPlugins"
           :key="info.manifest.id"
           :info="info"
-          :updating="updatingId === info.manifest.id"
           :checking="checkingId === info.manifest.id"
           @toggle="handleToggleEnabled"
           @uninstall="openUninstallConfirm"
           @configure="openSettingsDialog"
           @check="handleCheckUpdate"
-          @update="handleUpdate"
+          @view-update="openUpdateDialog"
         />
       </div>
     </div>
-
-    <!-- URL 导入 -->
-    <SDialog
-      v-model:open="urlDialogOpen"
-      :title="t('settings.plugins.importUrlTitle')"
-      width="480px"
-    >
-      <SInput
-        v-model="urlInput"
-        :placeholder="t('settings.plugins.importUrlPlaceholder')"
-        :disabled="urlSubmitting"
-        clearable
-        @keydown.enter="handleImportFromUrl"
-      />
-      <template #footer="{ close }">
-        <SButton variant="secondary" :disabled="urlSubmitting" @click="close">
-          {{ t("common.cancel") }}
-        </SButton>
-        <SButton
-          variant="secondary"
-          type="primary"
-          :loading="urlSubmitting"
-          @click="handleImportFromUrl"
-        >
-          {{ t("settings.plugins.importUrlSubmit") }}
-        </SButton>
-      </template>
-    </SDialog>
 
     <!-- 卸载确认 -->
     <SDialog
@@ -310,6 +240,51 @@ const isEmpty = computed(
       />
       <template #footer="{ close }">
         <SButton variant="secondary" @click="close">{{ t("common.close") }}</SButton>
+      </template>
+    </SDialog>
+
+    <!-- 插件更新 -->
+    <SDialog
+      v-model:open="updateDialogOpen"
+      :title="updateDialogInfo?.manifest.name ?? ''"
+      width="460px"
+    >
+      <div v-if="updateDialogInfo?.updateInfo" class="flex flex-col gap-4">
+        <div class="flex items-center gap-2 text-sm">
+          <STag type="default" size="small">v{{ updateDialogInfo.manifest.version }}</STag>
+          <template v-if="updateDialogInfo.updateInfo.version">
+            <IconLucideArrowRight class="size-4 text-on-surface-variant/50" />
+            <STag type="primary" size="small">v{{ updateDialogInfo.updateInfo.version }}</STag>
+          </template>
+        </div>
+        <div
+          class="max-h-80 overflow-y-auto whitespace-pre-wrap break-words text-sm"
+          :class="
+            updateDialogInfo.updateInfo.log
+              ? 'text-on-surface-variant'
+              : 'text-on-surface-variant/50'
+          "
+        >
+          {{ updateDialogInfo.updateInfo.log || t("settings.plugins.noChangelog") }}
+        </div>
+      </div>
+      <template #footer="{ close }">
+        <SButton variant="secondary" @click="close">{{ t("common.cancel") }}</SButton>
+        <SButton
+          v-if="isExternalUrl(updateDialogUrl)"
+          variant="secondary"
+          @click="openExternal(updateDialogUrl)"
+        >
+          {{ t("settings.plugins.openUpdateUrl") }}
+        </SButton>
+        <SButton
+          variant="secondary"
+          type="primary"
+          :loading="updatingId === updateDialogId"
+          @click="confirmUpdate"
+        >
+          {{ t("settings.plugins.update") }}
+        </SButton>
       </template>
     </SDialog>
   </div>
