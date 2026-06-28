@@ -81,6 +81,16 @@ export const createMainWindow = (): BrowserWindow => {
     });
   };
 
+  // 防抖记录移动位置
+  let saveStateTimer: NodeJS.Timeout | null = null;
+  const scheduleSaveWindowState = (): void => {
+    if (saveStateTimer) clearTimeout(saveStateTimer);
+    saveStateTimer = setTimeout(() => {
+      saveStateTimer = null;
+      saveWindowState();
+    }, 400);
+  };
+
   // 系统级关闭（alt+F4 / 任务栏右键"关闭窗口"）统一隐藏到托盘；
   // 退出由渲染端自定义按钮或托盘"退出"菜单走 app.quit() 触发 isAppQuitting=true 放行
   mainWindow.on("close", (event) => {
@@ -101,6 +111,9 @@ export const createMainWindow = (): BrowserWindow => {
     saveWindowState();
     broadcast("window:maximizeChange", false);
   });
+  // 持久化窗口位置与尺寸
+  mainWindow.on("moved", scheduleSaveWindowState);
+  mainWindow.on("resized", scheduleSaveWindowState);
   // 全屏
   mainWindow.on("enter-full-screen", () => {
     broadcast("window:fullscreenChange", true);
@@ -142,6 +155,7 @@ export const createMainWindow = (): BrowserWindow => {
   }
 
   mainWindow.on("closed", () => {
+    if (saveStateTimer) clearTimeout(saveStateTimer);
     mainWindow = null;
   });
 
