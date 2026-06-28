@@ -1507,6 +1507,8 @@
       "installed": "已安装",
       "marketEmpty": "暂无插件",
       "marketError": "加载失败",
+      "publishHint": "想分享你的插件？",
+      "publishAction": "前往发布",
       "importSuccess": "插件导入成功",
       "importFailed": "插件导入失败",
       "empty": "暂无已安装的插件",

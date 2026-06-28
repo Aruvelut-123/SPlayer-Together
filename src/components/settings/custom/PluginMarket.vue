@@ -63,70 +63,78 @@ const handleInstall = async (plugin: MarketPlugin): Promise<void> => {
 </script>
 
 <template>
-  <!-- 加载 -->
-  <div v-if="loading && marketPlugins.length === 0" class="flex flex-col items-center gap-3 py-12">
-    <SLoading class="text-4xl text-primary/70" />
-    <span class="text-sm text-on-surface-variant">{{ t("common.loading") }}</span>
-  </div>
-  <!-- 加载失败 -->
-  <div
-    v-else-if="errored && marketPlugins.length === 0"
-    class="flex flex-col items-center gap-3 py-12"
-  >
-    <span class="text-sm text-on-surface-variant">{{ t("settings.plugins.marketError") }}</span>
-    <SButton variant="secondary" size="small" @click="refresh(true)">
-      {{ t("common.refreshCache") }}
-    </SButton>
-  </div>
-  <!-- 空 -->
-  <div v-else-if="marketPlugins.length === 0" class="flex flex-col items-center gap-3 py-12">
-    <IconLucidePuzzle class="size-8 text-on-surface-variant/40" />
-    <span class="text-sm text-on-surface-variant">{{ t("settings.plugins.marketEmpty") }}</span>
-  </div>
-  <!-- 列表 -->
-  <div v-else class="grid gap-2.5 [grid-template-columns:repeat(auto-fill,minmax(220px,1fr))]">
-    <PluginCardBase
-      v-for="plugin in marketPlugins"
-      :key="plugin.id"
-      :name="plugin.name"
-      :description="plugin.description"
-      :author="plugin.author"
+  <div class="flex flex-col gap-3">
+    <!-- 加载 -->
+    <div
+      v-if="loading && marketPlugins.length === 0"
+      class="flex flex-col items-center gap-3 py-12"
     >
-      <template #title-end>
-        <STag size="small" round type="default" variant="soft">v{{ plugin.version }}</STag>
-      </template>
-      <template #actions>
-        <SButton
-          v-if="cardStates.get(plugin.id) === 'installed'"
-          variant="secondary"
-          size="small"
-          type="success"
-          block
-          disabled
-        >
-          <template #icon><IconLucideCircleCheck class="size-4" /></template>
-          {{ t("settings.plugins.installed") }}
-        </SButton>
-        <SButton
-          v-else
-          variant="secondary"
-          size="small"
-          :type="cardStates.get(plugin.id) === 'update' ? 'warning' : 'primary'"
-          block
-          :loading="installingId === plugin.id"
-          @click="handleInstall(plugin)"
-        >
-          <template #icon>
-            <IconLucideArrowUpCircle v-if="cardStates.get(plugin.id) === 'update'" class="size-4" />
-            <IconLucideDownload v-else class="size-4" />
-          </template>
-          {{
-            cardStates.get(plugin.id) === "update"
-              ? t("settings.plugins.update")
-              : t("settings.plugins.install")
-          }}
-        </SButton>
-      </template>
-    </PluginCardBase>
+      <SLoading class="text-4xl text-primary/70" />
+      <span class="text-sm text-on-surface-variant">{{ t("common.loading") }}</span>
+    </div>
+    <!-- 加载失败 -->
+    <div
+      v-else-if="errored && marketPlugins.length === 0"
+      class="flex flex-col items-center gap-3 py-12"
+    >
+      <span class="text-sm text-on-surface-variant">{{ t("settings.plugins.marketError") }}</span>
+      <SButton variant="secondary" size="small" @click="refresh(true)">
+        {{ t("common.refreshCache") }}
+      </SButton>
+    </div>
+    <!-- 空 -->
+    <div v-else-if="marketPlugins.length === 0" class="flex flex-col items-center gap-3 py-12">
+      <IconLucidePuzzle class="size-8 text-on-surface-variant/40" />
+      <span class="text-sm text-on-surface-variant">{{ t("settings.plugins.marketEmpty") }}</span>
+    </div>
+    <!-- 列表 -->
+    <div v-else class="grid gap-2.5 [grid-template-columns:repeat(auto-fill,minmax(220px,1fr))]">
+      <PluginCardBase
+        v-for="plugin in marketPlugins"
+        :key="plugin.id"
+        :name="plugin.name"
+        :description="plugin.description"
+        :author="plugin.author"
+      >
+        <template #title-end>
+          <STag size="small" round type="default" variant="soft">v{{ plugin.version }}</STag>
+        </template>
+        <template #actions>
+          <SButton
+            v-if="cardStates.get(plugin.id) === 'installed'"
+            variant="secondary"
+            size="small"
+            type="success"
+            block
+            disabled
+          >
+            <template #icon><IconLucideCircleCheck class="size-4" /></template>
+            {{ t("settings.plugins.installed") }}
+          </SButton>
+          <SButton
+            v-else
+            variant="secondary"
+            size="small"
+            :type="cardStates.get(plugin.id) === 'update' ? 'warning' : 'primary'"
+            block
+            :loading="installingId === plugin.id"
+            @click="handleInstall(plugin)"
+          >
+            <template #icon>
+              <IconLucideArrowUpCircle
+                v-if="cardStates.get(plugin.id) === 'update'"
+                class="size-4"
+              />
+              <IconLucideDownload v-else class="size-4" />
+            </template>
+            {{
+              cardStates.get(plugin.id) === "update"
+                ? t("settings.plugins.update")
+                : t("settings.plugins.install")
+            }}
+          </SButton>
+        </template>
+      </PluginCardBase>
+    </div>
   </div>
 </template>

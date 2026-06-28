@@ -75,6 +75,7 @@ declare module 'vue' {
     IconLucideArrowRight: typeof import('~icons/lucide/arrow-right')['default']
     IconLucideArrowUp: typeof import('~icons/lucide/arrow-up')['default']
     IconLucideArrowUpCircle: typeof import('~icons/lucide/arrow-up-circle')['default']
+    IconLucideBookOpen: typeof import('~icons/lucide/book-open')['default']
     IconLucideCalendar: typeof import('~icons/lucide/calendar')['default']
     IconLucideCalendarDays: typeof import('~icons/lucide/calendar-days')['default']
     IconLucideCheck: typeof import('~icons/lucide/check')['default']

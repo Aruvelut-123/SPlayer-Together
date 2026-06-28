@@ -60,7 +60,7 @@ const logProcessMemory = (): void => {
   }
   const parts = app.getAppMetrics().map((metric) => {
     const mb = Math.round(metric.memory.workingSetSize / 1024);
-    const detail = windowPids.get(metric.pid) ?? metric.serviceName;
+    const detail = windowPids.get(metric.pid) ?? metric.name ?? metric.serviceName;
     const label = detail ? `${metric.type}(${detail})` : metric.type;
     return `${label} ${mb}MB`;
   });

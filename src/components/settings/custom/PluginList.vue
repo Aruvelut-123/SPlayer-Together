@@ -152,6 +152,11 @@ const isEmpty = computed(
   () => sourcePlugins.value.length === 0 && controlPlugins.value.length === 0,
 );
 
+/** 插件开发文档 */
+const DOCS_URL = "https://splayer-next.imsyy.top/plugins/";
+/** 提交入口 */
+const SUBMIT_URL = "https://github.com/SPlayer-Dev/plugins/issues/new/choose";
+
 /** 已安装 / 插件市场 切换 */
 const tab = ref("installed");
 const tabs = computed(() => [
@@ -244,6 +249,22 @@ const refreshMarket = async (): Promise<void> => {
 
     <!-- 插件市场 -->
     <PluginMarket v-else ref="marketRef" />
+
+    <!-- 发布入口 -->
+    <div
+      class="flex flex-wrap items-center justify-center gap-x-1.5 gap-y-0.5 pt-4 text-xs text-on-surface-variant/60"
+    >
+      <span>{{ t("settings.plugins.publishHint") }}</span>
+      <SButton variant="text" type="primary" size="tiny" @click="openExternal(SUBMIT_URL)">
+        <template #icon><IconLucideUpload /></template>
+        {{ t("settings.plugins.publishAction") }}
+      </SButton>
+      <span class="opacity-40">·</span>
+      <SButton variant="text" type="primary" size="tiny" @click="openExternal(DOCS_URL)">
+        <template #icon><IconLucideBookOpen /></template>
+        {{ t("settings.plugins.docs") }}
+      </SButton>
+    </div>
 
     <!-- 卸载确认 -->
     <SDialog

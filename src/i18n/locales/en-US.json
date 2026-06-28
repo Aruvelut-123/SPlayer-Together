@@ -1519,6 +1519,8 @@
       "installed": "Installed",
       "marketEmpty": "No plugins available",
       "marketError": "Failed to load",
+      "publishHint": "Made a plugin?",
+      "publishAction": "Publish",
       "importSuccess": "Plugin imported",
       "importFailed": "Failed to import plugin",
       "empty": "No plugins installed",
