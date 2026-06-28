@@ -151,63 +151,99 @@ const pendingName = computed(() => {
 const isEmpty = computed(
   () => sourcePlugins.value.length === 0 && controlPlugins.value.length === 0,
 );
+
+/** 已安装 / 插件市场 切换 */
+const tab = ref("installed");
+const tabs = computed(() => [
+  { key: "installed", label: t("settings.plugins.installed") },
+  { key: "market", label: t("settings.plugins.market") },
+]);
+
+/** 市场子组件引用，供刷新按钮调用 */
+const marketRef = ref<{ refresh: (force?: boolean) => Promise<void> } | null>(null);
+const refreshing = ref(false);
+const refreshMarket = async (): Promise<void> => {
+  refreshing.value = true;
+  await marketRef.value?.refresh(true);
+  refreshing.value = false;
+};
 </script>
 
 <template>
-  <div class="flex flex-col gap-4">
-    <!-- 空态 -->
-    <div
-      v-if="isEmpty"
-      class="flex flex-col items-center gap-3 rounded-xl bg-surface-panel border border-solid border-outline-variant/15 py-10"
-    >
-      <div
-        class="size-12 rounded-xl bg-on-surface/6 flex items-center justify-center text-on-surface-variant"
+  <div class="flex flex-col gap-3">
+    <div class="flex items-center justify-between gap-2">
+      <STabs v-model="tab" type="bar" :tabs="tabs" />
+      <SButton
+        v-if="tab === 'market'"
+        variant="text"
+        size="small"
+        :loading="refreshing"
+        @click="refreshMarket"
       >
-        <IconLucidePuzzle class="size-6" />
-      </div>
-      <div class="text-sm text-on-surface-variant">{{ t("settings.plugins.empty") }}</div>
-      <div class="text-xs text-on-surface-variant/60">{{ t("settings.plugins.emptyHint") }}</div>
+        <template #icon><IconLucideRefreshCw class="size-4" /></template>
+        {{ t("common.refreshCache") }}
+      </SButton>
     </div>
 
-    <!-- 音源插件分区 -->
-    <div v-if="sourcePlugins.length > 0" class="flex flex-col gap-2">
-      <div class="text-xs font-medium text-on-surface-variant/60 px-1">
-        {{ t("settings.plugins.sectionSource") }}
+    <!-- 已安装 -->
+    <div v-if="tab === 'installed'" class="flex flex-col gap-4">
+      <!-- 空态 -->
+      <div
+        v-if="isEmpty"
+        class="flex flex-col items-center gap-3 rounded-xl bg-surface-panel border border-solid border-outline-variant/15 py-10"
+      >
+        <div
+          class="size-12 rounded-xl bg-on-surface/6 flex items-center justify-center text-on-surface-variant"
+        >
+          <IconLucidePuzzle class="size-6" />
+        </div>
+        <div class="text-sm text-on-surface-variant">{{ t("settings.plugins.empty") }}</div>
+        <div class="text-xs text-on-surface-variant/60">{{ t("settings.plugins.emptyHint") }}</div>
       </div>
-      <div class="grid gap-2.5 [grid-template-columns:repeat(auto-fill,minmax(220px,1fr))]">
-        <PluginCard
-          v-for="info in sourcePlugins"
-          :key="info.manifest.id"
-          :info="info"
-          :checking="checkingId === info.manifest.id"
-          @toggle="handleToggleEnabled"
-          @uninstall="openUninstallConfirm"
-          @configure="openSettingsDialog"
-          @check="handleCheckUpdate"
-          @view-update="openUpdateDialog"
-        />
+
+      <!-- 音源插件分区 -->
+      <div v-if="sourcePlugins.length > 0" class="flex flex-col gap-2">
+        <div class="text-xs font-medium text-on-surface-variant/60 px-1">
+          {{ t("settings.plugins.sectionSource") }}
+        </div>
+        <div class="grid gap-2.5 [grid-template-columns:repeat(auto-fill,minmax(220px,1fr))]">
+          <PluginCard
+            v-for="info in sourcePlugins"
+            :key="info.manifest.id"
+            :info="info"
+            :checking="checkingId === info.manifest.id"
+            @toggle="handleToggleEnabled"
+            @uninstall="openUninstallConfirm"
+            @configure="openSettingsDialog"
+            @check="handleCheckUpdate"
+            @view-update="openUpdateDialog"
+          />
+        </div>
+      </div>
+
+      <!-- 控制插件分区 -->
+      <div v-if="controlPlugins.length > 0" class="flex flex-col gap-2">
+        <div class="text-xs font-medium text-on-surface-variant/60 px-1">
+          {{ t("settings.plugins.sectionControl") }}
+        </div>
+        <div class="grid gap-2.5 [grid-template-columns:repeat(auto-fill,minmax(220px,1fr))]">
+          <PluginCard
+            v-for="info in controlPlugins"
+            :key="info.manifest.id"
+            :info="info"
+            :checking="checkingId === info.manifest.id"
+            @toggle="handleToggleEnabled"
+            @uninstall="openUninstallConfirm"
+            @configure="openSettingsDialog"
+            @check="handleCheckUpdate"
+            @view-update="openUpdateDialog"
+          />
+        </div>
       </div>
     </div>
 
-    <!-- 控制插件分区 -->
-    <div v-if="controlPlugins.length > 0" class="flex flex-col gap-2">
-      <div class="text-xs font-medium text-on-surface-variant/60 px-1">
-        {{ t("settings.plugins.sectionControl") }}
-      </div>
-      <div class="grid gap-2.5 [grid-template-columns:repeat(auto-fill,minmax(220px,1fr))]">
-        <PluginCard
-          v-for="info in controlPlugins"
-          :key="info.manifest.id"
-          :info="info"
-          :checking="checkingId === info.manifest.id"
-          @toggle="handleToggleEnabled"
-          @uninstall="openUninstallConfirm"
-          @configure="openSettingsDialog"
-          @check="handleCheckUpdate"
-          @view-update="openUpdateDialog"
-        />
-      </div>
-    </div>
+    <!-- 插件市场 -->
+    <PluginMarket v-else ref="marketRef" />
 
     <!-- 卸载确认 -->
     <SDialog

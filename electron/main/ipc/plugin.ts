@@ -11,7 +11,7 @@ import { ipcMain, dialog } from "electron";
 import type { PluginInfo } from "@shared/types/plugin";
 import { pluginRegistry } from "@main/plugins/registry";
 import { resolveUrl } from "@main/plugins/router";
-import { fetchScript } from "@main/plugins/net";
+import { fetchScript, fetchMarket } from "@main/plugins/net";
 import { broadcast } from "@main/utils/broadcast";
 import { coreLog } from "@main/utils/logger";
 
@@ -49,6 +49,16 @@ export const registerPluginIpc = (): void => {
         ok: false,
         error: err instanceof Error ? err.message : String(err),
       };
+    }
+  });
+
+  // 拉取插件市场索引
+  ipcMain.handle("plugin:market", async () => {
+    try {
+      return { ok: true, plugins: await fetchMarket() };
+    } catch (err) {
+      coreLog.warn("[plugin] market fetch failed:", err);
+      return { ok: false, plugins: [], error: err instanceof Error ? err.message : String(err) };
     }
   });
 

@@ -307,6 +307,8 @@ const api = {
     applyUpdate: (id: string) => ipcRenderer.invoke("plugin:applyUpdate", id),
     // 解析播放 URL
     resolveUrl: (args: PluginResolveUrlArgs) => ipcRenderer.invoke("plugin:resolveUrl", args),
+    // 拉取插件市场列表
+    market: () => ipcRenderer.invoke("plugin:market"),
     // 订阅插件状态变化
     onStatus: (callback: (info: PluginInfo) => void) =>
       subscribe<PluginInfo>("plugin:status", callback),

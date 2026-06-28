@@ -81,7 +81,7 @@ const handleImportFromUrl = async (): Promise<void> => {
           </template>
           {{ t("settings.plugins.importLocal") }}
         </SButton>
-        <SButton variant="secondary" size="small" @click="openUrlDialog">
+        <SButton variant="secondary" size="small" type="primary" @click="openUrlDialog">
           <template #icon>
             <IconLucideLink class="size-4" />
           </template>
@@ -90,7 +90,7 @@ const handleImportFromUrl = async (): Promise<void> => {
       </div>
     </div>
 
-    <!-- URL 导入 -->
+    <!-- 在线导入 -->
     <SDialog
       v-model:open="urlDialogOpen"
       :title="t('settings.plugins.importUrlTitle')"
