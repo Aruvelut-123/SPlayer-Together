@@ -122,14 +122,11 @@ onBeforeUnmount(() => {
 
 <template>
   <!-- 纯色背景 -->
-  <div
-    v-if="bgType !== 'blur' && bgType !== 'animation'"
-    class="absolute inset-0 overflow-hidden -z-1 bg-solid-wrap"
-  >
+  <div class="absolute inset-0 overflow-hidden -z-1 bg-solid-wrap">
     <div class="color" :style="{ backgroundColor: `rgb(${coverColor})` }" />
   </div>
   <!-- 模糊背景 -->
-  <Transition v-else-if="bgType === 'blur'" name="bg-fade">
+  <Transition v-if="bgType === 'blur'" name="bg-fade">
     <div v-if="bgReady" class="absolute inset-0 overflow-hidden -z-1 bg-blur-wrap">
       <img
         v-for="(layer, index) in blurLayers"
@@ -142,7 +139,7 @@ onBeforeUnmount(() => {
     </div>
   </Transition>
   <!-- 流体背景 -->
-  <Transition v-else name="bg-fade">
+  <Transition v-else-if="bgType === 'animation'" name="bg-fade">
     <div v-if="bgReady" class="absolute inset-0 overflow-hidden -z-1">
       <BackgroundRender
         :album="media.track?.cover || DEFAULT_COVER"
@@ -167,6 +164,13 @@ onBeforeUnmount(() => {
   width: 100%;
   height: 100%;
   transition: background-color 0.5s ease;
+}
+
+.bg-solid-wrap::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.5);
 }
 
 /* 模糊模式 */

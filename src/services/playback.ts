@@ -24,6 +24,11 @@ let playing = false;
 let seeking = false;
 
 /**
+ * 播放态切换后，下一帧权威位置强制重锚
+ */
+let resyncPending = false;
+
+/**
  * 当前播放速度倍率（用于把墙钟插值换算到源时间）
  * 变速时 1ms 墙钟 = speed ms 源时间
  */
@@ -35,6 +40,11 @@ let speed = 1.0;
  * 大于此值视作真实跳变（漏拦截的 seek、跳曲等），直接采用推送值
  */
 const SYNC_TOLERANCE_MS = 1000;
+
+/**
+ * 小幅偏差时向推送位置收敛的比例
+ */
+const SYNC_CONVERGE_RATE = 0.2;
 
 /** 获取当前播放位置（毫秒），播放中按 speed 插值，seek 中冻结 */
 export const getCurrentTime = (): number => {
@@ -51,23 +61,20 @@ export const isPlaying = (): boolean => playing;
 
 /**
  * 同步主进程推送的位置
- *
- * 默认对小幅偏差应用单调防护：保留本地插值，仅刷新同步基准，
- * 避免 IPC 延迟 / 暂停瞬间晚到的事件导致进度与歌词跳变或回缩。
- *
  * @param ms 主进程推送的位置（毫秒）
  * @param options.force 强制采用 ms（如 load 重置、seek 跳转）
  * @returns 实际生效的位置
  */
 export const setCurrentTime = (ms: number, options: { force?: boolean } = {}): number => {
-  if (!options.force && !seeking && totalDurationMs > 0) {
+  if (!options.force && !resyncPending && !seeking && totalDurationMs > 0) {
     const interpolated = getCurrentTime();
     if (Math.abs(interpolated - ms) < SYNC_TOLERANCE_MS) {
-      currentTimeMs = interpolated;
+      currentTimeMs = interpolated + (ms - interpolated) * SYNC_CONVERGE_RATE;
       lastSyncAt = performance.now();
-      return interpolated;
+      return currentTimeMs;
     }
   }
+  resyncPending = false;
   currentTimeMs = ms;
   lastSyncAt = performance.now();
   return ms;
@@ -91,6 +98,8 @@ export const setPlaying = (value: boolean): void => {
   if (!value) currentTimeMs = getCurrentTime();
   lastSyncAt = performance.now();
   playing = value;
+  // 切换后用引擎随后上报的真实位置重锚
+  resyncPending = true;
 };
 
 /**
@@ -126,4 +135,5 @@ export const reset = (): void => {
   lastSyncAt = 0;
   playing = false;
   seeking = false;
+  resyncPending = false;
 };
