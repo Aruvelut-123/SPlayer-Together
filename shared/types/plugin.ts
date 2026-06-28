@@ -96,7 +96,7 @@ export interface PluginPlayerApi {
 
 /** 插件头部 JSDoc 元数据 */
 export interface PluginManifest {
-  /** 插件唯一 ID = name + sha1(source).slice(0,8) */
+  /** 插件唯一 ID：作者声明的 @id 优先，否则按 `平台.名称` 兜底；跨版本/改源码均不变 */
   id: string;
   /** 展示名 */
   name: string;
@@ -114,10 +114,16 @@ export interface PluginManifest {
   type?: PluginType;
   /** 声明兼容的 Host API 级别 */
   apiLevel: number;
-  /** 源码 SHA1 */
+  /** 源码 SHA1（内容指纹，用于校验下载完整性） */
   hash: string;
+  /** 更新检查地址（来自 @updateUrl，指向 raw .js）；宿主拉取后读其 @version 与本地比对 */
+  updateUrl?: string;
+  /** 更新说明（来自 @changelog）；检查到新版时取远端这一份展示在卡片上 */
+  changelog?: string;
   /** 安装时间戳（ms） */
   installedAt: number;
+  /** 末次原地更新时间戳（ms），未更新过则缺省 */
+  updatedAt?: number;
   /** 脚本相对 `{userData}/app-data/plugins/scripts/` 的文件名 */
   fileName: string;
 }
@@ -352,6 +358,18 @@ export interface PluginResolveUrlArgs {
   musicInfo: { songmid: string; [key: string]: unknown };
 }
 
+/** 插件市场条目 */
+export interface MarketPlugin {
+  id: string;
+  name: string;
+  author: string;
+  type: PluginType;
+  version: string;
+  description: string;
+  homepage: string;
+  updateUrl: string;
+}
+
 /** 渲染端插件 API */
 export interface PluginsApi {
   /** 列出所有已安装插件 */
@@ -378,8 +396,26 @@ export interface PluginsApi {
    * @param value - 新值，由主进程按 schema 类型校验后写入并推送到沙箱
    */
   setSetting: (id: string, key: string, value: unknown) => Promise<void>;
+  /**
+   * 手动检查更新：拉 @updateUrl 读远端 @version 与本地比对，有新版则置 updateInfo
+   * @param id - 插件 ID
+   * @returns ok 是否成功联网比对；hasUpdate 是否发现新版；plugin 最新信息
+   */
+  checkUpdate: (
+    id: string,
+  ) => Promise<{ ok: boolean; hasUpdate: boolean; plugin?: PluginInfo; error?: string }>;
+  /**
+   * 一键更新：拉取 updateUrl(raw .js) 原地覆盖，保留启用态/设置/数据
+   * @param id - 插件 ID
+   * @returns ok 成功;失败时 fallbackUrl 为可手动打开的更新地址(若有)
+   */
+  applyUpdate: (
+    id: string,
+  ) => Promise<{ ok: boolean; plugin?: PluginInfo; error?: string; fallbackUrl?: string }>;
   /** 获取播放 URL */
   resolveUrl: (args: PluginResolveUrlArgs) => Promise<MusicUrlRes>;
+  /** 拉取插件市场列表 */
+  market: () => Promise<{ ok: boolean; plugins: MarketPlugin[]; error?: string }>;
   /** 订阅插件状态变化 */
   onStatus: (cb: (info: PluginInfo) => void) => () => void;
 }

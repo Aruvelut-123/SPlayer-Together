@@ -66,6 +66,7 @@ export default defineConfig({
               { text: "总览与架构", link: "/plugins/" },
               { text: "音源插件", link: "/plugins/source" },
               { text: "控制插件", link: "/plugins/control" },
+              { text: "插件更新", link: "/plugins/update" },
             ],
           },
           { text: "贡献指南", link: "/contributing" },

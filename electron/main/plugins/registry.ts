@@ -29,6 +29,7 @@ import { Sandbox } from "./sandbox";
 import { loadScript } from "./loader";
 import { dispatchHostCall } from "./host";
 import { pluginStorageDrop } from "./storage";
+import { fetchScript } from "./net";
 
 const pluginsRoot = (): string => pluginsDir;
 const scriptsDir = (): string => path.join(pluginsRoot(), "scripts");
@@ -60,6 +61,32 @@ const writeStored = (data: StoredManifest): void => {
   atomicWriteSync(manifestFile(), JSON.stringify(data, null, 2));
 };
 
+/**
+ * 判断 remote 版本是否比 current 新：按点分数字段逐段比较，缺省段补 0，非数字段当 0
+ * @param remote - 远端版本号
+ * @param current - 本地版本号
+ */
+const isNewerVersion = (remote: string, current: string): boolean => {
+  const parse = (v: string): number[] =>
+    v
+      .trim()
+      .replace(/^v/i, "")
+      .split(/[.+-]/)
+      .map((seg) => {
+        const n = parseInt(seg, 10);
+        return Number.isFinite(n) ? n : 0;
+      });
+  const a = parse(remote);
+  const b = parse(current);
+  const len = Math.max(a.length, b.length);
+  for (let i = 0; i < len; i++) {
+    const x = a[i] ?? 0;
+    const y = b[i] ?? 0;
+    if (x !== y) return x > y;
+  }
+  return false;
+};
+
 interface PluginRuntime {
   manifest: PluginManifest;
   enabled: boolean;
@@ -67,7 +94,7 @@ interface PluginRuntime {
   sandbox: Sandbox | null;
   source: string;
   restartAttempts: number;
-  /** 脚本上报的"有新版本"信息，null/undefined 表示没提示过 */
+  /** 有新版本提示：splayer 由宿主比对 @version 得出，lx 由脚本 updateAlert 自报；null 表示无 */
   updateInfo: PluginUpdateInfo | null;
   /** 控制类：订阅的播放事件列表，音源类为 [] */
   events: PlaybackEventKind[];
@@ -153,6 +180,8 @@ class PluginRegistry extends EventEmitter {
     for (const rt of this.runtimes.values()) {
       if (rt.enabled) this.start(rt).catch(() => {});
     }
+    // 启动时静默检查一遍更新（不阻塞启动）
+    void this.checkAllUpdates();
     coreLog.info(`[plugin] registry initialized, ${this.runtimes.size} plugins loaded`);
   }
 
@@ -252,6 +281,123 @@ class PluginRegistry extends EventEmitter {
     this.runtimes.set(manifest.id, rt);
     await this.start(rt).catch(() => {});
     return { manifest, enabled: rt.enabled, status: rt.status, updateInfo: rt.updateInfo };
+  }
+
+  /** 取插件当前的更新地址（检查到新版后由 updateInfo 持有） */
+  getUpdateUrl(id: string): string | undefined {
+    return this.runtimes.get(id)?.updateInfo?.updateUrl ?? undefined;
+  }
+
+  /** 构造对外的插件信息 */
+  private infoOf(rt: PluginRuntime): PluginInfo {
+    return {
+      manifest: rt.manifest,
+      enabled: rt.enabled,
+      status: rt.status,
+      updateInfo: rt.updateInfo,
+      settingsValues:
+        (store.get(`plugins.perPlugin.${rt.manifest.id}` as never) as Record<string, unknown>) ??
+        {},
+    };
+  }
+
+  /**
+   * 检查单个插件是否有新版：拉 @updateUrl 读远端 @version 与本地比对，有则置 updateInfo 并广播
+   * @param id - 插件 ID
+   * @returns ok 是否成功联网比对；hasUpdate 是否发现新版；plugin 最新信息
+   */
+  async checkUpdate(id: string): Promise<{ ok: boolean; hasUpdate: boolean; plugin?: PluginInfo }> {
+    const rt = this.runtimes.get(id);
+    if (!rt) return { ok: false, hasUpdate: false };
+    const url = rt.manifest.updateUrl;
+    if (!url) return { ok: false, hasUpdate: false, plugin: this.infoOf(rt) };
+
+    const source = await fetchScript(url);
+    const { manifest: remote } = loadScript(source, false);
+    // 身份/类型必须一致才算同一插件的新版，防 updateUrl 指向了别的脚本
+    const samePlugin =
+      remote.id === id && (remote.type ?? "source") === (rt.manifest.type ?? "source");
+
+    if (!samePlugin || !isNewerVersion(remote.version, rt.manifest.version)) {
+      // 远端不比本地新：清掉可能残留的旧提示
+      if (rt.updateInfo) {
+        rt.updateInfo = null;
+        this.setStatus(rt, rt.status);
+      }
+      return { ok: true, hasUpdate: false, plugin: this.infoOf(rt) };
+    }
+
+    rt.updateInfo = {
+      version: remote.version,
+      log: remote.changelog,
+      updateUrl: url,
+      updatedAt: Date.now(),
+    };
+    this.setStatus(rt, rt.status);
+    return { ok: true, hasUpdate: true, plugin: this.infoOf(rt) };
+  }
+
+  /** 启动时静默检查所有声明了 @updateUrl 的插件 */
+  async checkAllUpdates(): Promise<void> {
+    const targets = [...this.runtimes.values()].filter((rt) => rt.manifest.updateUrl);
+    await Promise.allSettled(targets.map((rt) => this.checkUpdate(rt.manifest.id)));
+  }
+
+  /**
+   * 用新源码原地更新插件：保留 id / 启用态 / 用户设置 / 每插件存储
+   * @param id - 现有插件 ID
+   * @param rawSource - 新版脚本源码
+   * @returns 更新后的插件信息
+   */
+  async applyUpdateFromSource(id: string, rawSource: string): Promise<PluginInfo> {
+    const rt = this.runtimes.get(id);
+    if (!rt) {
+      throw Object.assign(new Error("plugin not found"), { code: PluginErrorCodes.NOT_FOUND });
+    }
+    const { source, manifest } = loadScript(rawSource, false);
+    // 不变量守卫：名称（含平台）或类型变化 = 非同一插件，拒绝原地更新
+    if (manifest.id !== id) {
+      throw Object.assign(new Error("plugin name changed, please reinstall manually"), {
+        code: PluginErrorCodes.INVALID_MANIFEST,
+      });
+    }
+    if ((manifest.type ?? "source") !== (rt.manifest.type ?? "source")) {
+      throw Object.assign(new Error("plugin type changed, please reinstall manually"), {
+        code: PluginErrorCodes.INVALID_MANIFEST,
+      });
+    }
+
+    // 固定文件名、保留安装时间、补更新时间
+    manifest.fileName = `${id}.js`;
+    manifest.installedAt = rt.manifest.installedAt;
+    manifest.updatedAt = Date.now();
+
+    fs.writeFileSync(path.join(scriptsDir(), manifest.fileName), source, "utf-8");
+    const stored = readStored();
+    stored.plugins[id] = manifest;
+    writeStored(stored);
+
+    // enabled / 用户设置 / 每插件存储均按 id 关联，id 不变即天然保留
+    rt.updateInfo = null;
+    await this.stop(rt);
+    rt.manifest = manifest;
+    rt.source = source;
+    rt.restartAttempts = 0;
+    rt.events = [];
+    rt.controls = false;
+    rt.settings = [];
+
+    if (rt.enabled) await this.start(rt).catch(() => {});
+    else this.setStatus(rt, { state: "disabled" });
+
+    return {
+      manifest: rt.manifest,
+      enabled: rt.enabled,
+      status: rt.status,
+      updateInfo: rt.updateInfo,
+      settingsValues:
+        (store.get(`plugins.perPlugin.${id}` as never) as Record<string, unknown>) ?? {},
+    };
   }
 
   async uninstall(id: string): Promise<void> {

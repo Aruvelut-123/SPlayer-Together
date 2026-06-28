@@ -6,6 +6,7 @@ SPlayer-Next 内置一套插件系统，允许用第三方 JavaScript 扩展应�
 
 - [音源插件](/plugins/source)：解析歌曲的播放地址（`musicUrl`）。
 - [控制插件](/plugins/control)：监听播放状态、反向控制播放、声明自己的设置项。
+- [插件更新](/plugins/update)：脚本如何声明更新地址、宿主如何检查版本、用户如何一键更新（两类插件通用）。
 
 最终用户的安装与管理方式见 [插件使用](/plugins-usage)。
 
@@ -19,6 +20,18 @@ SPlayer-Next 内置一套插件系统，允许用第三方 JavaScript 扩展应�
 一个脚本只能是其中一种类型，由头部 `@type` 决定，缺省为 `source`。
 
 插件系统仍在持续演进，上表是目前已支持的类型，后续会按需引入更多类型。新类型同样通过 `@type` 声明，并在 [API 级别](#api-级别) 中标注所需级别——已有插件不受影响。
+
+## 发布到插件市场
+
+写好的插件可以提交到官方插件市场，通过审核后会出现在应用内「设置 → 插件管理 → 插件市场」，所有用户可一键安装与更新。
+
+提交流程全程在 GitHub 上完成：
+
+1. 在仓库 [SPlayer-Dev/plugins](https://github.com/SPlayer-Dev/plugins) 新建 Issue，选择「新建插件」模板，按表单填写并附上你的 `.js` 脚本；
+2. 自动检查会校验脚本头部与规范，通过后生成待审核的 PR；
+3. 维护者审核，通过并合并后自动重建市场索引，插件随即在市场可见。
+
+发布新版本同样发 Issue，改选「更新插件」模板上传新脚本即可——只要 `@id` 不变，用户便能在应用内一键原地更新（详见 [插件更新](/plugins/update)）。
 
 ## 技术架构
 
@@ -78,6 +91,7 @@ SPlayer-Next 内置一套插件系统，允许用第三方 JavaScript 扩展应�
 ```js
 /**
  * @name        Example
+ * @id          you.example
  * @version     1.0.0
  * @description 示例插件
  * @author      you
@@ -87,19 +101,22 @@ SPlayer-Next 内置一套插件系统，允许用第三方 JavaScript 扩展应�
  */
 ```
 
-| 字段           | 必填 | 说明                                                                 |
-| -------------- | ---- | -------------------------------------------------------------------- |
-| `@name`        | ✅   | 插件展示名（最长 24 字符）                                           |
-| `@version`     | ✅   | 版本号                                                               |
-| `@description` |      | 简介                                                                 |
-| `@author`      |      | 作者                                                                 |
-| `@homepage`    |      | 主页 URL                                                             |
-| `@type`        |      | `source`（默认）或 `control`，决定插件类型                           |
-| `@platform`    |      | `splayer`（默认）或 `lx`；`gz_` 压缩脚本默认按 `lx` 处理             |
-| `@apiLevel`    |      | 声明兼容的 [API 级别](#api-级别)，当前宿主为 `2`；控制插件需声明 `2` |
+| 字段           | 必填 | 说明                                                                            |
+| -------------- | ---- | ------------------------------------------------------------------------------- |
+| `@name`        | ✅   | 插件展示名（最长 24 字符）                                                      |
+| `@version`     | ✅   | 版本号                                                                          |
+| `@id`          |      | 插件身份标识（建议反向域名式，如 `you.my-plugin`）；不写则由「名称 + 平台」推导 |
+| `@description` |      | 简介                                                                            |
+| `@author`      |      | 作者                                                                            |
+| `@homepage`    |      | 主页 URL                                                                        |
+| `@type`        |      | `source`（默认）或 `control`，决定插件类型                                      |
+| `@platform`    |      | `splayer`（默认）或 `lx`；`gz_` 压缩脚本默认按 `lx` 处理                        |
+| `@apiLevel`    |      | 声明兼容的 [API 级别](#api-级别)，当前宿主为 `2`；控制插件需声明 `2`            |
+| `@updateUrl`   |      | 更新检查地址，详见 [插件更新](/plugins/update)                                  |
+| `@changelog`   |      | 更新说明，详见 [插件更新](/plugins/update)                                      |
 
 ::: warning
-缺少 `@name` 或 `@version` 会导致导入失败。插件 ID 由宿主依据「名称 + 源码哈希」自动生成，**无需也无法手动指定**——同一份脚本的 ID 始终一致，改动脚本会生成新 ID。
+缺少 `@name` 或 `@version` 会导致导入失败。插件**身份 ID** 优先取 `@id`（作者声明，跨版本/改名都不变）；未声明时由「名称 + 平台」推导（纯非 ASCII 名会退化为名称哈希以避免冲突）。ID 与源码内容无关，改动脚本内容**不会**改变它，因此**重新导入同一身份的脚本即原地替换**（不会产生重复条目）。发布新版时只改 `@version` 与脚本内容，别动 `@id`（或 `@name`），详见 [插件更新](/plugins/update)。
 :::
 
 ## API 级别
@@ -224,12 +241,15 @@ console.log(resp.status, resp.body);
 | 顶层执行超时 | 5 秒  | 脚本同步部分的执行时限                   |
 | 网络默认超时 | 15 秒 | `splayer.request` 默认值                 |
 | 网络最大超时 | 60 秒 | `request` 的 `timeout` 上限              |
-| 每插件并发   | 4     | 单个插件同时进行的调用上限               |
 | 在线导入大小 | ~9 MB | 在线安装脚本的体积上限                   |
 
 - 网络仅允许 `http(s)`，其余协议（`file://` 等）一律拒绝；
-- 插件无法访问文件系统，唯一的持久化途径是 `splayer.storage`；
+- 插件通过 `splayer.*` 与宿主交互，持久化只走 `splayer.storage`；
 - 反向播放控制由宿主统一校验（如音量限定 `0~1`、`seek` 不得为负），非法入参会被忽略。
+
+::: warning 沙箱是稳定性边界，不是安全边界
+插件运行在独立子进程里，崩溃或卡死不会拖垮主程序——但这套隔离防的是**故障**，不是**恶意**。脚本本质上是在你机器上以你的权限执行的代码，能联网、能持久化数据。**安装一个插件等同于信任它，如同运行一个程序**，请只安装来源可信的脚本。
+:::
 
 ## 数据存储
 
@@ -271,14 +291,14 @@ await window.api.plugins.list();
 
 // 直接触发一次音源解析
 await window.api.plugins.resolveUrl({
-  pluginId: "my-plugin-xxxxxxxx",
+  pluginId: "my-plugin-splayer",
   source: "sa",
   quality: "hq",
   musicInfo: { songmid: "123" },
 });
 
 // 修改某控制类插件的设置（会实时下发到插件）
-await window.api.plugins.setSetting("my-plugin-xxxxxxxx", "someKey", true);
+await window.api.plugins.setSetting("my-plugin-splayer", "someKey", true);
 ```
 
 插件内的 `console.*` / `splayer.log.*` 输出会汇入应用主日志（`{userData}/app-data/logs/`）。修改脚本后重新导入一次即可，旧版本会被自动替换。

@@ -224,6 +224,10 @@ splayer.onSettingChange("enabled", (value) => {
 
 宿主会按声明的 `type` 对写入值做校验/强转（如 `switch` 转布尔、`number` 按 `min`/`max` 夹取、`select` 校验合法选项），插件读到的始终是规范化后的值。
 
+## 更新支持
+
+控制插件在脚本头声明 `@updateUrl` 后，宿主会拉取它读 `@version` 与本地比对，发现新版即在卡片上提示，用户可一键原地更新（保留已配置的设置项与插件数据）。完整说明见 [插件更新](/plugins/update)。
+
 ## 完整示例
 
 比如这是一个把当前歌词（含翻译）推送到 [ClassIsland](https://github.com/ClassIsland/ClassIsland) 主界面的控制插件：订阅曲目/歌词/行变化，按用户设置决定端口、是否带翻译、无翻译时是否回退到下一行。
@@ -306,7 +310,7 @@ splayer.player.on("lineChange", ({ index }) => {
 
 ```js
 // 实时下发一次设置变更（触发 onSettingChange）
-await window.api.plugins.setSetting("classisland-xxxxxxxx", "showTranslation", false);
+await window.api.plugins.setSetting("classisland-splayer", "showTranslation", false);
 
 // 查看插件状态（含已订阅事件 / 是否声明控制 / 设置项）
 await window.api.plugins.list();

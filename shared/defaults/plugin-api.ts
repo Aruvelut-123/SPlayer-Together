@@ -23,6 +23,10 @@ export const INSTALL_URL_MAX_SIZE = 9_000_000;
 /** 在线导入请求超时（毫秒） */
 export const INSTALL_URL_TIMEOUT = 15_000;
 
+/** 插件市场索引地址 */
+export const PLUGIN_REGISTRY_URL =
+  "https://raw.githubusercontent.com/SPlayer-Dev/plugins/registry/registry.json";
+
 /** 心跳间隔 */
 export const HEARTBEAT_INTERVAL = 10_000;
 
@@ -31,9 +35,6 @@ export const HEARTBEAT_MAX_MISSES = 3;
 
 /** 自动重启次数 */
 export const RESTART_MAX_ATTEMPTS = 3;
-
-/** 每插件并发上限 */
-export const PER_PLUGIN_CONCURRENCY = 4;
 
 /** 错误码 */
 export const PluginErrorCodes = {

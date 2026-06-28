@@ -1,5 +1,6 @@
 import type { SettingCategory } from "@/types/settings-schema";
-import PluginManager from "@/components/settings/custom/PluginManager.vue";
+import PluginImport from "@/components/settings/custom/PluginImport.vue";
+import PluginList from "@/components/settings/custom/PluginList.vue";
 import IconLucidePuzzle from "~icons/lucide/puzzle";
 
 const pluginsCategory: SettingCategory = {
@@ -7,19 +8,27 @@ const pluginsCategory: SettingCategory = {
   icon: IconLucidePuzzle,
   sections: [
     {
-      id: "pluginsList",
+      id: "pluginManage",
       tag: { text: "Beta" },
       items: [
         {
-          key: "pluginManager",
+          key: "pluginImport",
           type: "custom",
-          component: PluginManager,
+          component: PluginImport,
           fullWidth: true,
-          keywords: [
-            "settings.plugins.import",
-            "settings.plugins.hint",
-            "settings.plugins.uninstall",
-          ],
+          keywords: ["settings.plugins.import", "settings.plugins.hint"],
+        },
+      ],
+    },
+    {
+      id: "pluginsList",
+      items: [
+        {
+          key: "pluginList",
+          type: "custom",
+          component: PluginList,
+          fullWidth: true,
+          keywords: ["settings.plugins.uninstall", "settings.plugins.sectionSource"],
         },
       ],
     },

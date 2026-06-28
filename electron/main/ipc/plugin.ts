@@ -7,38 +7,13 @@
  * 并订阅 `plugin:status` 广播以更新 UI。
  */
 
-import { ipcMain, dialog, net } from "electron";
+import { ipcMain, dialog } from "electron";
 import type { PluginInfo } from "@shared/types/plugin";
-import { INSTALL_URL_MAX_SIZE, INSTALL_URL_TIMEOUT } from "@shared/defaults/plugin-api";
 import { pluginRegistry } from "@main/plugins/registry";
 import { resolveUrl } from "@main/plugins/router";
+import { fetchScript, fetchMarket } from "@main/plugins/net";
 import { broadcast } from "@main/utils/broadcast";
 import { coreLog } from "@main/utils/logger";
-
-/** 从 URL 拉取脚本源码，带大小与超时限制 */
-const fetchScriptFromUrl = async (url: string): Promise<string> => {
-  const parsed = new URL(url);
-  const isLoopback = parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1";
-  if (parsed.protocol !== "https:" && !(parsed.protocol === "http:" && isLoopback)) {
-    throw new Error(`protocol not allowed: ${parsed.protocol}`);
-  }
-  const resp = await net.fetch(url, {
-    method: "GET",
-    redirect: "follow",
-    signal: AbortSignal.timeout(INSTALL_URL_TIMEOUT),
-  });
-  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-  // Content-Length 预检（仅提示，不强信任）
-  const lenHeader = resp.headers.get("content-length");
-  if (lenHeader && Number(lenHeader) > INSTALL_URL_MAX_SIZE) {
-    throw new Error("PLUGIN_INSTALL_URL_TOO_LARGE");
-  }
-  const buf = await resp.arrayBuffer();
-  if (buf.byteLength > INSTALL_URL_MAX_SIZE) {
-    throw new Error("PLUGIN_INSTALL_URL_TOO_LARGE");
-  }
-  return new TextDecoder("utf-8").decode(buf);
-};
 
 export const registerPluginIpc = (): void => {
   ipcMain.handle("plugin:list", (): PluginInfo[] => pluginRegistry.listInfo());
@@ -77,10 +52,20 @@ export const registerPluginIpc = (): void => {
     }
   });
 
+  // 拉取插件市场索引
+  ipcMain.handle("plugin:market", async () => {
+    try {
+      return { ok: true, plugins: await fetchMarket() };
+    } catch (err) {
+      coreLog.warn("[plugin] market fetch failed:", err);
+      return { ok: false, plugins: [], error: err instanceof Error ? err.message : String(err) };
+    }
+  });
+
   // 从远端 URL 下载并安装
   ipcMain.handle("plugin:installFromUrl", async (_evt, url: string) => {
     try {
-      const source = await fetchScriptFromUrl(url);
+      const source = await fetchScript(url);
       const info = await pluginRegistry.installFromSource(source);
       return { ok: true, id: info.manifest.id };
     } catch (err) {
@@ -110,6 +95,38 @@ export const registerPluginIpc = (): void => {
 
   ipcMain.handle("plugin:setSetting", async (_event, id: string, key: string, value: unknown) => {
     await pluginRegistry.setSetting(id, key, value);
+  });
+
+  // 手动检查更新：拉 @updateUrl(raw .js) 读其 @version 与本地比对，有新版则置 updateInfo
+  ipcMain.handle("plugin:checkUpdate", async (_evt, id: string) => {
+    try {
+      return await pluginRegistry.checkUpdate(id);
+    } catch (err) {
+      coreLog.warn("[plugin] checkUpdate failed:", err);
+      return {
+        ok: false,
+        hasUpdate: false,
+        error: err instanceof Error ? err.message : String(err),
+      };
+    }
+  });
+
+  // 一键更新：拉取 updateUrl(raw .js) 原地覆盖；失败回退到手动打开下载页
+  ipcMain.handle("plugin:applyUpdate", async (_evt, id: string) => {
+    const updateUrl = pluginRegistry.getUpdateUrl(id);
+    if (!updateUrl) return { ok: false, error: "PLUGIN_NO_UPDATE_URL" };
+    try {
+      const source = await fetchScript(updateUrl);
+      const plugin = await pluginRegistry.applyUpdateFromSource(id, source);
+      return { ok: true, plugin };
+    } catch (err) {
+      coreLog.warn("[plugin] applyUpdate failed:", err);
+      return {
+        ok: false,
+        error: err instanceof Error ? err.message : String(err),
+        fallbackUrl: updateUrl,
+      };
+    }
   });
 
   ipcMain.handle("plugin:resolveUrl", async (_evt, args) => {
