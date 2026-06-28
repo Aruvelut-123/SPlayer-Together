@@ -1,7 +1,7 @@
 /**
  * 请求 options 工厂
- * 对齐 @neteasecloudmusicapienhanced/api util/option.js：从调用方 query 中抽取
- * crypto / cookie / ua / proxy / realIP 等，拼成 createRequest 的第三参数
+ * 从调用方 query 中抽取 crypto / cookie / ua / proxy / realIP 等，
+ * 拼成 createRequest 的第三参数
  */
 
 import type { CryptoMode } from "./config";

@@ -1,6 +1,5 @@
 /**
- * Cookie 解析与拼装
- * 对齐 @neteasecloudmusicapienhanced/api util/index.js 中的 cookieToJson / cookieObjToString
+ * Cookie 解析与拼装：cookieToJson / cookieObjToString
  */
 
 /**

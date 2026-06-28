@@ -1,17 +1,21 @@
 /**
- * Netease API 加解密层（完整移植自 @neteasecloudmusicapienhanced/api util/crypto.js）
+ * Netease API 加解密层
  *
- * - 三套加密：weapi（web 端）、linuxapi（Linux 客户端）、eapi（桌面/移动客户端）
- * - 对应三把对称密钥 + 一把 RSA 公钥
- * - 原实现依赖 crypto-js + node-forge，这里用 Node 原生 node:crypto 等价重写
+ * - 加密方式：weapi（web 端）、linuxapi（Linux 客户端）、eapi（桌面/移动客户端）、xeapi（反爬）
+ * - 各对应对称密钥 + RSA 公钥；全部用 Node 原生 node:crypto 实现，不引第三方加密库
  */
 
 import {
   createCipheriv,
   createDecipheriv,
   createHash,
+  createHmac,
+  createPublicKey,
+  diffieHellman,
+  generateKeyPairSync,
   publicEncrypt,
   constants,
+  randomBytes,
   randomInt,
 } from "node:crypto";
 import { gunzipSync } from "node:zlib";
@@ -152,3 +156,153 @@ export const eapiReqDecrypt = (encryptedHex: string): { url: string; data: unkno
   if (!match) return null;
   return { url: match[1], data: JSON.parse(match[2]) };
 };
+
+// ---- xeapi（反爬加密）----
+
+/** xeapi 固定对称密钥（AES-256-ECB） */
+const XEAPI_STATIC_KEY = Buffer.from(
+  "ab1d5a430f6bb04a3f01e81ddd72bd916d5ce591248ac128714806d7f8fb1b84",
+  "hex",
+);
+/** xeapi 签名密钥（HMAC-SHA256，按字符串原样作为 key，不解码） */
+const XEAPI_SIGN_KEY =
+  "mUHCwVNWJbunMqAHf5MImuirT6plvs6VSFW62MGHstFQxhBGdEoIhLItH3djc4+FB/OKty3+lL2rGeoFBpVe5g==";
+/** X25519 公钥的 RFC 8410 SPKI 固定前缀（裸 32 字节前补此头再导入） */
+const X25519_SPKI_PREFIX = Buffer.from("302a300506032b656e032100", "hex");
+
+/** xeapi 服务端公钥状态（反爬接口返回并缓存） */
+export interface XeapiPublicKey {
+  version: string;
+  publicKey: string;
+  sk?: string;
+  [key: string]: unknown;
+}
+
+/** xeapi 加密可选参数 */
+export interface XeapiOptions {
+  publicKeyState: XeapiPublicKey;
+  sessionId?: string;
+  sessionKey?: string;
+  os?: string;
+  method?: string;
+  contentType?: string;
+}
+
+/** 变长密钥 AES-ECB 加密（按密钥长度选 128/256，PKCS7 padding） */
+const aesEcbEncrypt = (key: Buffer, plaintext: Buffer): Buffer => {
+  const cipher = createCipheriv(`aes-${key.length * 8}-ecb`, key, null);
+  return Buffer.concat([cipher.update(plaintext), cipher.final()]);
+};
+
+/** 变长密钥 AES-ECB 解密 */
+const aesEcbDecrypt = (key: Buffer, ciphertext: Buffer): Buffer => {
+  const decipher = createDecipheriv(`aes-${key.length * 8}-ecb`, key, null);
+  return Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+};
+
+/** 裸 32 字节 X25519 公钥补 SPKI 头后导入为 KeyObject */
+const createX25519PublicKey = (raw: Buffer) =>
+  createPublicKey({ key: Buffer.concat([X25519_SPKI_PREFIX, raw]), format: "der", type: "spki" });
+
+/** 由 ECDH 共享密钥 + 临时公钥派生 16 字节 AES 密钥（HKDF 风格） */
+const deriveX25519AesKey = (sharedSecret: Buffer, ephemeralPublicKey: Buffer): Buffer => {
+  const prk = createHmac("sha256", Buffer.alloc(32))
+    .update(sharedSecret.length ? sharedSecret : Buffer.alloc(32))
+    .digest();
+  return createHmac("sha256", prk)
+    .update(Buffer.concat([ephemeralPublicKey, Buffer.from([1])]))
+    .digest()
+    .subarray(0, 16);
+};
+
+/** xeapi 反爬签名：HMAC-SHA256(signKey, timestamp+nonce) → base64 */
+export const xeapiSign = (timestamp: string | number, nonce: string): string =>
+  createHmac("sha256", XEAPI_SIGN_KEY)
+    .update(String(timestamp) + nonce)
+    .digest("base64");
+
+/** 中间层变换：随机 XOR → base64 → 随机旋转 */
+const xeapiMidTransform = (ciphertext: Buffer): Buffer => {
+  const random = randomBytes(16);
+  const xored = Buffer.alloc(ciphertext.length);
+  for (let i = 0; i < ciphertext.length; i++) xored[i] = ciphertext[i] ^ random[i & 0x0f];
+  const b64 = Buffer.from(xored.toString("base64"));
+  const rot = b64.length ? (random[0] & 0x0f) % b64.length : 0;
+  return Buffer.concat([random, b64.subarray(rot), b64.subarray(0, rot)]);
+};
+
+/** 用 X25519 ECDH + AES-GCM 封装动态密钥（S 字段） */
+const xeapiEncryptS = (dynamicKey: Buffer, publicKeyState: XeapiPublicKey, os: string): Buffer => {
+  const peerKey = createX25519PublicKey(Buffer.from(publicKeyState.publicKey, "base64"));
+  const { publicKey, privateKey } = generateKeyPairSync("x25519");
+  const ephemeralRaw = Buffer.from(publicKey.export({ format: "der", type: "spki" })).subarray(-32);
+  const sharedSecret = diffieHellman({ privateKey, publicKey: peerKey });
+  const aesKey = deriveX25519AesKey(sharedSecret, ephemeralRaw);
+  const iv = randomBytes(12);
+  const cipher = createCipheriv("aes-128-gcm", aesKey, iv);
+  const plaintext = Buffer.from(
+    `${dynamicKey.toString("base64")}|${os}|${publicKeyState.sk || ""}`,
+  );
+  const encrypted = Buffer.concat([cipher.update(plaintext), cipher.final()]);
+  return Buffer.concat([ephemeralRaw, iv, encrypted, cipher.getAuthTag()]);
+};
+
+/** 构造 xeapi 明文（JSON：body/queryString/...） */
+const buildXeapiPlaintext = (
+  uri: string,
+  data: Record<string, unknown>,
+  options: XeapiOptions,
+): string => {
+  const fields: Record<string, string> = {};
+  const contentType = options.contentType || "application/x-www-form-urlencoded;charset=utf-8";
+  if (contentType.split(";", 1)[0].toLowerCase() !== "application/x-www-form-urlencoded") {
+    fields.contentType = contentType;
+  }
+  const method = (options.method || "POST").toUpperCase();
+  if (method !== "POST") fields.method = method;
+  const url = new URL(uri, "https://interface.music.163.com");
+  if (url.search) fields.queryString = url.search.slice(1);
+  if (data !== undefined && data !== null) {
+    const bodyData = { ...data };
+    delete bodyData.e_r;
+    const body = new URLSearchParams(bodyData as Record<string, string>).toString();
+    fields.body = Buffer.from(body).toString("base64");
+  }
+  fields.queryString = fields.queryString ? `${fields.queryString}&e_r=true` : "e_r=true";
+  return JSON.stringify(fields);
+};
+
+/** xeapi 加密：返回 B / S / R 三段 base64 */
+export const xeapi = (
+  uri: string,
+  data: Record<string, unknown>,
+  options: XeapiOptions,
+): { B: string; S: string; R: string } => {
+  const { publicKeyState } = options;
+  const activeSessionKey = options.sessionKey ? Buffer.from(String(options.sessionKey)) : null;
+  const activeSessionId = options.sessionId || "";
+  const dynamicKey = activeSessionKey || randomBytes(16);
+  const plaintext = Buffer.from(buildXeapiPlaintext(uri, data, options));
+  const b = aesEcbEncrypt(
+    dynamicKey,
+    xeapiMidTransform(aesEcbEncrypt(XEAPI_STATIC_KEY, plaintext)),
+  );
+  const s = xeapiEncryptS(dynamicKey, publicKeyState, options.os || "android");
+  const r = aesEcbEncrypt(
+    XEAPI_STATIC_KEY,
+    Buffer.from(`${publicKeyState.version}|${activeSessionKey ? activeSessionId : ""}`),
+  );
+  return { B: b.toString("base64"), S: s.toString("base64"), R: r.toString("base64") };
+};
+
+/** xeapi 响应解密：AES-ECB(eapiKey) + 可选 gunzip + JSON */
+export const xeapiResDecrypt = (body: Buffer): unknown => {
+  const decrypted = aesEcbDecrypt(Buffer.from(EAPI_KEY, "utf8"), body);
+  const plaintext =
+    decrypted[0] === 0x1f && decrypted[1] === 0x8b ? gunzipSync(decrypted) : decrypted;
+  return JSON.parse(plaintext.toString());
+};
+
+/** 解密反爬接口返回的公钥包 */
+export const xeapiDecryptPublicKey = (encryptedData: string): XeapiPublicKey =>
+  JSON.parse(aesEcbDecrypt(XEAPI_STATIC_KEY, Buffer.from(encryptedData, "base64")).toString());

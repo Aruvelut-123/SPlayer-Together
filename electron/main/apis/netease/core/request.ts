@@ -1,8 +1,8 @@
 /**
- * Netease API 请求层（完整移植自 @neteasecloudmusicapienhanced/api util/request.js）
+ * Netease API 请求层
  *
- * 核心职责：根据加密方式（weapi / linuxapi / eapi / api）构造 URL、headers、form body，
- * 处理 cookie 合并、响应解密、状态码归一化。使用 Node 原生 fetch 替代 axios。
+ * 核心职责：根据加密方式（weapi / linuxapi / eapi / api / xeapi）构造 URL、headers、form body，
+ * 处理 cookie 合并、响应解密、状态码归一化。使用 Node 原生 fetch。
  */
 
 import { randomBytes } from "node:crypto";
@@ -13,11 +13,13 @@ import {
   OS_MAP,
   SPECIAL_STATUS_CODES,
   UA_MAP,
+  XEAPI_DOMAIN,
   type CryptoMode,
 } from "./config";
 import { cookieObjToString, cookieToJson } from "./cookie";
 import * as encrypt from "./crypto";
 import { getAnonymousToken, getDeviceId } from "./device";
+import { ensureXeapiKey, getXeapiSession, updateXeapiSession } from "./xeapi";
 
 /** 调用方传入的可选参数 */
 export interface RequestOptions {
@@ -186,6 +188,40 @@ export const createRequest = async (
       url = (options.domain || DOMAIN) + "/api/linux/forward";
       break;
     }
+    case "xeapi": {
+      const publicKeyState = await ensureXeapiKey(cookie.deviceId);
+      const xeapiOs = cookie.os === "android" ? cookie.os : "android";
+      const xeapiAppver = cookie.os === "android" && cookie.appver ? cookie.appver : "9.1.65";
+      const xeapiOsver = cookie.os === "android" && cookie.osver ? cookie.osver : "16";
+      const xeapiBuildver = cookie.buildver || Date.now().toString().slice(0, 10);
+      headers["User-Agent"] = options.ua || chooseUserAgent("api", "android");
+      headers["X-Client-Enc-State"] = "ENCRYPTED";
+      headers["x-aeapi"] = "true";
+      headers["x-deviceid"] = cookie.deviceId;
+      headers["x-os"] = xeapiOs;
+      headers["x-osver"] = xeapiOsver;
+      headers["x-appver"] = xeapiAppver;
+      headers["x-sdeviceid"] = cookie.sDeviceId || cookie.deviceId;
+      headers["x-buildver"] = xeapiBuildver;
+      if (cookie.MUSIC_U) headers["x-music-u"] = cookie.MUSIC_U;
+      headers["Cookie"] = cookieObjToString({
+        ...cookie,
+        os: xeapiOs,
+        osver: xeapiOsver,
+        appver: xeapiAppver,
+        buildver: xeapiBuildver,
+        sDeviceId: cookie.sDeviceId || cookie.deviceId,
+      });
+      const session = getXeapiSession();
+      url = (options.domain || XEAPI_DOMAIN) + "/xeapi/" + uri.slice(5);
+      encryptData = encrypt.xeapi(uri, data, {
+        publicKeyState,
+        sessionId: session.sessionId,
+        sessionKey: session.sessionKey,
+        os: xeapiOs,
+      });
+      break;
+    }
     case "eapi":
     case "api": {
       const header: Record<string, string> = {
@@ -225,7 +261,8 @@ export const createRequest = async (
   headers["Content-Type"] = "application/x-www-form-urlencoded";
 
   const answer: RequestResponse = { status: 500, body: {}, cookie: [] };
-  const needDecrypt = (crypto === "eapi" || crypto === "weapi") && useER;
+  const isXeapi = crypto === "xeapi";
+  const needDecrypt = isXeapi || ((crypto === "eapi" || crypto === "weapi") && useER);
 
   let res: Response;
   try {
@@ -242,13 +279,21 @@ export const createRequest = async (
     (res.headers.get("set-cookie") ? [res.headers.get("set-cookie") as string] : []);
   answer.cookie = setCookie.map((x) => x.replace(/\s*Domain=[^(;|$)]+;*/, ""));
 
+  // xeapi 会话密钥由响应头下发，缓存供后续请求复用
+  if (isXeapi) {
+    const ssid = res.headers.get("x-encr-ssid");
+    const sskey = res.headers.get("x-encr-sskey");
+    if (ssid && sskey) updateXeapiSession(ssid, sskey);
+  }
+
   let parsed: NeteaseBody;
   try {
     if (needDecrypt) {
       const buf = Buffer.from(await res.arrayBuffer());
-      parsed = encrypt.eapiResDecrypt(
-        buf.toString("hex").toUpperCase(),
-        headers["x-aeapi"] === "true",
+      parsed = (
+        isXeapi
+          ? encrypt.xeapiResDecrypt(buf)
+          : encrypt.eapiResDecrypt(buf.toString("hex").toUpperCase(), headers["x-aeapi"] === "true")
       ) as NeteaseBody;
     } else {
       const text = await res.text();
@@ -275,7 +320,7 @@ export const createRequest = async (
   throw new NeteaseRequestError(answer);
 };
 
-/** 宽松的 boolean 解析：原始 util/index.js 里的 toBoolean */
+/** 宽松的 boolean 解析 */
 const toBoolean = (val: unknown): boolean => {
   if (typeof val === "boolean") return val;
   if (val === "") return false;

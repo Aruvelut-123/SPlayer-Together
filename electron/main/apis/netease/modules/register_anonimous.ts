@@ -1,10 +1,9 @@
 /**
  * 注册匿名态（获取 MUSIC_A）
  *
- * 逻辑来源：@neteasecloudmusicapienhanced/api module/register_anonimous.js
  * - 生成 52 位 hex deviceId
  * - 用 `${deviceId} ${md5(deviceId ^ ID_XOR_KEY_1)}` 做 Base64 作为 username
- * - 调用 weapi 注册，将返回的 MUSIC_A 缓存到设备态
+ * - 调用 xeapi 注册，将返回的 MUSIC_A 缓存到设备态
  */
 
 import { createHash } from "node:crypto";
@@ -29,7 +28,7 @@ const registerAnonimous: NeteaseModule = async (query, request) => {
   const username = Buffer.from(`${deviceId} ${encodeId(deviceId)}`, "utf8").toString("base64");
   const data = { username };
 
-  const result = await request("/api/register/anonimous", data, createOption(query, "weapi"));
+  const result = await request("/api/register/anonimous", data, createOption(query, "xeapi"));
   const body = result.body as { code?: number; [key: string]: unknown };
 
   if (body.code === 200) {

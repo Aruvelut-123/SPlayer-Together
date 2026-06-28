@@ -1,12 +1,12 @@
 /**
  * Netease API 主进程服务
  *
- * 直接在 Node 侧实现加解密 + HTTP 调用，不再依赖任何网易云服务端 npm 包。
- * 加密算法等核心逻辑移植自 @neteasecloudmusicapienhanced/api（见 core/crypto.ts）。
+ * 直接在 Node 侧实现加解密 + HTTP 调用，不依赖任何网易云服务端 npm 包。
+ * 加密算法等核心逻辑见 core/crypto.ts。
  *
  * 统一入口 `callNetease(name, params)`：
  *   1) 从 sessions 表加载 cookies 注入（内存缓存，不重复读 SQLite）
- *   2) 走一层内存响应缓存（2 分钟，对齐原包 apicache 行为）
+ *   2) 走一层内存响应缓存（2 分钟）
  *   3) 路由到 modules/<name>
  *   4) 只在登录相关接口上把响应 set-cookie 写回 sessions；其它接口不落库
  */

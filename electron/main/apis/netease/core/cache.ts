@@ -1,7 +1,6 @@
 /**
  * 接口响应内存缓存
  *
- * 对齐原 @neteasecloudmusicapienhanced/api util/apicache.js 的行为：
  * - 默认 2 分钟 TTL
  * - 只缓存 status === 200 的响应
  * - key = `${name}|${md5(params)}`
