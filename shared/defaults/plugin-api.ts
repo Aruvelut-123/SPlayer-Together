@@ -6,6 +6,7 @@ export const HOST_API_LEVEL = 2;
 /** 各动作的默认超时（毫秒）。新增动作时在此追加。 */
 export const ACTION_TIMEOUTS = {
   musicUrl: 20_000,
+  menuClick: 15_000,
 } as const;
 
 /** 网络请求最大超时 */

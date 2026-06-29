@@ -17,7 +17,7 @@ import type {
   PluginAction,
   PluginErrorPayload,
   PluginManifest,
-  PluginSettingItem,
+  PluginRegistration,
   PluginUpdateInfo,
   SandboxIn,
   SandboxOut,
@@ -40,12 +40,8 @@ export interface SandboxEvents {
   onUpdateAvailable: (info: PluginUpdateInfo) => void;
   /** sources 增量上报 */
   onSourcesUpdate: (sources: Record<string, SourceCapability>) => void;
-  /** 控制类注册上报：订阅事件 / 是否反向控制 / 设置项 */
-  onRegistered?: (
-    events: PlaybackEventKind[],
-    controls: boolean,
-    settings: PluginSettingItem[],
-  ) => void;
+  /** 控制/UI 类注册上报：订阅事件 / 反向控制 / 设置项 / 菜单项 */
+  onRegistered?: (reg: PluginRegistration) => void;
   /** 子进程退出（可能是崩溃或主动 kill）。isCrash=true 表示非主动 kill */
   onExit: (isCrash: boolean, code: number | null) => void;
 }
@@ -285,7 +281,7 @@ export class Sandbox {
         this.events.onSourcesUpdate(msg.sources);
         return;
       case "registered":
-        this.events.onRegistered?.(msg.events, msg.controls, msg.settings);
+        this.events.onRegistered?.(msg);
         return;
       case "log":
         this.events.onLog(msg.level, msg.args);

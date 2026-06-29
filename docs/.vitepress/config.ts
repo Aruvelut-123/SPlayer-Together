@@ -36,6 +36,7 @@ export default defineConfig({
           { text: "贡献指南", link: "/contributing" },
         ],
       },
+      { text: "类型参考", link: "/types" },
       { text: "GitHub", link: "https://github.com/SPlayer-Dev/SPlayer-Next" },
     ],
 
@@ -69,6 +70,7 @@ export default defineConfig({
               { text: "插件更新", link: "/plugins/update" },
             ],
           },
+          { text: "类型参考", link: "/types" },
           { text: "贡献指南", link: "/contributing" },
         ],
       },

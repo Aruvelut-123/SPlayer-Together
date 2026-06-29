@@ -10,7 +10,7 @@
 import { ipcMain, dialog } from "electron";
 import type { PluginInfo } from "@shared/types/plugin";
 import { pluginRegistry } from "@main/plugins/registry";
-import { resolveUrl } from "@main/plugins/router";
+import { resolveUrl, invokeMenu } from "@main/plugins/router";
 import { fetchScript, fetchMarket } from "@main/plugins/net";
 import { broadcast } from "@main/utils/broadcast";
 import { coreLog } from "@main/utils/logger";
@@ -131,6 +131,16 @@ export const registerPluginIpc = (): void => {
 
   ipcMain.handle("plugin:resolveUrl", async (_evt, args) => {
     return resolveUrl(args);
+  });
+
+  ipcMain.handle("plugin:invokeMenu", async (_evt, args) => {
+    try {
+      const res = await invokeMenu(args);
+      return { ok: true, toast: res?.toast, openUrl: res?.openUrl, copyText: res?.copyText };
+    } catch (err) {
+      coreLog.warn("[plugin] invokeMenu failed:", err);
+      return { ok: false, error: err instanceof Error ? err.message : String(err) };
+    }
   });
 
   // 状态变化广播

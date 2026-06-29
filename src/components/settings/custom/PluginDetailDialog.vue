@@ -4,6 +4,7 @@ import type { PluginInfo, PluginGrant } from "@shared/types/plugin";
 import { isExternalUrl, openExternal } from "@/utils/url";
 import IconGlobe from "~icons/lucide/globe";
 import IconGamepad from "~icons/lucide/gamepad-2";
+import IconMenu from "~icons/lucide/menu";
 
 const props = defineProps<{ open: boolean; info: PluginInfo | null }>();
 const emit = defineEmits<{
@@ -16,6 +17,7 @@ const { t } = useI18n();
 const GRANT_ICONS: Record<PluginGrant, Component> = {
   network: IconGlobe,
   control: IconGamepad,
+  ui: IconMenu,
 };
 
 /** ready 时的状态对象（含 sources/events/controls/settings/ui） */
@@ -37,6 +39,7 @@ const sourceNames = computed(() => (ready.value ? Object.keys(ready.value.source
 const events = computed(() => ready.value?.events ?? []);
 const hasControls = computed(() => !!ready.value?.controls);
 const settingsCount = computed(() => ready.value?.settings?.length ?? 0);
+const menusCount = computed(() => ready.value?.menus?.length ?? 0);
 
 const fmtDate = (ms?: number): string =>
   typeof ms === "number" ? new Date(ms).toLocaleDateString() : "—";
@@ -151,6 +154,12 @@ const setOpen = (value: boolean): void => emit("update:open", value);
               {{ t("settings.plugins.detail.settingsCount") }}
             </span>
             <span>{{ settingsCount }}</span>
+          </div>
+          <div v-if="menusCount" class="flex gap-2">
+            <span class="text-on-surface-variant/60">
+              {{ t("settings.plugins.detail.menus") }}
+            </span>
+            <span>{{ menusCount }}</span>
           </div>
         </div>
       </section>

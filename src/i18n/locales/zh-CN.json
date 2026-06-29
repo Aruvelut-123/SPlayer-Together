@@ -1556,6 +1556,7 @@
         "controls": "反向控制",
         "controlsYes": "是",
         "settingsCount": "设置项",
+        "menus": "菜单项",
         "id": "ID",
         "author": "作者",
         "apiLevel": "API 级别",
@@ -1565,7 +1566,8 @@
       },
       "grant": {
         "network": { "label": "联网", "desc": "插件可发起网络请求" },
-        "control": { "label": "控制", "desc": "插件可控制播放器" }
+        "control": { "label": "控制", "desc": "插件可控制播放器" },
+        "ui": { "label": "界面", "desc": "插件可扩展或修改应用界面" }
       }
     },
     "pluginManager": {

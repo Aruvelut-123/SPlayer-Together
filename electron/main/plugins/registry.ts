@@ -16,6 +16,7 @@ import type {
   PluginAction,
   PluginInfo,
   PluginManifest,
+  PluginMenuItem,
   PluginSettingItem,
   PluginStatus,
   PluginUpdateInfo,
@@ -102,6 +103,8 @@ interface PluginRuntime {
   controls: boolean;
   /** 控制类：声明的用户配置项 */
   settings: PluginSettingItem[];
+  /** UI 类：已授予 ui 权限后接受的菜单项，否则为 [] */
+  menus: PluginMenuItem[];
   /** router 注册的 pending 调用 */
   pending: Map<
     string,
@@ -172,6 +175,7 @@ class PluginRegistry extends EventEmitter {
         events: [],
         controls: false,
         settings: [],
+        menus: [],
         pending: new Map(),
         restartTimer: null,
       });
@@ -276,6 +280,7 @@ class PluginRegistry extends EventEmitter {
       events: [],
       controls: false,
       settings: [],
+      menus: [],
       pending: new Map(),
       restartTimer: null,
     };
@@ -387,6 +392,7 @@ class PluginRegistry extends EventEmitter {
     rt.events = [];
     rt.controls = false;
     rt.settings = [];
+    rt.menus = [];
 
     if (rt.enabled) await this.start(rt).catch(() => {});
     else this.setStatus(rt, { state: "disabled" });
@@ -482,6 +488,7 @@ class PluginRegistry extends EventEmitter {
             events: rt.events,
             controls: rt.controls,
             settings: rt.settings,
+            menus: rt.menus,
           });
           this.maybePrimeControl(rt);
         },
@@ -516,15 +523,20 @@ class PluginRegistry extends EventEmitter {
           // 保留已登记的 events/controls/settings，避免增量补报 sources 时被清掉
           this.setStatus(rt, { ...rt.status, sources: merged });
         },
-        onRegistered: (events, controls, settings) => {
+        onRegistered: ({ events, controls, settings, menus: declaredMenus }) => {
+          const menus = rt.manifest.grant.includes("ui") ? declaredMenus : [];
+          if (declaredMenus.length && !menus.length) {
+            coreLog.warn(`[plugin:${rt.manifest.id}] 声明了菜单但缺少 "ui" 权限，已忽略`);
+          }
           rt.events = events;
           rt.controls = controls;
           rt.settings = settings;
+          rt.menus = menus;
           // ready 状态由此建立；"无→有"的 controlActivityChange 由 setStatus 内集中发出
           if (rt.status.state === "ready") {
-            this.setStatus(rt, { ...rt.status, events, controls, settings });
+            this.setStatus(rt, { ...rt.status, events, controls, settings, menus });
           } else {
-            this.setStatus(rt, { state: "ready", sources: {}, events, controls, settings });
+            this.setStatus(rt, { state: "ready", sources: {}, events, controls, settings, menus });
           }
           this.maybePrimeControl(rt);
         },

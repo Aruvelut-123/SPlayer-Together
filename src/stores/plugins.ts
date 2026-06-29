@@ -18,6 +18,20 @@ export const usePluginsStore = defineStore("plugins", () => {
     list.value.filter((info) => info.manifest.type === "control"),
   );
 
+  /** 启用且就绪的插件贡献的歌曲菜单项，按插件归组（无 ui 权限的已被主进程过滤为空，不在此出现） */
+  const menuContributions = computed(() =>
+    list.value
+      .filter(
+        (info) =>
+          info.enabled && info.status.state === "ready" && (info.status.menus?.length ?? 0) > 0,
+      )
+      .map((info) => ({
+        pluginId: info.manifest.id,
+        pluginName: info.manifest.name,
+        menus: info.status.state === "ready" ? (info.status.menus ?? []) : [],
+      })),
+  );
+
   /** 拉取列表并建立状态订阅 */
   const load = async (): Promise<void> => {
     list.value = await window.api.plugins.list();
@@ -169,6 +183,7 @@ export const usePluginsStore = defineStore("plugins", () => {
     loaded,
     sourcePlugins,
     controlPlugins,
+    menuContributions,
     marketPlugins,
     fetchMarket,
     installFromMarket,

@@ -7,9 +7,12 @@
  */
 
 import type {
+  MenuClickReq,
+  MenuClickRes,
   MusicUrlReq,
   MusicUrlRes,
   PluginAction,
+  PluginInvokeMenuArgs,
   PluginResolveUrlArgs,
 } from "@shared/types/plugin";
 import { ACTION_TIMEOUTS, PluginErrorCodes } from "@shared/defaults/plugin-api";
@@ -77,4 +80,24 @@ export const resolveUrl = async (args: PluginResolveUrlArgs): Promise<MusicUrlRe
     pluginLog.warn("resolveUrl rejected", args.pluginId, (err as Error)?.message);
     throw err;
   }
+};
+
+/**
+ * 触发某插件的自定义菜单项
+ * @param args 菜单项参数
+ */
+export const invokeMenu = async (args: PluginInvokeMenuArgs): Promise<MenuClickRes> => {
+  const rt = pluginRegistry.getRuntime(args.pluginId);
+  if (!rt) {
+    throw Object.assign(new Error(`plugin ${args.pluginId} not found`), {
+      code: PluginErrorCodes.NOT_FOUND,
+    });
+  }
+  if (rt.status.state !== "ready") {
+    throw Object.assign(new Error(`plugin ${args.pluginId} not ready`), {
+      code: PluginErrorCodes.NOT_READY,
+    });
+  }
+  const params: MenuClickReq = { menuId: args.menuId, track: args.track };
+  return await callOn<MenuClickRes>(rt, "menuClick", params, ACTION_TIMEOUTS.menuClick);
 };

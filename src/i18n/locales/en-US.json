@@ -1568,6 +1568,7 @@
         "controls": "Playback control",
         "controlsYes": "Yes",
         "settingsCount": "Settings",
+        "menus": "Menu items",
         "id": "ID",
         "author": "Author",
         "apiLevel": "API level",
@@ -1577,7 +1578,8 @@
       },
       "grant": {
         "network": { "label": "Network", "desc": "Can make network requests" },
-        "control": { "label": "Control", "desc": "Can control the player" }
+        "control": { "label": "Control", "desc": "Can control the player" },
+        "ui": { "label": "Interface", "desc": "Can extend or modify the app interface" }
       }
     },
     "pluginManager": {

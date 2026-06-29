@@ -168,8 +168,8 @@ const buildSplayer = (init: Extract<SandboxIn, { kind: "init" }>): HostApi => ({
       registeredSources = { ...registeredSources, ...args.sources };
       send({ kind: "sourcesUpdate", sources: registeredSources });
     }
-    // 控制类：声明订阅事件 / 是否反向控制 / 设置项，上报给主进程登记
-    if (args.events || args.controls !== undefined || args.settings) {
+    // 上报给主进程登记
+    if (args.events || args.controls !== undefined || args.settings || args.menus) {
       // 把 schema 默认值灌进缓存（用户已存的值优先），让同步的 getSetting 与设置 UI 显示一致
       if (Array.isArray(args.settings)) {
         for (const item of args.settings) {
@@ -181,6 +181,7 @@ const buildSplayer = (init: Extract<SandboxIn, { kind: "init" }>): HostApi => ({
         events: Array.isArray(args.events) ? args.events : [],
         controls: Boolean(args.controls),
         settings: Array.isArray(args.settings) ? args.settings : [],
+        menus: Array.isArray(args.menus) ? args.menus : [],
       });
     }
   },

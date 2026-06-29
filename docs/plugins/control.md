@@ -1,6 +1,6 @@
 # 控制插件
 
-控制插件（`@type control`）不提供音源，而是**监听播放器状态**（曲目 / 歌词 / 播放态）、**反向控制播放**（播放、暂停、切歌、跳转、音量），并可**声明自己的设置项**让用户在插件管理里配置。典型用途如：将播放状态同步到 Discord、智能家居/灯效联动、第三方上报等。
+控制插件（`@type control`）不提供音源，而是**监听播放器状态**（曲目 / 歌词 / 播放态）、**反向控制播放**（播放、暂停、切歌、跳转、音量），**声明自己的设置项**让用户在插件管理里配置，还能**向歌曲菜单添加自定义项**。典型用途如：将播放状态同步到 Discord、智能家居/灯效联动、第三方上报，或给歌曲加一键外链/上报入口等。
 
 阅读本文前请先了解 [插件总览与架构](/plugins/)，其中的通用 API 对控制插件同样适用。
 
@@ -31,7 +31,12 @@ splayer.register({
 
 splayer.player.on("trackChange", ({ track }) => {
   if (!track) return;
-  splayer.log.info("正在播放：", track.title, "-", track.artists);
+  splayer.log.info(
+    "正在播放：",
+    track.title,
+    "-",
+    track.artists.map((artist) => artist.name).join(" / "),
+  );
 });
 
 splayer.player.on("playStateChange", ({ state, position }) => {
@@ -43,7 +48,7 @@ splayer.player.on("playStateChange", ({ state, position }) => {
 
 ## `splayer.register(args)`
 
-控制插件用 `register` 声明三样东西，请在脚本同步执行阶段调用：
+控制插件用 `register` 声明要用到的能力，请在脚本同步执行阶段调用：
 
 ```js
 splayer.register({
@@ -55,11 +60,12 @@ splayer.register({
 });
 ```
 
-| 字段       | 类型                  | 必填 | 说明                                               |
-| ---------- | --------------------- | ---- | -------------------------------------------------- |
-| `events`   | `PlaybackEventKind[]` |      | 要订阅的播放事件，未声明的事件不会下发             |
-| `controls` | `boolean`             |      | 是否使用反向播放控制（`splayer.player.play()` 等） |
-| `settings` | `PluginSettingItem[]` |      | 用户可配置项，渲染到插件管理的设置弹窗             |
+| 字段       | 类型                  | 必填 | 说明                                                                |
+| ---------- | --------------------- | ---- | ------------------------------------------------------------------- |
+| `events`   | `PlaybackEventKind[]` |      | 要订阅的播放事件，未声明的事件不会下发                              |
+| `controls` | `boolean`             |      | 是否使用反向播放控制（`splayer.player.play()` 等）                  |
+| `settings` | `PluginSettingItem[]` |      | 用户可配置项，渲染到插件管理的设置弹窗                              |
+| `menus`    | `PluginMenuItem[]`    |      | 向歌曲菜单添加的菜单项，需声明 `@grant ui`；见[菜单扩展](#菜单扩展) |
 
 ::: tip 只发订阅的事件
 宿主只会向插件推送它在 `events` 里声明过的事件，未声明的不会推送。插件启用时，宿主会立即补发一次当前状态快照（当前曲目、歌词、播放态、当前行），无需自己拉取初始值。
@@ -75,14 +81,7 @@ splayer.player.on(kind, (data) => { ... });
 
 ### `trackChange` — 曲目切换
 
-| 字段             | 类型             | 说明                     |
-| ---------------- | ---------------- | ------------------------ |
-| `track`          | `object \| null` | 当前曲目，`null` 表示无  |
-| `track.title`    | `string`         | 标题                     |
-| `track.artists`  | `string`         | 艺术家（已用 `, ` 拼接） |
-| `track.album`    | `string?`        | 专辑名                   |
-| `track.duration` | `number`         | 时长（毫秒）             |
-| `track.cover`    | `string?`        | 封面地址                 |
+`track` 为当前曲目 [`Track`](/types#track)（`artists` 是 [`Artist[]`](/types#artist)），`null` 表示无曲目。
 
 ### `lyricChange` — 歌词整体变化
 
@@ -90,30 +89,7 @@ splayer.player.on(kind, (data) => { ... });
 | ------- | ------------- | ---------------------- |
 | `lines` | `LyricLine[]` | 当前曲目的完整解析歌词 |
 
-`LyricLine`（一行歌词）的全部字段：
-
-| 字段              | 类型          | 说明                                         |
-| ----------------- | ------------- | -------------------------------------------- |
-| `words`           | `LyricWord[]` | 该行逐字内容（见下）；逐行格式时只有一个元素 |
-| `translatedLyric` | `string`      | 该行翻译，无则为空串                         |
-| `romanLyric`      | `string`      | 该行音译 / 罗马音，无则为空串                |
-| `startTime`       | `number`      | 行起始时间（毫秒）                           |
-| `endTime`         | `number`      | 行结束时间（毫秒）                           |
-| `isBG`            | `boolean`     | 是否为背景和声行                             |
-| `isDuet`          | `boolean`     | 是否为对唱行（通常右对齐显示）               |
-
-其中 `LyricWord`（逐字）：
-
-| 字段        | 类型           | 说明                               |
-| ----------- | -------------- | ---------------------------------- |
-| `word`      | `string`       | 字 / 词文本                        |
-| `startTime` | `number`       | 该字起始时间（毫秒）               |
-| `endTime`   | `number`       | 该字结束时间（毫秒）               |
-| `romanWord` | `string?`      | 该字的音译                         |
-| `obscene`   | `boolean?`     | 是否敏感词                         |
-| `ruby`      | `LyricSpan[]?` | 注音（如日文假名标注），通常用不到 |
-
-整行纯文本：`line.words.map((w) => w.word).join("")`。逐行（LRC 类）歌词的逐字时间通常与行时间一致，不必关心 `words` 内部时间。
+每行是一个 [`LyricLine`](/types#lyricline)，逐字内容见 [`LyricWord`](/types#lyricword)。整行纯文本：`line.words.map((word) => word.word).join("")`；逐行（LRC 类）歌词通常每行只有一个 word，其始末时间与行时间一致。
 
 ### `lineChange` — 当前歌词行变化
 
@@ -224,6 +200,86 @@ splayer.onSettingChange("enabled", (value) => {
 
 宿主会按声明的 `type` 对写入值做校验/强转（如 `switch` 转布尔、`number` 按 `min`/`max` 夹取、`select` 校验合法选项），插件读到的始终是规范化后的值。
 
+## 菜单扩展
+
+控制插件可向**歌曲菜单**添加自定义菜单项：底栏「更多」菜单与歌曲列表的右键菜单都会显示，同一插件的菜单项折叠在一个以**插件名**命名的子菜单下。
+
+::: warning 需要 ui 权限
+菜单属界面扩展，必须在脚本头声明 `@grant ui`，否则声明的菜单项会被宿主忽略。
+:::
+
+### 声明菜单项
+
+在 `register` 里传 `menus`（纯菜单插件无需 `events` / `controls`）：
+
+```js
+/**
+ * @name     歌曲工具
+ * @version  1.0.0
+ * @type     control
+ * @apiLevel 2
+ * @grant    ui network
+ */
+splayer.register({
+  menus: [
+    { id: "open", label: "在网页打开" },
+    { id: "copy", label: "复制歌曲信息" },
+    { id: "local-only", label: "仅本地歌曲", sources: ["local"] },
+  ],
+});
+```
+
+`PluginMenuItem` 字段：
+
+| 字段      | 类型        | 必填 | 说明                                                         |
+| --------- | ----------- | ---- | ------------------------------------------------------------ |
+| `id`      | `string`    | ✅   | 菜单项标识，插件内唯一；点击时随 `menuClick` 回传            |
+| `label`   | `string`    | ✅   | 展示文本（纯字符串，不做多语言）                             |
+| `sources` | `string[]?` |      | 仅对这些来源的歌曲显示（如 `["local"]`）；缺省对全部歌曲显示 |
+
+### 响应点击
+
+注册 `menuClick` 处理器，用户点菜单项时触发：
+
+```js
+splayer.on("menuClick", async ({ menuId, track }) => {
+  switch (menuId) {
+    case "open":
+      return { openUrl: `https://music.example.com/song/${track.id}` };
+    case "copy":
+      return {
+        copyText: `${track.title} - ${track.artists.map((artist) => artist.name).join(" / ")}`,
+      };
+  }
+});
+```
+
+入参 `req.track` 是当前曲目 [`Track`](/types#track)（与 `trackChange` 事件里的 `track` 同一类型）；常用的有 `id` / `title` / `artists`（[`Artist[]`](/types#artist)）/ `album`（[`Album`](/types#album)）/ `source` / `duration`。
+
+处理器**可选**返回 `MenuClickRes`，三个字段都可省略、可组合，由宿主在界面侧代为执行：
+
+| 字段       | 类型      | 效果                                      |
+| ---------- | --------- | ----------------------------------------- |
+| `toast`    | `string?` | 弹出一条轻提示                            |
+| `openUrl`  | `string?` | 用系统浏览器打开链接（仅 `http`/`https`） |
+| `copyText` | `string?` | 写入剪贴板（自带「已复制」提示）          |
+
+```js
+splayer.on("menuClick", async ({ menuId, track }) => {
+  if (menuId === "report") {
+    await splayer.request("https://my.api/scrobble", {
+      method: "POST",
+      body: JSON.stringify(track),
+    });
+    return { toast: `已上报：${track.title}` };
+  }
+});
+```
+
+::: tip 处理器在沙箱里运行
+`menuClick` 与其它处理器一样跑在隔离子进程中，**没有 DOM**：不能弹自定义窗口/面板，面向用户的反馈只有上面三种返回动作。要联网（`splayer.request`）需 `@grant network`，要控制播放（`splayer.player.*`）需 `@grant control`——菜单本身只需 `ui`。
+:::
+
 ## 更新支持
 
 控制插件在脚本头声明 `@updateUrl` 后，宿主会拉取它读 `@version` 与本地比对，发现新版即在卡片上提示，用户可一键原地更新（保留已配置的设置项与插件数据）。完整说明见 [插件更新](/plugins/update)。
@@ -284,7 +340,7 @@ const lineText = (line) => (line && line.words ? line.words.map((w) => w.word).j
 let lines = [];
 
 splayer.player.on("trackChange", ({ track }) => {
-  if (track) post(track.title, track.artists);
+  if (track) post(track.title, track.artists.map((artist) => artist.name).join(" / "));
 });
 
 splayer.player.on("lyricChange", ({ lines: ls }) => {

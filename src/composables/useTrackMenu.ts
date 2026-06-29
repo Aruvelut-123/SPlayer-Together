@@ -5,10 +5,12 @@ import type { CollectionType } from "@/types/collection";
 import type { DropdownMenuItem } from "@/components/ui/SDropdownMenu.vue";
 import * as player from "@/core/player";
 import { useSettingsStore } from "@/stores/settings";
+import { usePluginsStore } from "@/stores/plugins";
 import { useCopyText } from "@/composables/useCopyText";
 import { toast } from "@/composables/useToast";
 import { buildDownloadQualityItems } from "@/composables/useDownload";
 import { getShareUrl } from "@/utils/format/shareUrl";
+import { openExternal } from "@/utils/url";
 import IconPlay from "~icons/lucide/play";
 import IconListEnd from "~icons/lucide/list-end";
 import IconListPlus from "~icons/lucide/list-plus";
@@ -21,6 +23,7 @@ import IconListMinus from "~icons/lucide/list-minus";
 import IconCloudOff from "~icons/lucide/cloud-off";
 import IconSearch from "~icons/lucide/search";
 import IconMoreHorizontal from "~icons/lucide/more-horizontal";
+import IconPuzzle from "~icons/lucide/puzzle";
 
 export interface TrackMenuOptions {
   /** 集合类型 */
@@ -55,6 +58,7 @@ export const useTrackMenu = (
   const { t } = useI18n();
   const router = useRouter();
   const settings = useSettingsStore();
+  const plugins = usePluginsStore();
   const { copy } = useCopyText();
   const isPlaylist = options.collectionType === "playlist";
   const isCloudView = options.collectionType === "cloud";
@@ -67,7 +71,7 @@ export const useTrackMenu = (
     const showCloudRemove = isCloudView && track.value?.cloud === true;
     const canAddToPlaylist = source === "local" || source === "netease";
     const isOnline = source !== "local" && source !== "streaming";
-    return [
+    const base: DropdownMenuItem[] = [
       { key: "play", label: t("songList.context.play"), icon: markRaw(IconPlay), show: showPlay },
       {
         key: "playNext",
@@ -161,6 +165,22 @@ export const useTrackMenu = (
         ],
       },
     ];
+    // 插件贡献：每个有 ui 权限的插件折叠成一个以插件名命名的子菜单
+    const pluginGroups: DropdownMenuItem[] = [];
+    for (const group of plugins.menuContributions) {
+      const children = group.menus
+        .filter((menu) => !menu.sources || menu.sources.includes(source ?? ""))
+        .map((menu) => ({ key: `plugin:${group.pluginId}:${menu.id}`, label: menu.label }));
+      if (!children.length) continue;
+      pluginGroups.push({
+        key: `plugin:${group.pluginId}`,
+        label: group.pluginName,
+        icon: markRaw(IconPuzzle),
+        separator: pluginGroups.length === 0,
+        children,
+      });
+    }
+    return [...base, ...pluginGroups];
   });
 
   const handleSelect = async (key: string): Promise<void> => {
@@ -170,6 +190,26 @@ export const useTrackMenu = (
     if (key.startsWith("download:")) {
       const quality = key.slice("download:".length);
       options.onDownload?.(current, quality ? (quality as QualityLevel) : undefined);
+      return;
+    }
+    // 插件菜单：plugin:<插件id>:<菜单id>（插件 id 不含冒号，按首个冒号切分）
+    if (key.startsWith("plugin:")) {
+      const rest = key.slice("plugin:".length);
+      const sep = rest.indexOf(":");
+      if (sep <= 0) return;
+      const res = await window.api.plugins.invokeMenu({
+        pluginId: rest.slice(0, sep),
+        menuId: rest.slice(sep + 1),
+        track: toRaw(current),
+      });
+      if (!res?.ok) {
+        if (res?.error) toast.error(res.error);
+        return;
+      }
+      // 复制 / 开链由渲染层代执行（沙箱内无剪贴板、无法开窗）
+      if (res.copyText) await copy(res.copyText);
+      if (res.openUrl) openExternal(res.openUrl);
+      if (res.toast) toast.success(res.toast);
       return;
     }
     switch (key) {

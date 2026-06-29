@@ -27,18 +27,6 @@ let offRegistryEvents: (() => void) | null = null;
 const toPluginState = (state: PlayerState): PluginPlayState =>
   state === "playing" ? "playing" : state === "stopped" ? "stopped" : "paused";
 
-/** Track → 插件可见的精简载荷 */
-const trackPayload = (track: Track | null) =>
-  track
-    ? {
-        title: track.title,
-        artists: track.artists.map((artist) => artist.name).join(", "),
-        album: track.album?.name,
-        duration: track.duration,
-        cover: track.cover,
-      }
-    : null;
-
 /** 找 startTime <= time 的最后一行 */
 const findIndex = (time: number): number => {
   let result = -1;
@@ -52,7 +40,7 @@ const findIndex = (time: number): number => {
 const onTrackChange = (data: { track: Track | null }): void => {
   lyricLines = [];
   currentIndex = -1;
-  pluginRegistry.broadcastPlaybackEvent("trackChange", { track: trackPayload(data.track) });
+  pluginRegistry.broadcastPlaybackEvent("trackChange", { track: data.track });
 };
 
 /** 按给定进度重算当前行，与上次不同才补发；暂停态没有后续 position-sync，靠这里纠正 */
@@ -106,7 +94,7 @@ const primePlugin = (id: string): void => {
   const snap = nowPlaying.snapshot();
   const send = <K extends PlaybackEventKind>(event: K, data: PlaybackEventData[K]): void =>
     pluginRegistry.sendPlaybackEventTo(id, event, data);
-  send("trackChange", { track: trackPayload(snap.track) });
+  send("trackChange", { track: snap.track });
   send("lyricChange", { lines: snap.lyric });
   send("playStateChange", { state: toPluginState(snap.state), position: snap.position });
   const index = snap.lyric.length > 0 ? findIndex(snap.position + snap.lyricOffsetMs) : -1;

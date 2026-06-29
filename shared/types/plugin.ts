@@ -4,14 +4,12 @@
  */
 
 import type { LyricLine } from "./lyrics";
+import type { Track } from "./player";
 
 /**
  * 支持的插件动作
- * 当前仅有 musicUrl。扩展新动作的步骤：
- * 1. 在此 union 追加字面量；2. 补 `ActionIO` 映射；3. 补 `ACTION_TIMEOUTS` / `PluginsConfig.priority`；
- * 4. router 加入相应入口；其余（HostApi.on / handlers Map / SandboxIn.call）已泛型化，无需改动。
  */
-export type PluginAction = "musicUrl";
+export type PluginAction = "musicUrl" | "menuClick";
 
 /**
  * 音质等级
@@ -30,8 +28,8 @@ export const PLUGIN_TYPES = ["source", "control"] as const;
 export type PluginType = (typeof PLUGIN_TYPES)[number];
 
 /** 插件可声明的权限清单 */
-export const PLUGIN_GRANTS = ["network", "control"] as const;
-/** 插件权限 */
+export const PLUGIN_GRANTS = ["network", "control", "ui"] as const;
+/** 插件权限：network 联网 / control 控制播放器 / ui 扩展界面（如菜单项） */
 export type PluginGrant = (typeof PLUGIN_GRANTS)[number];
 
 /** 控制类插件可订阅的高层播放事件 */
@@ -39,15 +37,8 @@ export type PlaybackEventKind = "trackChange" | "lyricChange" | "lineChange" | "
 
 /** 各高层事件的载荷 */
 export interface PlaybackEventData {
-  trackChange: {
-    track: {
-      title: string;
-      artists: string;
-      album?: string;
-      duration: number;
-      cover?: string;
-    } | null;
-  };
+  /** 曲目切换 */
+  trackChange: { track: Track | null };
   /** 歌词数据 */
   lyricChange: { lines: LyricLine[] };
   /** 当前行索引变化 */
@@ -76,12 +67,33 @@ export interface PluginSettingItem {
   options?: { label: string; value: string }[];
 }
 
-/** register 入参：音源类用 sources，控制类用 events/controls/settings */
+/**
+ * UI 类插件向歌曲菜单贡献的单个菜单项
+ */
+export interface PluginMenuItem {
+  /** 菜单项 id */
+  id: string;
+  /** 展示名 */
+  label: string;
+  /** 仅对这些来源（如 local/streaming）的歌曲显示；缺省对所有歌曲显示 */
+  sources?: string[];
+}
+
+/** 控制/UI 类注册上报的载荷（worker → 主进程的 registered 消息与注册表回调共用） */
+export interface PluginRegistration {
+  events: PlaybackEventKind[];
+  controls: boolean;
+  settings: PluginSettingItem[];
+  menus: PluginMenuItem[];
+}
+
+/** register 入参：音源类用 sources，控制类用 events/controls/settings，UI 类用 menus */
 export interface RegisterArgs {
   sources?: Record<string, SourceCapability>;
   events?: PlaybackEventKind[];
   controls?: boolean;
   settings?: PluginSettingItem[];
+  menus?: PluginMenuItem[];
 }
 
 /** 控制类插件可用的播放面 */
@@ -147,10 +159,12 @@ export type PluginStatus =
   | {
       state: "ready";
       sources: Record<string, SourceCapability>;
-      /** 控制类附加信息（音源类为 undefined） */
+      /** 控制类附加信息 */
       events?: PlaybackEventKind[];
       controls?: boolean;
       settings?: PluginSettingItem[];
+      /** UI 类贡献的菜单项 */
+      menus?: PluginMenuItem[];
     }
   | { state: "error"; error: { code: string; message: string } }
   | { state: "disabled" };
@@ -196,13 +210,28 @@ export interface MusicUrlRes {
   expire?: number;
 }
 
+export interface MenuClickReq {
+  /** 被点击的菜单项 id */
+  menuId: string;
+  /** 当前歌曲上下文 */
+  track: Track;
+}
+export interface MenuClickRes {
+  /** 执行后给用户的提示文案 */
+  toast?: string;
+  /** 用系统浏览器打开此链接（仅 http/https） */
+  openUrl?: string;
+  /** 写入剪贴板的文本 */
+  copyText?: string;
+}
+
 /** Action → 请求/响应映射，用于 HostApi.on 的重载。新增动作时在此追加。 */
 export interface ActionIO {
   musicUrl: { req: MusicUrlReq; res: MusicUrlRes };
+  menuClick: { req: MenuClickReq; res: MenuClickRes };
 }
 
-/* ========== 宿主暴露给插件的 API（在沙箱内注入为 globalThis.splayer） ========== */
-
+/* 宿主暴露给插件的 API */
 export interface HostRequestOptions {
   method?: "GET" | "POST";
   headers?: Record<string, string>;
@@ -243,7 +272,7 @@ export interface HostApi {
   /** 发起网络请求 */
   request: (url: string, opts?: HostRequestOptions) => Promise<HostRequestResult>;
 
-  /** 声明能力：音源类传 sources，控制类传 events/controls/settings */
+  /** 声明能力 */
   register: (args: RegisterArgs) => void;
 
   /** 注册动作处理器 */
@@ -327,13 +356,8 @@ export type SandboxOut =
   | { kind: "pong" }
   /** sources 增量上报 */
   | { kind: "sourcesUpdate"; sources: Record<string, SourceCapability> }
-  /** 控制类注册上报：声明订阅事件 / 是否反向控制 / 设置项 */
-  | {
-      kind: "registered";
-      events: PlaybackEventKind[];
-      controls: boolean;
-      settings: PluginSettingItem[];
-    };
+  /** 控制/UI 类注册上报 */
+  | ({ kind: "registered" } & PluginRegistration);
 
 /** worker 调用回宿主的方法名 */
 export type HostCallMethod =
@@ -357,6 +381,22 @@ export interface PluginResolveUrlArgs {
   source: string;
   quality?: PluginQuality;
   musicInfo: { songmid: string; [key: string]: unknown };
+}
+
+export interface PluginInvokeMenuArgs {
+  pluginId: string;
+  menuId: string;
+  track: Track;
+}
+export interface PluginInvokeMenuResult {
+  ok: boolean;
+  /** 插件返回的轻提示文案（成功时） */
+  toast?: string;
+  /** 插件请求打开的外链（成功时） */
+  openUrl?: string;
+  /** 插件请求复制的文本（成功时） */
+  copyText?: string;
+  error?: string;
 }
 
 /** 插件市场条目 */
@@ -415,6 +455,8 @@ export interface PluginsApi {
   ) => Promise<{ ok: boolean; plugin?: PluginInfo; error?: string; fallbackUrl?: string }>;
   /** 获取播放 URL */
   resolveUrl: (args: PluginResolveUrlArgs) => Promise<MusicUrlRes>;
+  /** 触发某插件的自定义菜单项 */
+  invokeMenu: (args: PluginInvokeMenuArgs) => Promise<PluginInvokeMenuResult>;
   /** 拉取插件市场列表 */
   market: () => Promise<{ ok: boolean; plugins: MarketPlugin[]; error?: string }>;
   /** 订阅插件状态变化 */
