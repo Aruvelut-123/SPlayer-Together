@@ -155,7 +155,6 @@ export class Sandbox {
         apiLevel: this.opts.manifest.apiLevel,
         locale: this.opts.locale,
         appVersion: app.getVersion(),
-        platform: this.opts.manifest.platform,
         userSettings: this.opts.userSettings,
         source: this.opts.source,
         scriptInfo: {

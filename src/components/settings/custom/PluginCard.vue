@@ -14,6 +14,7 @@ const emit = defineEmits<{
   (event: "configure", id: string): void;
   (event: "check", id: string): void;
   (event: "viewUpdate", id: string): void;
+  (event: "detail", id: string): void;
 }>();
 
 const { t } = useI18n();
@@ -37,11 +38,6 @@ const statusTag = computed<{ type: TagType; key: string }>(() => {
       return { type: "warning", key: "unloaded" };
   }
 });
-
-/** ready 时声明的 sources 名（音源类才有） */
-const sourceNames = computed<string[]>(() =>
-  props.info.status.state === "ready" ? Object.keys(props.info.status.sources) : [],
-);
 
 const settings = computed(() =>
   props.info.status.state === "ready" ? (props.info.status.settings ?? []) : [],
@@ -75,6 +71,8 @@ const onMenuSelect = (key: string): void => {
     :name="info.manifest.name"
     :description="info.manifest.description"
     :author="info.manifest.author"
+    clickable
+    @click="emit('detail', info.manifest.id)"
   >
     <!-- 待更新：紧贴名字 -->
     <template #name-suffix>
@@ -85,7 +83,7 @@ const onMenuSelect = (key: string): void => {
         variant="secondary"
         type="success"
         round
-        @click="emit('viewUpdate', info.manifest.id)"
+        @click.stop="emit('viewUpdate', info.manifest.id)"
       >
         <template #icon><IconLucideArrowUpCircle /></template>
         {{ t("settings.plugins.pendingUpdate") }}
@@ -100,28 +98,13 @@ const onMenuSelect = (key: string): void => {
         size="tiny"
         variant="text"
         :title="info.manifest.homepage"
-        @click="openExternal(info.manifest.homepage)"
+        @click.stop="openExternal(info.manifest.homepage)"
       >
         <template #icon><IconLucideExternalLink /></template>
       </SButton>
       <STag size="small" round type="default" variant="soft">v{{ info.manifest.version }}</STag>
       <STag size="small" round :type="statusTag.type" variant="soft">
         {{ t(`settings.plugins.status.${statusTag.key}`) }}
-      </STag>
-    </template>
-
-    <!-- 支持源 -->
-    <template v-if="sourceNames.length" #tags>
-      <STag
-        v-for="src in sourceNames"
-        :key="src"
-        size="tiny"
-        variant="soft"
-        type="primary"
-        class="gap-1"
-      >
-        <IconLucideDatabase class="size-3" />
-        {{ src }}
       </STag>
     </template>
 
@@ -134,7 +117,7 @@ const onMenuSelect = (key: string): void => {
 
     <!-- 操作 -->
     <template #actions>
-      <div class="flex items-center justify-between gap-2">
+      <div class="flex items-center justify-between gap-2" @click.stop>
         <div class="flex items-center gap-1.5 min-w-0">
           <SButton
             variant="secondary"

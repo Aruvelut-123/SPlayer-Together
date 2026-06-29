@@ -5,8 +5,9 @@
  * dispatch 根据 method 去做真实工作（网络/存储），再通过 sandbox.sendHostResult 回传。
  */
 
-import type { HostCallMethod, HostRequestOptions } from "@shared/types/plugin";
+import type { HostCallMethod, HostRequestOptions, PluginGrant } from "@shared/types/plugin";
 import { PluginErrorCodes } from "@shared/defaults/plugin-api";
+import { coreLog } from "@main/utils/logger";
 import type { Sandbox } from "./sandbox";
 import { hostRequest } from "./net";
 import {
@@ -21,11 +22,24 @@ import { playerControl } from "@main/services/playerControl";
 export const dispatchHostCall = async (
   sandbox: Sandbox,
   pluginId: string,
+  grant: PluginGrant[],
   callId: string,
   method: HostCallMethod,
   args: unknown[],
 ): Promise<void> => {
   try {
+    // 权限门控
+    if (method === "request" && !grant.includes("network")) {
+      throw Object.assign(new Error(`plugin "${pluginId}" lacks "network" grant`), {
+        code: PluginErrorCodes.PERMISSION_DENIED,
+      });
+    }
+    if (method.startsWith("player.") && !grant.includes("control")) {
+      coreLog.warn(`[plugin:${pluginId}] 缺少 "control" 权限，拒绝调用 ${method}`);
+      throw Object.assign(new Error(`plugin "${pluginId}" lacks "control" grant`), {
+        code: PluginErrorCodes.PERMISSION_DENIED,
+      });
+    }
     let data: unknown;
     switch (method) {
       case "request":

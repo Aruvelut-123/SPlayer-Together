@@ -153,8 +153,9 @@ class PluginRegistry extends EventEmitter {
       try {
         source = fs.readFileSync(scriptPath, "utf-8");
         // 重新解压（防止脚本外部被替换为 gz_）
-        const { source: s } = loadScript(source, false, manifest.fileName);
-        source = s;
+        const fresh = loadScript(source, false, manifest.fileName);
+        source = fresh.source;
+        manifest.grant = fresh.manifest.grant;
       } catch (err) {
         coreLog.warn(`[plugin] failed to read ${manifest.fileName}:`, err);
         continue;
@@ -498,7 +499,7 @@ class PluginRegistry extends EventEmitter {
           }
         },
         onHostCall: (callId, method, args) => {
-          void dispatchHostCall(sandbox, rt.manifest.id, callId, method, args);
+          void dispatchHostCall(sandbox, rt.manifest.id, rt.manifest.grant, callId, method, args);
         },
         onLog: (level, args) => {
           coreLog[level](`[plugin:${rt.manifest.id}]`, ...args);

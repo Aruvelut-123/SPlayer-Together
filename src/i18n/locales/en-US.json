@@ -1553,7 +1553,32 @@
         "unloaded": "Unloaded"
       },
       "sectionSource": "Source Plugins",
-      "sectionControl": "Control Plugins"
+      "sectionControl": "Control Plugins",
+      "detail": {
+        "title": "Plugin Details",
+        "intro": "About",
+        "grants": "Permissions",
+        "contributes": "Capabilities",
+        "info": "Info",
+        "noDescription": "No description",
+        "grantNone": "This plugin declares no permissions",
+        "autoGranted": "Auto-granted",
+        "sources": "Sources",
+        "events": "Events",
+        "controls": "Playback control",
+        "controlsYes": "Yes",
+        "settingsCount": "Settings",
+        "id": "ID",
+        "author": "Author",
+        "apiLevel": "API level",
+        "installed": "Installed",
+        "updated": "Updated",
+        "homepage": "Homepage"
+      },
+      "grant": {
+        "network": { "label": "Network", "desc": "Can make network requests" },
+        "control": { "label": "Control", "desc": "Can control the player" }
+      }
     },
     "pluginManager": {
       "label": "Plugin Manager",

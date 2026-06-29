@@ -1,10 +1,11 @@
 <script setup lang="ts">
-defineProps<{ name: string; description?: string; author?: string }>();
+defineProps<{ name: string; description?: string; author?: string; clickable?: boolean }>();
 </script>
 
 <template>
   <div
     class="flex flex-col h-full gap-1.5 rounded-xl bg-surface-panel border border-solid border-outline-variant/15 px-3.5 py-3"
+    :class="clickable && 'cursor-pointer transition-colors hover:border-primary/30'"
   >
     <div class="flex items-center gap-1.5">
       <div class="flex items-center gap-1 min-w-0 flex-1">

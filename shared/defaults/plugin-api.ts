@@ -68,6 +68,8 @@ export const PluginErrorCodes = {
   HANDLER_ERROR: "PLUGIN_HANDLER_ERROR",
   /** 子进程崩溃 */
   WORKER_CRASHED: "PLUGIN_WORKER_CRASHED",
+  /** 权限未授予 */
+  PERMISSION_DENIED: "PLUGIN_PERMISSION_DENIED",
 } as const;
 
 /** 默认插件配置 */

@@ -3,7 +3,7 @@
  *
  * 职责：
  * - 接收主进程 `init` 消息，收到后创建 vm.createContext 作为运行沙箱
- * - 在沙箱内注入 globalThis.splayer（HostApi 实现），可选 globalThis.lx 垫片
+ * - 在沙箱内注入 globalThis.splayer（HostApi 实现），可选 globalThis.lx 兼容层
  * - 用 vm.runInContext 执行插件源码
  * - 转发 call → handler；hostCall → 主进程；ping → pong
  *
@@ -342,11 +342,8 @@ const runScript = (init: Extract<SandboxIn, { kind: "init" }>): void => {
     },
   };
 
-  // 统一注入 lx 垫片——无论脚本声明的 platform 是什么。
-  // 原因：很多 lx 脚本以明文 .js 分发且头注释里没写 @platform lx，
-  // 按 platform 推断会错判为 splayer，导致 globalThis.lx 为 undefined。
-  // splayer-native 脚本本身不会碰 lx 全局，多挂一个对象不干扰；
-  // lx 脚本调 splayer.on 又覆盖 lx 垫片预置的 handler，两条路径都能走通。
+  // 统一注入 lx 兼容层兜底：lx user_api 脚本靠 globalThis.lx 运行，宿主无条件注入即可直接兼容；
+  // splayer 原生脚本不碰 lx 全局，多挂一个对象不干扰；lx 脚本若调 splayer.on 又覆盖兼容层预置的 handler，两条路径都能走通。
   installLxShim(
     sandboxGlobal,
     splayer,

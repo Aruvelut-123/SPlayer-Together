@@ -194,10 +194,10 @@ splayer.on("musicUrl", async (req) => {
 
 ## 兼容 lx 插件
 
-SPlayer-Next 提供 `lx` 垫片，覆盖 [lx-music-desktop](https://github.com/lyswhut/lx-music-desktop) `user_api` 脚本的常用接口（`lx.request` / `lx.on("request")` / `lx.send("inited")` / `lx.utils`），多数现有 lx 音源脚本无需修改即可导入运行。头部写 `@platform lx`，或以 `gz_` 前缀压缩分发，会自动启用垫片。
+SPlayer-Next 提供 `lx` 兼容层，覆盖 [lx-music-desktop](https://github.com/lyswhut/lx-music-desktop) `user_api` 脚本的常用接口（`lx.request` / `lx.on("request")` / `lx.send("inited")` / `lx.utils`）。兼容层由宿主**自动注入**，多数现有 lx 音源脚本（含 `gz_` 压缩分发）无需任何修改或声明即可导入运行。
 
 ::: tip
-垫片仅用于兼容存量 lx 音源脚本，且只覆盖音源能力。编写**新插件**请直接使用 `splayer.*` API。
+兼容层仅用于兼容存量 lx 音源脚本，且只覆盖音源能力。编写**新插件**请直接使用 `splayer.*` API。
 :::
 
 ## 调试

@@ -18,6 +18,8 @@ const updatingId = ref<string | null>(null);
 const checkingId = ref<string | null>(null);
 const updateDialogOpen = ref(false);
 const updateDialogId = ref<string | null>(null);
+const detailDialogOpen = ref(false);
+const detailDialogId = ref<string | null>(null);
 
 onMounted(() => {
   if (!loaded.value) void pluginsStore.load();
@@ -96,6 +98,19 @@ const updateDialogInfo = computed(() => {
 
 /** 更新地址（用于「查看更新」外链） */
 const updateDialogUrl = computed(() => updateDialogInfo.value?.updateInfo?.updateUrl ?? "");
+
+/** 打开某插件详情弹窗 */
+const openDetailDialog = (id: string): void => {
+  detailDialogId.value = id;
+  detailDialogOpen.value = true;
+};
+
+/** 当前详情弹窗对应的插件 */
+const detailDialogInfo = computed(() => {
+  if (!detailDialogId.value) return null;
+  const all = [...sourcePlugins.value, ...controlPlugins.value];
+  return all.find((info) => info.manifest.id === detailDialogId.value) ?? null;
+});
 
 const openUninstallConfirm = (id: string): void => {
   pendingUninstallId.value = id;
@@ -222,6 +237,7 @@ const refreshMarket = async (): Promise<void> => {
             @configure="openSettingsDialog"
             @check="handleCheckUpdate"
             @view-update="openUpdateDialog"
+            @detail="openDetailDialog"
           />
         </div>
       </div>
@@ -242,6 +258,7 @@ const refreshMarket = async (): Promise<void> => {
             @configure="openSettingsDialog"
             @check="handleCheckUpdate"
             @view-update="openUpdateDialog"
+            @detail="openDetailDialog"
           />
         </div>
       </div>
@@ -344,5 +361,8 @@ const refreshMarket = async (): Promise<void> => {
         </SButton>
       </template>
     </SDialog>
+
+    <!-- 插件详情 -->
+    <PluginDetailDialog v-model:open="detailDialogOpen" :info="detailDialogInfo" />
   </div>
 </template>

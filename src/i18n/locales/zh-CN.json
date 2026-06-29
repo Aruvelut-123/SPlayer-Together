@@ -1541,7 +1541,32 @@
         "unloaded": "未加载"
       },
       "sectionSource": "音源插件",
-      "sectionControl": "控制插件"
+      "sectionControl": "控制插件",
+      "detail": {
+        "title": "插件详情",
+        "intro": "简介",
+        "grants": "权限",
+        "contributes": "能力",
+        "info": "信息",
+        "noDescription": "暂无简介",
+        "grantNone": "该插件未声明任何权限",
+        "autoGranted": "自动授予",
+        "sources": "音源",
+        "events": "事件",
+        "controls": "反向控制",
+        "controlsYes": "是",
+        "settingsCount": "设置项",
+        "id": "ID",
+        "author": "作者",
+        "apiLevel": "API 级别",
+        "installed": "安装",
+        "updated": "更新",
+        "homepage": "主页"
+      },
+      "grant": {
+        "network": { "label": "联网", "desc": "插件可发起网络请求" },
+        "control": { "label": "控制", "desc": "插件可控制播放器" }
+      }
     },
     "pluginManager": {
       "label": "插件管理",
