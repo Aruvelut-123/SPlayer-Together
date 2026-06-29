@@ -70,7 +70,10 @@ pnpm build         # Full build: clean → native → typecheck → electron-vit
 
 pnpm build:win     # Package for Windows
 pnpm build:mac     # Package for macOS
-pnpm build:linux   # Package for Linux
+pnpm build:linux   # Package for Linux (AppImage / deb / rpm / tar.gz / pacman)
+
+# Install on Arch / Manjaro / EndeavourOS
+sudo pacman -U dist/splayer-next-*-x64.pacman
 ```
 
 > By default a build targets the current architecture only. To target specific
@@ -84,6 +87,18 @@ pnpm lint             # ESLint
 pnpm format           # Prettier
 pnpm build:native     # Build the Rust native modules only (add `--dev` for debug)
 ```
+
+## Install
+
+### Arch Linux / Manjaro / EndeavourOS
+
+Download the `.pacman` package from the release page and install it with `pacman`:
+
+```bash
+sudo pacman -U splayer-next-*-x64.pacman
+```
+
+> The pacman target is currently considered beta in electron-builder.
 
 ## Acknowledgements
 
