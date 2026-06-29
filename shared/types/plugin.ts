@@ -28,8 +28,8 @@ export const PLUGIN_TYPES = ["source", "control"] as const;
 export type PluginType = (typeof PLUGIN_TYPES)[number];
 
 /** 插件可声明的权限清单 */
-export const PLUGIN_GRANTS = ["network", "control", "ui"] as const;
-/** 插件权限：network 联网 / control 控制播放器 / ui 扩展界面（如菜单项） */
+export const PLUGIN_GRANTS = ["network", "control", "ui", "isolate"] as const;
+/** 插件权限：network 联网 / control 控制播放器 / ui 扩展界面 / isolate 开嵌套子沙箱 */
 export type PluginGrant = (typeof PLUGIN_GRANTS)[number];
 
 /** 控制类插件可订阅的高层播放事件 */
@@ -262,6 +262,18 @@ export interface HostStorage {
   keys: () => Promise<string[]>;
 }
 
+/** 嵌套隔离上下文句柄（插件套插件：在更深的 vm 子沙箱里跑子代码） */
+export interface IsolateHandle {
+  /** 在隔离上下文里执行一段代码，返回其求值结果（同步，5s 超时） */
+  run: (code: string) => unknown;
+  /** 向隔离上下文发消息，触发其 onmessage */
+  sendMessage: (data: unknown) => void;
+  /** 注册接收隔离上下文 postMessage 的回调 */
+  onMessage: (handler: (data: unknown) => void) => void;
+  /** 销毁隔离上下文（清其定时器） */
+  destroy: () => void;
+}
+
 /** 注入沙箱的全局对象形状 */
 export interface HostApi {
   readonly pluginId: string;
@@ -295,6 +307,9 @@ export interface HostApi {
 
   /** 控制类设置变更回调：用户改设置后触发 */
   onSettingChange: (key: string, handler: (value: unknown) => void) => void;
+
+  /** 创建嵌套子沙箱（需 isolate 权限，每插件上限 ISOLATE_MAX_PER_PLUGIN）；未授权则缺省 */
+  createIsolate?: () => IsolateHandle;
 }
 
 /* ========== 沙箱 ↔ 主进程消息协议 ========== */
@@ -304,12 +319,18 @@ export interface PluginErrorPayload {
   message: string;
 }
 
-/** 主 → worker */
+/**
+ * 主 ↔ 插件 host 的消息协议
+ * 一个 host 进程托管多个插件 vm 上下文：按插件的消息带 pluginId 路由，
+ * loadPlugin/unloadPlugin/ping 为 host 级控制消息。
+ */
 export type SandboxIn =
   | {
-      kind: "init";
+      kind: "loadPlugin";
       pluginId: string;
       apiLevel: number;
+      /** 插件已授予的权限（worker 内 createIsolate 等按此门控） */
+      grant: PluginGrant[];
       locale: string;
       appVersion: string;
       userSettings: Record<string, unknown>;
@@ -322,42 +343,49 @@ export type SandboxIn =
         homepage: string;
       };
     }
-  | { kind: "call"; requestId: string; action: PluginAction; params: unknown }
-  | { kind: "cancel"; requestId: string }
+  | { kind: "unloadPlugin"; pluginId: string }
+  | { kind: "call"; pluginId: string; requestId: string; action: PluginAction; params: unknown }
+  | { kind: "cancel"; pluginId: string; requestId: string }
   | {
       kind: "hostResult";
+      pluginId: string;
       callId: string;
       ok: boolean;
       data?: unknown;
       error?: PluginErrorPayload;
     }
   | { kind: "ping" }
-  | { kind: "event"; event: PlaybackEventKind; data: unknown }
-  | { kind: "settingsUpdate"; settings: Record<string, unknown> };
+  | { kind: "event"; pluginId: string; event: PlaybackEventKind; data: unknown }
+  | { kind: "settingsUpdate"; pluginId: string; settings: Record<string, unknown> };
 
-/** worker → 主 */
+/** 插件 host → 主 */
 export type SandboxOut =
-  | { kind: "ready"; sources: Record<string, SourceCapability> }
+  /** host 进程 fork 后就绪一次（无 pluginId） */
+  | { kind: "hostReady" }
+  | { kind: "ready"; pluginId: string; sources: Record<string, SourceCapability> }
   | {
       kind: "result";
+      pluginId: string;
       requestId: string;
       ok: boolean;
       data?: unknown;
       error?: PluginErrorPayload;
     }
-  | { kind: "hostCall"; callId: string; method: HostCallMethod; args: unknown[] }
-  | { kind: "updateAvailable"; info: PluginUpdateInfo }
+  | { kind: "hostCall"; pluginId: string; callId: string; method: HostCallMethod; args: unknown[] }
+  | { kind: "updateAvailable"; pluginId: string; info: PluginUpdateInfo }
   | {
       kind: "log";
+      /** 缺省表示 host 级日志（如无法归因的 unhandledRejection） */
+      pluginId?: string;
       level: "debug" | "info" | "warn" | "error";
       args: unknown[];
     }
-  | { kind: "fatal"; error: PluginErrorPayload }
+  | { kind: "fatal"; pluginId: string; error: PluginErrorPayload }
   | { kind: "pong" }
   /** sources 增量上报 */
-  | { kind: "sourcesUpdate"; sources: Record<string, SourceCapability> }
+  | { kind: "sourcesUpdate"; pluginId: string; sources: Record<string, SourceCapability> }
   /** 控制/UI 类注册上报 */
-  | ({ kind: "registered" } & PluginRegistration);
+  | ({ kind: "registered"; pluginId: string } & PluginRegistration);
 
 /** worker 调用回宿主的方法名 */
 export type HostCallMethod =

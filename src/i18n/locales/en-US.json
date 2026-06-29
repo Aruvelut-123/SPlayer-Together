@@ -1587,7 +1587,8 @@
       "grant": {
         "network": { "label": "Network", "desc": "Can make network requests" },
         "control": { "label": "Control", "desc": "Can control the player" },
-        "ui": { "label": "Interface", "desc": "Can extend or modify the app interface" }
+        "ui": { "label": "Interface", "desc": "Can extend or modify the app interface" },
+        "isolate": { "label": "Sub-sandbox", "desc": "Can create nested sandboxes to run sub-code" }
       }
     },
     "pluginManager": {
