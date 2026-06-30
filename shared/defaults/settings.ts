@@ -58,6 +58,7 @@ export const defaultSystemConfig: SystemConfig = {
     animation: true,
     alwaysOnTop: true,
     locked: false,
+    useCSSDrag: false,
   },
   dynamicIsland: {
     scale: 1,

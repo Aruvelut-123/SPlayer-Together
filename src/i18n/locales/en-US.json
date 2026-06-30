@@ -1080,6 +1080,10 @@
       "label": "Lock Window",
       "description": "Make window click-through and non-draggable"
     },
+    "desktopLyricUseCSSDrag" : {
+      "label": "Enable CSS Drag",
+      "description": "Enable CSS-based drag, recommended for Wayland environments"
+    },
     "dynamicIslandEnabled": {
       "label": "Enable Dynamic Island",
       "description": "Show a compact floating lyric window at the top of the screen; drag it anywhere"

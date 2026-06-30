@@ -133,6 +133,12 @@ const desktopLyricSection: SettingSection = {
       binding: { store: "settings", path: "system.desktopLyric.locked" },
       defaultValue: false,
     },
+    {
+      key: "desktopLyricUseCSSDrag",
+      type: "switch",
+      binding: { store: "settings", path: "system.desktopLyric.useCSSDrag" },
+      defaultValue: false,
+    }
   ],
 };
 

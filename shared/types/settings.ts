@@ -132,6 +132,8 @@ export interface DesktopLyricSettings {
   alwaysOnTop: boolean;
   /** 锁定：鼠标穿透、禁止拖动 */
   locked: boolean;
+  /** 是否使用原生CSS窗口拖动 */
+  useCSSDrag: boolean;
 }
 
 /** 灵动岛歌词配置 */
