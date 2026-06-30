@@ -143,7 +143,7 @@ const rootStyle = computed(() => ({
   "--dl-mask": config.backgroundMaskColor,
   "--dl-anim": config.animation ? "0.4s" : "0s",
   fontFamily: config.fontFamily || undefined,
-  "-webkit-app-region": config.useCSSDrag ? "drag" : "no-drag",
+  "-webkit-app-region": (!config.locked && config.useCSSDrag) ? "drag" : "no-drag",
 }));
 
 /** 常驻信息文字对齐 */
@@ -345,7 +345,6 @@ onBeforeUnmount(() => {
 }
 .root.locked {
   cursor: default;
-  -webkit-app-region: no-drag;
 }
 .root.hovered:not(.locked) {
   background: rgba(0, 0, 0, 0.5);
