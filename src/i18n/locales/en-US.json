@@ -1080,7 +1080,7 @@
       "label": "Lock Window",
       "description": "Make window click-through and non-draggable"
     },
-    "desktopLyricUseCSSDrag" : {
+    "desktopLyricUseCSSDrag": {
       "label": "Enable CSS Drag",
       "description": "Enable CSS-based drag, recommended for Wayland environments"
     },
@@ -1136,7 +1136,7 @@
       "label": "Non-Occlusive Mode",
       "description": "Click-through window; hide on hover"
     },
-    "dynamicIslandUseCSSDrag" : {
+    "dynamicIslandUseCSSDrag": {
       "label": "Enable CSS Drag",
       "description": "Enable CSS-based drag, recommended for Wayland environments"
     },

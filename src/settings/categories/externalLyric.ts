@@ -138,7 +138,7 @@ const desktopLyricSection: SettingSection = {
       type: "switch",
       binding: { store: "settings", path: "system.desktopLyric.useCSSDrag" },
       defaultValue: false,
-    }
+    },
   ],
 };
 
@@ -243,7 +243,7 @@ const dynamicIslandSection: SettingSection = {
       type: "switch",
       binding: { store: "settings", path: "system.dynamicIsland.useCSSDrag" },
       defaultValue: false,
-    }
+    },
   ],
 };
 

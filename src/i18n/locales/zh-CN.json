@@ -1068,7 +1068,7 @@
       "label": "锁定窗口",
       "description": "锁定后鼠标点击将穿透到下层窗口，无法拖动"
     },
-    "desktopLyricUseCSSDrag" : {
+    "desktopLyricUseCSSDrag": {
       "label": "使用 CSS 拖拽",
       "description": "使用 CSS -webkit-app-region 拖拽，在 Wayland 环境建议启用"
     },
@@ -1124,7 +1124,7 @@
       "label": "非遮挡模式",
       "description": "鼠标穿透窗口，悬停时隐藏内容"
     },
-    "dynamicIslandUseCSSDrag" : {
+    "dynamicIslandUseCSSDrag": {
       "label": "使用 CSS 拖拽",
       "description": "使用 CSS -webkit-app-region 拖拽，在 Wayland 环境建议启用"
     },

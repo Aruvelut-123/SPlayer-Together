@@ -143,7 +143,7 @@ const rootStyle = computed(() => ({
   "--dl-mask": config.backgroundMaskColor,
   "--dl-anim": config.animation ? "0.4s" : "0s",
   fontFamily: config.fontFamily || undefined,
-  "-webkit-app-region": (!config.locked && config.useCSSDrag) ? "drag" : "no-drag",
+  "-webkit-app-region": !config.locked && config.useCSSDrag ? "drag" : "no-drag",
 }));
 
 /** 常驻信息文字对齐 */
