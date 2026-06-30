@@ -37,9 +37,6 @@ export const HEARTBEAT_MAX_MISSES = 3;
 /** 自动重启次数 */
 export const RESTART_MAX_ATTEMPTS = 3;
 
-/** 单个插件可同时持有的嵌套子沙箱（isolate）上限 */
-export const ISOLATE_MAX_PER_PLUGIN = 5;
-
 /** 错误码 */
 export const PluginErrorCodes = {
   /** 未知错误 */

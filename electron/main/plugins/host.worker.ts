@@ -21,15 +21,12 @@ import type {
   HostCallMethod,
   HostRequestOptions,
   HostRequestResult,
-  IsolateHandle,
   PluginAction,
-  PluginGrant,
   RegisterArgs,
   SandboxIn,
   SandboxOut,
   SourceCapability,
 } from "@shared/types/plugin";
-import { ISOLATE_MAX_PER_PLUGIN } from "@shared/defaults/plugin-api";
 import { installLxShim } from "./lx-shim";
 
 const parentPort: {
@@ -98,7 +95,6 @@ const send = (msg: SandboxOut): void => {
 /** 单个插件在 host 内的运行记录 */
 interface PluginContextRecord {
   pluginId: string;
-  grant: PluginGrant[];
   /** action → handler */
   handlers: Map<PluginAction, (req: unknown) => Promise<unknown>>;
   /** 高层播放事件回调表，key = PlaybackEventKind */
@@ -116,8 +112,6 @@ interface PluginContextRecord {
   /** 注入沙箱的定时器句柄，卸载时统一清除，避免泄露/继续运行 */
   timers: Set<NodeJS.Timeout>;
   immediates: Set<NodeJS.Immediate>;
-  /** 嵌套子沙箱（isolate），key = isoId */
-  isolates: Map<string, { destroy: () => void }>;
   callSeq: number;
   disposed: boolean;
 }
@@ -186,112 +180,6 @@ const makeTimers = (record: PluginContextRecord): Record<string, unknown> => ({
     clearImmediate(handle);
   },
 });
-
-/** 为某插件构造 createIsolate（开嵌套子沙箱跑子代码，需 isolate 权限） */
-const makeCreateIsolate =
-  (record: PluginContextRecord): (() => IsolateHandle) =>
-  () => {
-    if (record.isolates.size >= ISOLATE_MAX_PER_PLUGIN) {
-      throw new Error(`max isolates (${ISOLATE_MAX_PER_PLUGIN}) reached`);
-    }
-    const isoId = `iso${++record.callSeq}`;
-    const isoTimers = new Set<NodeJS.Timeout>();
-    let pluginOnMessage: ((data: unknown) => void) | null = null;
-    let destroyed = false;
-    const log = (level: "info" | "warn" | "error", args: unknown[]): void =>
-      send({
-        kind: "log",
-        pluginId: record.pluginId,
-        level,
-        args: sanitizeForIpc(args) as unknown[],
-      });
-
-    const isoGlobal: Record<string, unknown> = {
-      // isolate → 插件
-      postMessage: (data: unknown) => {
-        try {
-          pluginOnMessage?.(data);
-        } catch {
-          /* 隔离插件回调异常 */
-        }
-      },
-      onmessage: null,
-      Buffer,
-      Promise,
-      URL,
-      URLSearchParams,
-      TextEncoder,
-      TextDecoder,
-      JSON,
-      Math,
-      btoa: (str: string): string => Buffer.from(str, "binary").toString("base64"),
-      atob: (str: string): string => Buffer.from(str, "base64").toString("binary"),
-      console: {
-        log: (...a: unknown[]) => log("info", a),
-        info: (...a: unknown[]) => log("info", a),
-        warn: (...a: unknown[]) => log("warn", a),
-        error: (...a: unknown[]) => log("error", a),
-        debug: (...a: unknown[]) => log("info", a),
-      },
-      setTimeout: (cb: () => void, ms?: number): NodeJS.Timeout => {
-        const handle = setTimeout(() => {
-          isoTimers.delete(handle);
-          cb();
-        }, ms);
-        isoTimers.add(handle);
-        return handle;
-      },
-      setInterval: (cb: () => void, ms?: number): NodeJS.Timeout => {
-        const handle = setInterval(cb, ms);
-        isoTimers.add(handle);
-        return handle;
-      },
-      clearTimeout: (handle?: NodeJS.Timeout): void => {
-        if (handle) isoTimers.delete(handle);
-        clearTimeout(handle);
-      },
-      clearInterval: (handle?: NodeJS.Timeout): void => {
-        if (handle) isoTimers.delete(handle);
-        clearInterval(handle);
-      },
-    };
-    isoGlobal.globalThis = isoGlobal;
-    const isoCtx = vm.createContext(isoGlobal, {
-      name: `isolate:${record.pluginId}:${isoId}`,
-      codeGeneration: { strings: true, wasm: false },
-    });
-
-    const destroy = (): void => {
-      destroyed = true;
-      for (const handle of isoTimers) clearTimeout(handle);
-      isoTimers.clear();
-      record.isolates.delete(isoId);
-    };
-    record.isolates.set(isoId, { destroy });
-
-    return {
-      run: (code: string) => {
-        if (destroyed) throw new Error("isolate destroyed");
-        const script = new vm.Script(String(code), { filename: `isolate-${isoId}.js` });
-        return script.runInContext(isoCtx, { timeout: 5_000, breakOnSigint: false });
-      },
-      sendMessage: (data: unknown) => {
-        if (destroyed) return;
-        const fn = isoGlobal.onmessage;
-        if (typeof fn === "function") {
-          try {
-            (fn as (d: unknown) => void)(data);
-          } catch {
-            /* ignore */
-          }
-        }
-      },
-      onMessage: (handler: (data: unknown) => void) => {
-        pluginOnMessage = handler;
-      },
-      destroy,
-    };
-  };
 
 type LoadSpec = Extract<SandboxIn, { kind: "loadPlugin" }>;
 
@@ -489,14 +377,6 @@ const disposeRecord = (record: PluginContextRecord): void => {
   record.timers.clear();
   for (const handle of record.immediates) clearImmediate(handle);
   record.immediates.clear();
-  for (const iso of [...record.isolates.values()]) {
-    try {
-      iso.destroy();
-    } catch {
-      /* ignore */
-    }
-  }
-  record.isolates.clear();
   record.handlers.clear();
   record.playerEventHandlers.clear();
   record.settingChangeHandlers.clear();
@@ -516,7 +396,6 @@ const loadPluginIntoContext = (spec: LoadSpec): void => {
 
   const record: PluginContextRecord = {
     pluginId: spec.pluginId,
-    grant: spec.grant ?? [],
     handlers: new Map(),
     playerEventHandlers: new Map(),
     settingChangeHandlers: new Map(),
@@ -526,7 +405,6 @@ const loadPluginIntoContext = (spec: LoadSpec): void => {
     userSettingsCache: spec.userSettings ?? {},
     timers: new Set(),
     immediates: new Set(),
-    isolates: new Map(),
     callSeq: 0,
     disposed: false,
   };
@@ -534,10 +412,6 @@ const loadPluginIntoContext = (spec: LoadSpec): void => {
 
   const splayer = buildSplayer(record, spec);
   (splayer as any).utils = buildUtils();
-  // 嵌套子沙箱仅授予 isolate 权限的插件（能力隐藏）
-  if (record.grant.includes("isolate")) {
-    (splayer as any).createIsolate = makeCreateIsolate(record);
-  }
 
   const timerApi = makeTimers(record);
   const sandboxGlobal: Record<string, unknown> = {

@@ -113,7 +113,7 @@ SPlayer-Next 内置一套插件系统，允许用第三方 JavaScript 扩展应�
 | `@description` |      | 简介                                                                                                                                                  |
 | `@author`      |      | 作者                                                                                                                                                  |
 | `@homepage`    |      | 主页 URL                                                                                                                                              |
-| `@grant`       |      | 控制插件声明权限：`network`（联网）/ `control`（控制播放器）/ `ui`（扩展界面，如菜单项）/ `isolate`（嵌套子沙箱），逗号分隔；音源插件自动获 `network` |
+| `@grant`       |      | 控制插件声明权限：`network`（联网）/ `control`（控制播放器）/ `ui`（扩展界面，如菜单项），逗号分隔；音源插件自动获 `network` |
 | `@type`        |      | `source`（音源，默认）或 `control`（控制）；**建议显式声明**，决定插件类型与权限默认                                                                  |
 | `@apiLevel`    |      | 声明兼容的 [API 级别](#api-级别)，当前宿主为 `2`；控制插件需声明 `2`                                                                                  |
 | `@updateUrl`   |      | 更新检查地址，详见 [插件更新](/plugins/update)                                                                                                        |
@@ -132,7 +132,6 @@ SPlayer-Next 内置一套插件系统，允许用第三方 JavaScript 扩展应�
 | `network` | `splayer.request`         | 发起网络请求           |
 | `control` | `splayer.player.*`        | 反向控制播放器         |
 | `ui`      | `register({ menus })`     | 向歌曲菜单等界面添加项 |
-| `isolate` | `splayer.createIsolate()` | 创建嵌套子沙箱跑子代码 |
 
 - **音源插件**（`@type source`，含缺省）**自动获得 `network`**，无需声明——联网解析 URL 是其本职。
 - **控制插件**（`@type control`）要联网（如把当前曲目/歌词推给外部服务）必须声明 `@grant network`；要反向控制播放器必须声明 `@grant control`；要向歌曲菜单添加菜单项必须声明 `@grant ui`（详见 [控制插件 · 菜单扩展](/plugins/control#菜单扩展)）。

@@ -451,7 +451,6 @@ class PluginRegistry extends EventEmitter {
     const spec: PluginLoadSpec = {
       pluginId: id,
       apiLevel: rt.manifest.apiLevel,
-      grant: rt.manifest.grant,
       locale: getLocale(),
       appVersion: app.getVersion(),
       userSettings,

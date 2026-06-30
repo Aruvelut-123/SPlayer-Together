@@ -1575,8 +1575,7 @@
       "grant": {
         "network": { "label": "联网", "desc": "插件可发起网络请求" },
         "control": { "label": "控制", "desc": "插件可控制播放器" },
-        "ui": { "label": "界面", "desc": "插件可扩展或修改应用界面" },
-        "isolate": { "label": "子沙箱", "desc": "插件可创建嵌套沙箱运行子代码" }
+        "ui": { "label": "界面", "desc": "插件可扩展或修改应用界面" }
       }
     },
     "pluginManager": {

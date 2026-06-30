@@ -5,7 +5,6 @@ import { isExternalUrl, openExternal } from "@/utils/url";
 import IconGlobe from "~icons/lucide/globe";
 import IconGamepad from "~icons/lucide/gamepad-2";
 import IconMenu from "~icons/lucide/menu";
-import IconBox from "~icons/lucide/box";
 
 const props = defineProps<{ open: boolean; info: PluginInfo | null }>();
 const emit = defineEmits<{
@@ -19,7 +18,6 @@ const GRANT_ICONS: Record<PluginGrant, Component> = {
   network: IconGlobe,
   control: IconGamepad,
   ui: IconMenu,
-  isolate: IconBox,
 };
 
 /** ready 时的状态对象（含 sources/events/controls/settings/ui） */

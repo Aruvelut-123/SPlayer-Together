@@ -280,30 +280,6 @@ splayer.on("menuClick", async ({ menuId, track }) => {
 `menuClick` 与其它处理器一样跑在隔离子进程中，**没有 DOM**：不能弹自定义窗口/面板，面向用户的反馈只有上面三种返回动作。要联网（`splayer.request`）需 `@grant network`，要控制播放（`splayer.player.*`）需 `@grant control`——菜单本身只需 `ui`。
 :::
 
-## 嵌套子沙箱
-
-声明 `@grant isolate` 后，插件可用 `splayer.createIsolate()` 开一个**更深的 vm 子沙箱**跑子代码（如动态加载、运行不可信脚本），通过消息收发交互。每插件最多 5 个，卸载插件时自动销毁。
-
-```js
-const iso = splayer.createIsolate();
-iso.onMessage((data) => splayer.log.info("from isolate:", data));
-iso.run(`onmessage = (n) => postMessage(n * 2);`);
-iso.sendMessage(21); // → isolate 回 42
-// 用完销毁
-iso.destroy();
-```
-
-| 成员                 | 说明                                |
-| -------------------- | ----------------------------------- |
-| `run(code)`          | 在子沙箱里执行代码（同步，5s 超时） |
-| `sendMessage(data)`  | 向子沙箱发消息，触发其 `onmessage`  |
-| `onMessage(handler)` | 接收子沙箱 `postMessage` 发来的消息 |
-| `destroy()`          | 销毁子沙箱                          |
-
-::: tip
-子沙箱只有 `postMessage`/`onmessage` 与基础工具，**拿不到** `splayer`——它是"在插件里再隔离一层跑代码"，不是调用别的已装插件。
-:::
-
 ## 更新支持
 
 控制插件在脚本头声明 `@updateUrl` 后，宿主会拉取它读 `@version` 与本地比对，发现新版即在卡片上提示，用户可一键原地更新（保留已配置的设置项与插件数据）。完整说明见 [插件更新](/plugins/update)。
