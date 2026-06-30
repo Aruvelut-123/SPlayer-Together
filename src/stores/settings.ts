@@ -75,6 +75,7 @@ export const useSettingsStore = defineStore(
       adaptiveFontSize: true,
       fontSize: 48,
       fontWeight: 700,
+      lyricBlendMode: "normal",
       fontFamily: "",
       showTranslation: true,
       showRomanization: true,

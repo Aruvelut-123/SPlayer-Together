@@ -913,6 +913,13 @@
       "label": "歌词字重",
       "description": "歌词文字粗细"
     },
+    "lyricBlendMode": {
+      "label": "歌词混合模式",
+      "description": "控制歌词与背景的混合方式",
+      "normal": "Normal",
+      "screen": "Screen",
+      "plusLighter": "Plus Lighter"
+    },
     "followCoverColor": {
       "label": "跟随封面颜色",
       "description": "歌词颜色跟随当前封面主色调"
