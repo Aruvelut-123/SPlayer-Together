@@ -10,7 +10,7 @@
  */
 
 import type { LyricLine, LyricWord } from "@shared/types/lyrics";
-import { detectBackgroundLine } from "./bg";
+import { detectBackgroundLine, splitTrailingBackground } from "./bg";
 
 /** 行头：[起始毫秒, 时长毫秒] */
 const LINE_HEADER_RE = /^\[(\d+),(\d+)\]/;
@@ -57,7 +57,7 @@ export const parseQRC = (text: string): LyricLine[] => {
 
     if (words.length === 0) continue;
 
-    lines.push({
+    const line: LyricLine = {
       words,
       translatedLyric: "",
       romanLyric: "",
@@ -65,7 +65,13 @@ export const parseQRC = (text: string): LyricLine[] => {
       endTime: lineStart + lineDur,
       isBG: detectBackgroundLine(words),
       isDuet: false,
-    });
+    };
+    lines.push(line);
+    // 行内尾随和声「主歌词（和声）」拆成紧随的背景行
+    if (!line.isBG) {
+      const bg = splitTrailingBackground(line);
+      if (bg) lines.push(bg);
+    }
   }
 
   return lines;
