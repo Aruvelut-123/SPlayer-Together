@@ -13,6 +13,7 @@ import * as queue from "@/stores/queue";
 import * as fm from "./fm";
 import * as playback from "@/services/playback";
 import * as lyricLoader from "@/services/lyricLoader";
+import * as coverLoader from "@/services/coverLoader";
 import * as abLoop from "@/services/abLoop";
 import * as cacheScheduler from "@/services/cacheScheduler";
 import { resolveTrackSource } from "@/services/audioSource";
@@ -94,6 +95,7 @@ export const load = async (source: string, autoPlay = true, meta?: Track): Promi
   if (isOnline) {
     void lyricLoader.loadForTrack(null);
     extractColorFromUrl(meta?.cover ?? meta?.coverOriginal ?? null);
+    if (meta) void coverLoader.loadCoverForTrack(meta);
   }
   try {
     const result = await window.api.player.load(source, { autoPlay, meta });
@@ -110,6 +112,7 @@ export const load = async (source: string, autoPlay = true, meta?: Track): Promi
       if (!isOnline) {
         lyricLoader.loadForTrack(detail);
         extractColorFromUrl(enriched?.cover ?? null);
+        if (enriched) void coverLoader.loadCoverForTrack(enriched);
       }
       const dur = enriched?.duration ?? mediaInfo.duration;
       status.duration = dur;

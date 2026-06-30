@@ -4,7 +4,7 @@ SPlayer-Next 内置一套插件系统，允许用第三方 JavaScript 扩展应�
 
 本文介绍插件系统的整体架构、运行模型与两类插件共用的通用 API。具体的编写方式见：
 
-- [音源插件](/plugins/source)：解析歌曲的播放地址（`musicUrl`）。
+- [音源插件](/plugins/source)：解析歌曲的播放地址（`musicUrl`），并可兜底歌词与封面（内置来源拿不到时，不限在线平台）。
 - [控制插件](/plugins/control)：监听播放状态、反向控制播放、声明设置项、向歌曲菜单添加菜单项。
 - [插件更新](/plugins/update)：脚本如何声明更新地址、宿主如何检查版本、用户如何一键更新（两类插件通用）。
 
@@ -52,13 +52,11 @@ SPlayer-Next 内置一套插件系统，允许用第三方 JavaScript 扩展应�
                └──────────────────────┘
 ```
 
-由此：
+由此，对你写插件意味着：
 
-- **应用不被插件拖垮**：host 是独立进程，插件抛错/崩溃搞不崩应用界面；正在播放的音频在原生引擎里，照常播放。
-- **轻量规模**：插件是廉价的 vm 上下文而非独立进程，可同时启用多个音源/控制插件，无数量限制。
-- **共享一条事件循环**：某插件死循环会拖住同进程的其它插件，约 30 秒后看门狗把整个 host 重启（重载所有已启用插件）。
-- **崩溃整体恢复**：host 崩溃会一次性带走全部插件，随后按退避自动重载所有已启用插件。
-- **数据隔离**：插件读不到应用或别的插件的数据，只能通过 `splayer.storage` 持久化自己的数据。
+- **一个插件出问题不连累全局**：host 是独立进程，单个插件抛错或崩溃不会拖垮应用界面，正在播放的音频也照常播放。
+- **别写阻塞或死循环**：所有插件共享 host 的一条事件循环，某个插件长时间卡死会拖住同进程的其它插件，并最终触发看门狗重启整个 host（崩溃自愈见[下文](#生命周期与状态)）。
+- **数据是隔离的**：插件读不到应用或别的插件的数据，只能通过 `splayer.storage` 持久化自己的数据。
 
 ### 两种交互模型
 
@@ -143,7 +141,7 @@ SPlayer-Next 内置一套插件系统，允许用第三方 JavaScript 扩展应�
 
 | 级别 | 引入的能力                                                                                                                                                                          |
 | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `1`  | 音源能力：`register({ sources })`、`musicUrl` 处理器，以及通用 API（`request` / `storage` / `log` / `getSetting` / `utils`）                                                        |
+| `1`  | 音源能力：`register({ sources })`、`musicUrl` 处理器、元数据兜底处理器（`musicSearch` / `musicLyric` / `musicPic`），以及通用 API（`request` / `storage` / `log` / `getSetting` / `utils`） |
 | `2`  | 控制能力：`register({ events, controls, settings })`、`splayer.player` 事件订阅与反向控制、`onSettingChange`；界面能力：`register({ menus })`、`menuClick` 处理器（需 `@grant ui`） |
 
 当前宿主级别为 **2**。规则：
@@ -310,7 +308,7 @@ await window.api.plugins.list();
 // 直接触发一次音源解析
 await window.api.plugins.resolveUrl({
   pluginId: "my-plugin-splayer",
-  source: "sa",
+  source: "wy",
   quality: "hq",
   musicInfo: { songmid: "123" },
 });
