@@ -463,9 +463,6 @@ onBeforeUnmount(() => {
 .header-btn:hover {
   background-color: rgba(255, 255, 255, 0.2);
 }
-.logo-btn {
-  -webkit-app-region: no-drag;
-}
 .logo-btn :deep(svg) {
   width: 24px;
   height: 24px;
