@@ -164,6 +164,8 @@ export interface DynamicIslandSettings {
   doubleLine: boolean;
   /** 显示翻译 */
   showTranslation: boolean;
+  /** 是否使用原生CSS窗口拖动 */
+  useCSSDrag: boolean;
 }
 
 /** 任务栏歌词位置模式 */

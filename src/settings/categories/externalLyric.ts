@@ -238,6 +238,12 @@ const dynamicIslandSection: SettingSection = {
       binding: { store: "settings", path: "system.dynamicIsland.nonOcclusive" },
       defaultValue: false,
     },
+    {
+      key: "dynamicIslandUseCSSDrag",
+      type: "switch",
+      binding: { store: "settings", path: "system.dynamicIsland.useCSSDrag" },
+      defaultValue: false,
+    }
   ],
 };
 

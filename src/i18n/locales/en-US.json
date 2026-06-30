@@ -1136,6 +1136,10 @@
       "label": "Non-Occlusive Mode",
       "description": "Click-through window; hide on hover"
     },
+    "dynamicIslandUseCSSDrag" : {
+      "label": "Enable CSS Drag",
+      "description": "Enable CSS-based drag, recommended for Wayland environments"
+    },
     "taskbarLyricEnabled": {
       "label": "Enable Taskbar Lyric",
       "description": "Embed lyrics into the Windows taskbar"

@@ -74,6 +74,7 @@ export const defaultSystemConfig: SystemConfig = {
     nonOcclusive: false,
     doubleLine: false,
     showTranslation: false,
+    useCSSDrag: false,
   },
   taskbarLyric: {
     position: "auto",
