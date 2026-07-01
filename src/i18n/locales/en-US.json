@@ -925,6 +925,13 @@
       "label": "Font Weight",
       "description": "Lyric text weight"
     },
+    "lyricBlendMode": {
+      "label": "Lyric Blend Mode",
+      "description": "Controls how lyrics blend with the background",
+      "normal": "Normal",
+      "screen": "Screen",
+      "plusLighter": "Plus Lighter"
+    },
     "followCoverColor": {
       "label": "Follow Cover Color",
       "description": "Lyric color follows the current cover art"

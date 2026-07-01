@@ -287,6 +287,7 @@ const toggleLyric = (): void => {
                 fontSize: lyricFontSize,
                 fontWeight: String(settings.lyric.fontWeight),
                 fontFamily: settings.lyric.fontFamily || undefined,
+                mixBlendMode: settings.lyric.lyricBlendMode,
               }"
             >
               <AMLLLyrics

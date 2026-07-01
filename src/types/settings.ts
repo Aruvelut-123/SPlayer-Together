@@ -32,6 +32,9 @@ export type SpringPreset =
   | "noBounce"
   | "custom";
 
+/** 歌词混合模式 */
+export type LyricBlendMode = "normal" | "screen" | "plus-lighter";
+
 /** 弹簧预设参数映射 */
 export const SPRING_PRESETS: Record<
   Exclude<SpringPreset, "custom">,
@@ -73,6 +76,8 @@ export interface LyricSettings {
   fontSize: number;
   /** 歌词字重（100~900） */
   fontWeight: number;
+  /** 歌词混合模式 */
+  lyricBlendMode: LyricBlendMode;
   /** 歌词字体 */
   fontFamily: string;
   /** 是否显示翻译歌词 */
