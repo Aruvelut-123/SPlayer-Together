@@ -1,7 +1,7 @@
 import type { LyricLine, LyricWord } from "@shared/types/lyrics";
 
-/** 行首括号（全 / 半角） */
-const OPEN_PAREN_RE = /^[（(]/;
+/** 行首括号（全 / 半角），允许前导空格 */
+const OPEN_PAREN_RE = /^\s*[（(]/;
 
 /** 行尾括号（全 / 半角） */
 const CLOSE_PAREN_RE = /[）)]$/;
