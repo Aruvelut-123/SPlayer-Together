@@ -108,7 +108,7 @@ export const invokeMenu = async (args: PluginInvokeMenuArgs): Promise<MenuClickR
   }
   const params: MenuClickReq = { menuId: args.menuId, track: args.track };
   return await callOn<MenuClickRes>(rt, "menuClick", params, ACTION_TIMEOUTS.menuClick);
-}
+};
 
 /** 在某插件上搜某源候选（host 元数据匹配用） */
 export const callMusicSearch = (rt: PluginRuntime, req: MusicSearchReq): Promise<MusicSearchRes> =>
@@ -120,4 +120,4 @@ export const callMusicLyric = (rt: PluginRuntime, req: MusicLyricReq): Promise<M
 
 /** 在某插件上取某条已匹配候选的封面 */
 export const callMusicPic = (rt: PluginRuntime, req: MusicPicReq): Promise<MusicPicRes> =>
-  callOn<MusicPicRes>(rt, "musicPic", req, ACTION_TIMEOUTS.musicPic);;
+  callOn<MusicPicRes>(rt, "musicPic", req, ACTION_TIMEOUTS.musicPic);

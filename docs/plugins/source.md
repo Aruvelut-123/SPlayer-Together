@@ -84,11 +84,11 @@ splayer.register({
 
 `sources` 是一个 `Record<string, Source>`，键即 [source key](#工作原理)（`wy` / `tx` / `kg`），值为 `Source`：
 
-| 字段        | 类型             | 必填 | 说明                            |
-| ----------- | ---------------- | ---- | ------------------------------- |
-| `name`      | `string`         | ✅   | 音源展示名（仅用于 UI 展示）    |
-| `actions`   | `Action[]`       | ✅   | 支持的动作：`musicUrl`（播放地址）/ `musicSearch`·`musicLyric`·`musicPic`（[元数据兜底](#metadata-fallback)） |
-| `qualities` | `Quality[]`      |      | 支持的音质，仅用于 UI 展示      |
+| 字段        | 类型        | 必填 | 说明                                                                                                          |
+| ----------- | ----------- | ---- | ------------------------------------------------------------------------------------------------------------- |
+| `name`      | `string`    | ✅   | 音源展示名（仅用于 UI 展示）                                                                                  |
+| `actions`   | `Action[]`  | ✅   | 支持的动作：`musicUrl`（播放地址）/ `musicSearch`·`musicLyric`·`musicPic`（[元数据兜底](#metadata-fallback)） |
+| `qualities` | `Quality[]` |      | 支持的音质，仅用于 UI 展示                                                                                    |
 
 `Quality` 取值：
 
@@ -223,7 +223,7 @@ splayer.register({
 
 | 字段         | 类型     | 必填 | 说明                                                                               |
 | ------------ | -------- | ---- | ---------------------------------------------------------------------------------- |
-| `id`         | `string` | ✅   | 该源内的歌曲 ID，取歌词 / 封面时凭它                                                |
+| `id`         | `string` | ✅   | 该源内的歌曲 ID，取歌词 / 封面时凭它                                               |
 | `name`       | `string` | ✅   | 歌名（匹配用）                                                                     |
 | `singer`     | `string` |      | 歌手（匹配用）                                                                     |
 | `album`      | `string` |      | 专辑（匹配加分）                                                                   |
