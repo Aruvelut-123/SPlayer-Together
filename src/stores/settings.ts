@@ -65,6 +65,9 @@ export const useSettingsStore = defineStore(
       spectrumBarWidth: 4,
       songLevel: "hq",
       timeFormat: "current-total",
+      showProgressTooltip: true,
+      showProgressLyric: false,
+      snapToLyric: false,
     });
 
     /** 歌词 */

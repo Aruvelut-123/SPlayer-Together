@@ -6,8 +6,8 @@ import { useFavorite } from "@/composables/useFavorite";
 import { usePlaylistPicker } from "@/composables/usePlaylistPicker";
 import { useTrackMenu } from "@/composables/useTrackMenu";
 import { useDownload } from "@/composables/useDownload";
+import { useProgressLyric } from "@/composables/useProgressLyric";
 import * as player from "@/core/player";
-import { formatTime } from "@/utils/time";
 import IconFavorite from "~icons/material-symbols/favorite-rounded";
 import IconFavoriteOutline from "~icons/material-symbols/favorite-outline-rounded";
 import IconLucideMoreHorizontal from "~icons/lucide/more-horizontal";
@@ -17,12 +17,16 @@ const settings = useSettingsStore();
 const media = useMediaStore();
 const fav = useFavorite();
 const { position, duration } = storeToRefs(status);
+const { formatTooltip, snapToNearestLyric } = useProgressLyric();
 
 /** 是否是浮动模式 */
 const isFloating = computed(() => settings.appearance.layoutMode === "floating");
+/** 是否显示进度条提示 */
+const showTooltip = computed(() => settings.player.showProgressTooltip);
 
 const onSeekDragEnd = (value: number): void => {
-  player.seek(value);
+  const snappedValue = snapToNearestLyric(value);
+  player.seek(snappedValue);
 };
 
 /** 添加到歌单 */
@@ -100,9 +104,10 @@ const { items: menuItems, handleSelect: onMenuSelect } = useTrackMenu(toRef(medi
         :track-height="3"
         :thumb-size="10"
         :always-show-thumb="false"
+        :show-popover="showTooltip"
         @drag-end="onSeekDragEnd"
       >
-        <template #popover="{ value }">{{ formatTime(value) }}</template>
+        <template #popover="{ value }">{{ formatTooltip(value) }}</template>
       </SSlider>
     </div>
     <div class="shrink-0">
@@ -120,9 +125,10 @@ const { items: menuItems, handleSelect: onMenuSelect } = useTrackMenu(toRef(medi
         :track-height="3"
         :thumb-size="12"
         :always-show-thumb="false"
+        :show-popover="showTooltip"
         @drag-end="onSeekDragEnd"
       >
-        <template #popover="{ value }">{{ formatTime(value) }}</template>
+        <template #popover="{ value }">{{ formatTooltip(value) }}</template>
       </SSlider>
     </div>
     <div class="grid grid-cols-[1fr_auto_1fr] items-center h-full px-3 gap-3">

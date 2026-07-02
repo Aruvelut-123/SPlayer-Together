@@ -745,6 +745,18 @@
       "remainingTotal": "剩余时间 / 总时长",
       "currentRemaining": "播放时间 / 剩余时间"
     },
+    "showProgressTooltip": {
+      "label": "显示进度条悬浮信息",
+      "description": "拖拽进度条时显示悬浮提示框"
+    },
+    "showProgressLyric": {
+      "label": "进度条悬浮时显示歌词",
+      "description": "悬浮提示框中同时显示当前时间对应的歌词"
+    },
+    "snapToLyric": {
+      "label": "进度调节吸附最近歌词",
+      "description": "调节进度时自动吸附到最近的歌词行"
+    },
     "enableSpectrum": {
       "label": "启用音乐频谱",
       "description": "实时频谱分析会持续占用一定的 CPU，性能敏感设备建议关闭"

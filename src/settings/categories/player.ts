@@ -195,6 +195,26 @@ const playerCategory: SettingCategory = {
           binding: { store: "settings", path: "player.autoImmersive" },
           defaultValue: false,
         },
+        {
+          key: "showProgressTooltip",
+          type: "switch",
+          binding: { store: "settings", path: "player.showProgressTooltip" },
+          defaultValue: true,
+          children: [
+            {
+              key: "showProgressLyric",
+              type: "switch",
+              binding: { store: "settings", path: "player.showProgressLyric" },
+              defaultValue: false,
+            },
+          ],
+        },
+        {
+          key: "snapToLyric",
+          type: "switch",
+          binding: { store: "settings", path: "player.snapToLyric" },
+          defaultValue: false,
+        },
       ],
     },
     {
