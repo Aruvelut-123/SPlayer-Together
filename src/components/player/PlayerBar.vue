@@ -90,9 +90,7 @@ const { items: menuItems, handleSelect: onMenuSelect } = useTrackMenu(toRef(medi
             </div>
           </template>
         </TrackInfo>
-        <span class="text-xs text-on-surface-variant/70 tabular-nums shrink-0">
-          {{ formatTime(position) }} / {{ formatTime(duration) }}
-        </span>
+        <PlayerTimeInfo compact />
       </div>
       <SSlider
         :model-value="position"
@@ -171,10 +169,8 @@ const { items: menuItems, handleSelect: onMenuSelect } = useTrackMenu(toRef(medi
         </template>
       </TrackInfo>
       <PlayerControls class="mx-15" />
-      <div class="flex items-center justify-end gap-3 min-w-0">
-        <span class="text-xs text-on-surface-variant tabular-nums shrink-0">
-          {{ formatTime(position) }} / {{ formatTime(duration) }}
-        </span>
+      <div class="flex items-center justify-end gap-2 min-w-0">
+        <PlayerTimeInfo />
         <Toolbar />
       </div>
     </div>

@@ -9,6 +9,14 @@ export type PlayerBgType = "blur" | "solid" | "animation";
 export type CoverLayout = "default" | "fullscreen";
 
 /**
+ * 歌曲播放时间显示格式
+ * - current-total: 播放时间 / 总时长
+ * - remaining-total: 剩余时间 / 总时长
+ * - current-remaining: 播放时间 / 剩余时间
+ */
+export type TimeFormat = "current-total" | "remaining-total" | "current-remaining";
+
+/**
  * 歌词来源偏好
  * - auto：智能选择（按打分结果）
  * - Platform（netease / qqmusic / kugou…）：优先该平台
@@ -166,6 +174,8 @@ export interface PlayerSettings {
   spectrumBarWidth: number;
   /** 在线歌曲音质偏好；实际可用级别取决于账号权限 */
   songLevel: QualityLevel;
+  /** 时间显示格式 */
+  timeFormat: TimeFormat;
 }
 
 /** 外观设置 */

@@ -64,6 +64,7 @@ export const useSettingsStore = defineStore(
       enableSpectrum: false,
       spectrumBarWidth: 4,
       songLevel: "hq",
+      timeFormat: "current-total",
     });
 
     /** 歌词 */

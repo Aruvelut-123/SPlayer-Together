@@ -173,6 +173,7 @@ declare module 'vue' {
     PlayerControls: typeof import('./src/components/player/PlayerControls.vue')['default']
     PlayerCover: typeof import('./src/components/player/FullPlayer/PlayerCover.vue')['default']
     PlayerData: typeof import('./src/components/player/FullPlayer/PlayerData.vue')['default']
+    PlayerTimeInfo: typeof import('./src/components/player/PlayerTimeInfo.vue')['default']
     PlaylistCreateDialog: typeof import('./src/components/modals/PlaylistCreateDialog.vue')['default']
     PlaylistPickerDialog: typeof import('./src/components/modals/PlaylistPickerDialog.vue')['default']
     PluginCard: typeof import('./src/components/settings/custom/PluginCard.vue')['default']
