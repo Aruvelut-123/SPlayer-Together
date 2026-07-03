@@ -195,6 +195,12 @@
       "quick": "Quick",
       "history": "Recent searches",
       "hot": "Trending"
+    },
+    "link": {
+      "song": "Play [{id}]",
+      "album": "Go to album [{id}]",
+      "artist": "Go to artist [{id}]",
+      "playlist": "Go to playlist [{id}]"
     }
   },
   "home": {

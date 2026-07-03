@@ -183,6 +183,12 @@
       "quick": "快捷",
       "history": "搜索历史",
       "hot": "热搜榜"
+    },
+    "link": {
+      "song": "直接播放「{id}」",
+      "album": "前往专辑「{id}」",
+      "artist": "前往歌手「{id}」",
+      "playlist": "前往歌单「{id}」"
     }
   },
   "home": {
