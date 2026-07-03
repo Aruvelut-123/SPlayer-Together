@@ -16,11 +16,14 @@ const status = useStatusStore();
 const media = useMediaStore();
 const { isExpanded, isPlaying } = storeToRefs(status);
 
-/** 当前歌词文本，播放中且有匹配歌词时显示 */
+/** 主歌词行 */
+const mainLines = computed(() => media.parsedLyric.filter((l) => !l.isBG));
+
+/** 当前歌词文本 */
 const currentLyricText = computed(() => {
-  if (!isPlaying.value || media.lyricIndex < 0) return null;
-  const line = media.parsedLyric[media.lyricIndex];
-  if (!line) return null;
+  if (!isPlaying.value || media.lyricIndex < 0 || !mainLines.value.length) return null;
+  const currentMs = media.parsedLyric[media.lyricIndex]?.startTime ?? 0;
+  const line = mainLines.value.findLast((l) => l.startTime <= currentMs) ?? mainLines.value[0];
   const text = line.words.map((w) => w.word).join("");
   return line.translatedLyric ? `${text}（${line.translatedLyric}）` : text;
 });
