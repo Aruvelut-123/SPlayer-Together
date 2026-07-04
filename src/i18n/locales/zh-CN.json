@@ -657,6 +657,7 @@
       "download": "下载配置",
       "localCache": "本地与缓存",
       "plugins": "插件管理",
+      "other": "其他设置",
       "about": "关于软件"
     },
     "section": {
@@ -702,7 +703,8 @@
       "downloadGeneral": "下载选项",
       "downloadTags": "写入内容",
       "backupReset": "备份与重置",
-      "debug": "调试"
+      "debug": "调试",
+      "preset": "强迫症配置"
     },
     "about": {
       "checkUpdate": "检查更新",
@@ -720,6 +722,26 @@
     "autoPlay": {
       "label": "自动播放",
       "description": "加载歌曲后自动开始播放"
+    },
+    "fuckDjMode": {
+      "label": "Fuck DJ Mode",
+      "description": "歌曲名字带有 DJ 抖音 0.9 0.8 网红 车载 热歌 慢摇 自动跳过"
+    },
+    "uncensorProfanity": {
+      "label": "Fuck ** Mode",
+      "description": "把歌词里的 f**k 等屏蔽词还原为原词"
+    },
+    "hideVipTag": {
+      "label": "隐藏 VIP 标签",
+      "description": "歌曲列表中不显示 VIP 标签"
+    },
+    "hideQualityTag": {
+      "label": "隐藏音质标签",
+      "description": "歌曲列表中不显示音质标签"
+    },
+    "showSubtitle": {
+      "label": "显示副标题",
+      "description": "歌曲列表中显示别名等副标题信息"
     },
     "rememberLastTrack": {
       "label": "记忆播放进度",

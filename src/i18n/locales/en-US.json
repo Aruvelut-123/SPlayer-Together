@@ -669,6 +669,7 @@
       "download": "Downloads",
       "localCache": "Local & Cache",
       "plugins": "Plugin Manager",
+      "other": "Other",
       "about": "About"
     },
     "section": {
@@ -714,7 +715,8 @@
       "cache": "Caches",
       "database": "Database",
       "backupReset": "Backup & Reset",
-      "debug": "Debug"
+      "debug": "Debug",
+      "preset": "OCD Settings"
     },
     "about": {
       "checkUpdate": "Check for Updates",
@@ -732,6 +734,26 @@
     "autoPlay": {
       "label": "Auto Play",
       "description": "Automatically start playback after loading a track"
+    },
+    "fuckDjMode": {
+      "label": "Fuck DJ Mode",
+      "description": "Auto skip songs with DJ, TikTok, 0.9, 0.8, viral, car, hot, slow rock in the title"
+    },
+    "uncensorProfanity": {
+      "label": "Fuck ** Mode",
+      "description": "Restore masked profanity in lyrics to original words"
+    },
+    "hideVipTag": {
+      "label": "Hide VIP Tag",
+      "description": "Don't show VIP tags in song list"
+    },
+    "hideQualityTag": {
+      "label": "Hide Quality Tag",
+      "description": "Don't show quality tags in song list"
+    },
+    "showSubtitle": {
+      "label": "Show Subtitle",
+      "description": "Show alias and other subtitle info in song list"
     },
     "rememberLastTrack": {
       "label": "Remember Progress",

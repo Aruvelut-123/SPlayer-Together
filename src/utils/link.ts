@@ -22,7 +22,8 @@ const RULES: Array<{ source: TrackSource; pattern: RegExp; typeMap: Record<strin
     // 匹配两种格式：
     // 1. /song?id=123456 （PC 端）
     // 2. /song/123456/?userid=xxx （移动端分享）
-    pattern: /music\.163\.com(?:\/#)?\/(song|album|artist|playlist)(?:\?(?:.*&)?id=(\d+)|\/(\d+)(?:\/|\?))/,
+    pattern:
+      /music\.163\.com(?:\/#)?\/(song|album|artist|playlist)(?:\?(?:.*&)?id=(\d+)|\/(\d+)(?:\/|\?))/,
     typeMap: { song: "song", album: "album", artist: "artist", playlist: "playlist" },
   },
 ];

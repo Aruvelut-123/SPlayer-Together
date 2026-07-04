@@ -205,3 +205,17 @@ export interface AppearanceSettings {
   /** 性能监视器悬浮卡片 */
   showPerformanceMonitor: boolean;
 }
+
+/** 强迫症设置 */
+export interface PresetSettings {
+  /** Fuck DJ Mode */
+  fuckDjMode: boolean;
+  /** Fuck ** Mode */
+  uncensorProfanity: boolean;
+  /** 隐藏歌曲列表的 VIP 标签 */
+  hideVipTag: boolean;
+  /** 隐藏歌曲列表的音质标签 */
+  hideQualityTag: boolean;
+  /** 显示歌曲副标题（别名） */
+  showSubtitle: boolean;
+}

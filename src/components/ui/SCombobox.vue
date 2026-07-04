@@ -68,12 +68,14 @@ const optionMap = computed(
 );
 
 const selectedOptions = computed(() =>
-  selectedValues.value.map((v) => {
-    const opt = optionMap.value.get(v);
-    if (opt) return opt;
-    if (props.fallbackOption) return { value: v, label: String(v) } as SComboboxOption;
-    return null;
-  }).filter((o): o is SComboboxOption => !!o),
+  selectedValues.value
+    .map((v) => {
+      const opt = optionMap.value.get(v);
+      if (opt) return opt;
+      if (props.fallbackOption) return { value: v, label: String(v) } as SComboboxOption;
+      return null;
+    })
+    .filter((o): o is SComboboxOption => !!o),
 );
 
 const visibleTags = computed(() => selectedOptions.value.slice(0, props.maxTagCount));
