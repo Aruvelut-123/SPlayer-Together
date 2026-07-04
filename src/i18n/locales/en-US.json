@@ -94,6 +94,9 @@
     "more": "More",
     "save": "Save",
     "reset": "Reset",
+    "retry": "Retry",
+    "prev": "Previous",
+    "next": "Next",
     "search": "Search",
     "loading": "Loading",
     "noData": "No data",
@@ -106,6 +109,17 @@
     "totalAlbums": "{count} albums",
     "totalArtists": "{count} artists",
     "totalPlaylists": "{count} playlists"
+  },
+  "comments": {
+    "name": "Song Comments",
+    "title": "Comments for \"{name}\"",
+    "hot": "Top Comments",
+    "new": "Latest Comments",
+    "loading": "Loading comments...",
+    "empty": "No comments yet",
+    "noSource": "No comment source available",
+    "location": "From {location}",
+    "page": "Page {page} / {total}"
   },
   "equalizer": {
     "title": "Equalizer",
@@ -181,6 +195,12 @@
       "quick": "Quick",
       "history": "Recent searches",
       "hot": "Trending"
+    },
+    "link": {
+      "song": "Play [{id}]",
+      "album": "Go to album [{id}]",
+      "artist": "Go to artist [{id}]",
+      "playlist": "Go to playlist [{id}]"
     }
   },
   "home": {
