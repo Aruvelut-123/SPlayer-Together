@@ -759,6 +759,10 @@
       "label": "Remember Progress",
       "description": "Restore playback position on startup"
     },
+    "showLyricInBar": {
+      "label": "Show Lyric While Playing",
+      "description": "Replace artist name with current lyric in the bottom player bar"
+    },
     "fadeEnabled": {
       "label": "Fade In/Out",
       "description": "Audio fade on play and pause"

@@ -69,6 +69,7 @@ export const useSettingsStore = defineStore(
       showProgressTooltip: true,
       showProgressLyric: false,
       snapToLyric: false,
+      showLyricInBar: true,
     });
 
     /** 强迫症设置 */

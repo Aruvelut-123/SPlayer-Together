@@ -747,6 +747,10 @@
       "label": "记忆播放进度",
       "description": "启动时恢复上次歌曲的播放进度"
     },
+    "showLyricInBar": {
+      "label": "播放时显示歌词",
+      "description": "底部播放栏播放时将歌手名替换为当前歌词"
+    },
     "fadeEnabled": {
       "label": "渐入渐出",
       "description": "播放和暂停时音频淡入淡出"

@@ -182,6 +182,8 @@ export interface PlayerSettings {
   showProgressLyric: boolean;
   /** 进度调节吸附最近歌词 */
   snapToLyric: boolean;
+  /** 播放时底部显示歌词而非歌手名 */
+  showLyricInBar: boolean;
 }
 
 /** 外观设置 */
