@@ -103,7 +103,8 @@ const syncCueTracks = async (dirs: string[]): Promise<number> => {
           id,
           path: cueTrack.path,
           cuePath: cueTrack.cuePath,
-          cueAudioPath: cueTrack.cueAudioPath,
+          // 存容器整轨的真实入库路径（而非 CUE FILE 行解析值），保证与容器行 path 精确相等，据此隐藏容器
+          cueAudioPath: audio.path,
           cueStartMs: cueTrack.cueStartMs,
           cueEndMs: cueTrack.cueEndMs,
           title: cueTrack.title,

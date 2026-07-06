@@ -1,6 +1,5 @@
-import fs from "node:fs/promises";
 import path from "node:path";
-import type { Artist, Track } from "@shared/types/player";
+import type { Artist } from "@shared/types/player";
 
 export interface CueTrackInfo {
   title: string;
@@ -38,10 +37,6 @@ const commandPattern = /^\s*([A-Z0-9]+)\s*(.*)$/i;
 /** 生成 CUE 分轨在库中的稳定虚拟路径 */
 export const toCueTrackPath = (cuePath: string, trackNumber: number): string =>
   `cue://${cuePath}#track=${trackNumber.toString().padStart(2, "0")}`;
-
-/** 判断曲目是否为 CUE 虚拟分轨 */
-export const isCueTrack = (track: Pick<Track, "cuePath" | "cueAudioPath"> | null | undefined) =>
-  !!track?.cuePath && !!track.cueAudioPath;
 
 /** 从 CUE 命令参数中取第一个字段，支持双引号包裹的值 */
 const readToken = (value: string): string => {
@@ -144,8 +139,7 @@ export const parseCueSheet = (
   const state = parseState(content);
   if (state.files.length !== 1 || audioDurationMs <= 0) return [];
   const file = state.files[0];
-  const audioPath = getCueAudioPath(content, cuePath);
-  if (!audioPath) return [];
+  const audioPath = path.resolve(path.dirname(cuePath), file.path);
   const indexedTracks = file.tracks
     .filter((track) => track.index01 != null)
     .sort((a, b) => (a.index01 ?? 0) - (b.index01 ?? 0));
@@ -175,17 +169,4 @@ export const parseCueSheet = (
       };
     })
     .filter((track): track is CueTrackInfo => track !== null);
-};
-
-/**
- * 读取并解析 CUE 文件。
- * @param cuePath - CUE 文件路径
- * @param audioDurationMs - 真实音频总时长
- */
-export const readCueSheet = async (
-  cuePath: string,
-  audioDurationMs: number,
-): Promise<CueTrackInfo[]> => {
-  const content = await fs.readFile(cuePath, "utf8");
-  return parseCueSheet(content, cuePath, audioDurationMs);
 };
