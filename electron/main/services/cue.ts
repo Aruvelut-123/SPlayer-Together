@@ -38,6 +38,16 @@ const commandPattern = /^\s*([A-Z0-9]+)\s*(.*)$/i;
 export const toCueTrackPath = (cuePath: string, trackNumber: number): string =>
   `cue://${cuePath}#track=${trackNumber.toString().padStart(2, "0")}`;
 
+/**
+ * 从 CUE 虚拟路径中提取真实的 CUE 文件路径
+ * @param cueTrackPath - 虚拟路径，格式为 `cue://{cuePath}#track={number}`
+ * @returns 真实的 CUE 文件路径，格式不匹配时返回 null
+ */
+export const extractCuePath = (cueTrackPath: string): string | null => {
+  const match = cueTrackPath.match(/^cue:\/\/(.+)#track=\d{2}$/);
+  return match?.[1] ?? null;
+};
+
 /** 从 CUE 命令参数中取第一个字段，支持双引号包裹的值 */
 const readToken = (value: string): string => {
   const trimmed = value.trim();

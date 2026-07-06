@@ -17,7 +17,7 @@ import { toMs } from "@main/utils/time";
 import { parseArtists, parseAlbum } from "@main/utils/metadata";
 import { getCoverCacheDir } from "@main/utils/config";
 import { libraryLog } from "@main/utils/logger";
-import { getCueAudioPath, parseCueSheet } from "./cue";
+import { getCueAudioPath, parseCueSheet, extractCuePath } from "./cue";
 
 let scanning = false;
 
@@ -134,8 +134,10 @@ const syncCueTracks = async (
   if (upserts.length > 0) upsertTracks(upserts);
   const stalePaths = getCueTrackPathsByDirs(dirs).filter((trackPath) => {
     if (nextPaths.has(trackPath)) return false;
-    // 不可达目录下的分轨不删除
-    return !unavailableDirs.some((dir) => trackPath.startsWith(dir));
+    // 不可达目录下的分轨不删除：从虚拟路径提取真实 cuePath 做目录判断
+    const realCuePath = extractCuePath(trackPath);
+    if (!realCuePath) return true;
+    return !unavailableDirs.some((dir) => realCuePath.startsWith(dir));
   });
   if (stalePaths.length > 0) deleteTracksByPaths(stalePaths);
   return nextPaths.size;
