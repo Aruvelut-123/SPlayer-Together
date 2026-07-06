@@ -6,6 +6,7 @@
  */
 
 import { randomBytes } from "node:crypto";
+import { net } from "electron";
 import {
   API_DOMAIN,
   DOMAIN,
@@ -266,7 +267,12 @@ export const createRequest = async (
 
   let res: Response;
   try {
-    res = await fetch(url, { method: "POST", headers, body, signal: AbortSignal.timeout(8000) });
+    res = await net.fetch(url, {
+      method: "POST",
+      headers,
+      body,
+      signal: AbortSignal.timeout(8000),
+    });
   } catch (err) {
     answer.status = 502;
     answer.body = { code: 502, msg: err instanceof Error ? err.message : String(err) };

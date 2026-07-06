@@ -23,6 +23,7 @@ import {
   dispose as disposePlaybackBridge,
 } from "@main/plugins/playbackBridge";
 import { registerCacheScheme, handleCacheProtocol } from "@main/utils/protocol";
+import { applyNetworkProxy } from "@main/utils/proxy";
 import { startServer, stopServer } from "@main/server";
 import { initUpdater, disposeUpdater } from "@main/services/updater";
 import { coreLog, initLogger } from "@main/utils/logger";
@@ -101,6 +102,8 @@ export const initApp = (): void => {
     electronApp.setAppUserModelId("top.imsyy.splayer-next");
     // 注册 cache:// 协议处理
     handleCacheProtocol();
+    // 应用持久化网络代理
+    void applyNetworkProxy();
     app.on("browser-window-created", (_, window) => {
       optimizer.watchWindowShortcuts(window);
     });

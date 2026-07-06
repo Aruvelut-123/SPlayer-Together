@@ -132,6 +132,15 @@ const descriptionText = computed(() =>
           :disabled="isDisabled"
           class="w-full"
         />
+        <SInput
+          v-else-if="item.type === 'text'"
+          :model-value="model"
+          :placeholder="item.placeholderKey ? t(item.placeholderKey) : ''"
+          :disabled="isDisabled"
+          clearable
+          class="w-full"
+          @update:model-value="applyChange($event)"
+        />
         <component
           :is="item.component"
           v-else-if="item.type === 'custom' && item.component"

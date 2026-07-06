@@ -31,6 +31,7 @@ import { isWin } from "@main/utils/config";
 import { startServer, stopServer } from "@main/server";
 import { setOrpheusProtocolRegistered } from "@main/services/orpheus";
 import { setTaskbarThumbnailEnabled } from "@main/services/thumbnail";
+import { applyNetworkProxy } from "@main/utils/proxy";
 
 /** 配置写入后的副作用 */
 const applyConfigChange = (keyPath: string, value: unknown): void => {
@@ -69,6 +70,11 @@ const applyConfigChange = (keyPath: string, value: unknown): void => {
       break;
     case "system.registerOrpheusProtocol":
       setOrpheusProtocolRegistered(value as boolean);
+      break;
+    case "system.networkProxy.protocol":
+    case "system.networkProxy.host":
+    case "system.networkProxy.port":
+      void applyNetworkProxy();
       break;
     case "externalApi.enabled":
       void (value ? startServer() : stopServer());

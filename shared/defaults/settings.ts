@@ -145,6 +145,11 @@ export const defaultSystemConfig: SystemConfig = {
     uiZoom: 100,
     onboardingCompleted: false,
     neteaseRealIp: false,
+    networkProxy: {
+      protocol: "off",
+      host: "127.0.0.1",
+      port: 80,
+    },
     neteaseScrobbleEnabled: false,
     neteaseScrobbleMode: "ncbl",
     registerOrpheusProtocol: false,

@@ -1,7 +1,17 @@
 import type { SettingCategory } from "@/types/settings-schema";
+import { useSettingsStore } from "@/stores/settings";
+import { toast } from "@/composables/useToast";
+import i18n from "@/i18n";
 import ExternalApiPanel from "@/components/settings/custom/ExternalApiPanel.vue";
 import LastfmPanel from "@/components/settings/custom/LastfmPanel.vue";
 import IconLucideGlobe from "~icons/lucide/globe";
+
+const testNetworkProxy = async (): Promise<void> => {
+  const ok = await window.api.system.testNetworkProxy();
+  const { t } = i18n.global;
+  if (ok) toast.success(t("settings.networkProxyTest.success"));
+  else toast.error(t("settings.networkProxyTest.failed"));
+};
 
 const servicesCategory: SettingCategory = {
   id: "services",
@@ -10,6 +20,43 @@ const servicesCategory: SettingCategory = {
     {
       id: "network",
       items: [
+        {
+          key: "networkProxyProtocol",
+          type: "select",
+          binding: { store: "settings", path: "system.system.networkProxy.protocol" },
+          options: [
+            { value: "off", labelKey: "settings.networkProxyProtocol.off" },
+            { value: "http", labelKey: "settings.networkProxyProtocol.http" },
+            { value: "https", labelKey: "settings.networkProxyProtocol.https" },
+          ],
+          defaultValue: "off",
+          childrenCondition: () =>
+            useSettingsStore().system.system.networkProxy.protocol !== "off",
+          children: [
+            {
+              key: "networkProxyHost",
+              type: "text",
+              binding: { store: "settings", path: "system.system.networkProxy.host" },
+              defaultValue: "127.0.0.1",
+              placeholderKey: "settings.networkProxyHost.placeholder",
+              disabled: () => useSettingsStore().system.system.networkProxy.protocol === "off",
+            },
+            {
+              key: "networkProxyPort",
+              type: "number",
+              binding: { store: "settings", path: "system.system.networkProxy.port" },
+              min: 1,
+              max: 65535,
+              defaultValue: 80,
+              disabled: () => useSettingsStore().system.system.networkProxy.protocol === "off",
+            },
+            {
+              key: "networkProxyTest",
+              type: "button",
+              action: testNetworkProxy,
+            },
+          ],
+        },
         {
           key: "neteaseRealIp",
           type: "switch",

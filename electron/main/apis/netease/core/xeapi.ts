@@ -5,6 +5,7 @@
  * 拉取 X25519 公钥包（缓存于进程），首次请求后服务端经响应头下发会话密钥，后续请求复用。
  */
 
+import { net } from "electron";
 import { API_DOMAIN, UA_MAP } from "./config";
 import { xeapiSign, xeapiDecryptPublicKey, type XeapiPublicKey } from "./crypto";
 
@@ -40,7 +41,7 @@ const fetchPublicKey = async (
     uid: "",
   };
 
-  const res = await fetch(`${API_DOMAIN}/api/gorilla/anti/crawler/security/key/get`, {
+  const res = await net.fetch(`${API_DOMAIN}/api/gorilla/anti/crawler/security/key/get`, {
     method: "POST",
     headers: {
       "User-Agent": UA_MAP.api.android,
