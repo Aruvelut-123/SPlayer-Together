@@ -44,7 +44,7 @@ export const toCueTrackPath = (cuePath: string, trackNumber: number): string =>
  * @returns 真实的 CUE 文件路径，格式不匹配时返回 null
  */
 export const extractCuePath = (cueTrackPath: string): string | null => {
-  const match = cueTrackPath.match(/^cue:\/\/(.+)#track=\d{2}$/);
+  const match = cueTrackPath.match(/^cue:\/\/(.+)#track=\d+$/);
   return match?.[1] ?? null;
 };
 
