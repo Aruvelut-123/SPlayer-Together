@@ -6,13 +6,6 @@ import ExternalApiPanel from "@/components/settings/custom/ExternalApiPanel.vue"
 import LastfmPanel from "@/components/settings/custom/LastfmPanel.vue";
 import IconLucideGlobe from "~icons/lucide/globe";
 
-const testNetworkProxy = async (): Promise<void> => {
-  const ok = await window.api.system.testNetworkProxy();
-  const { t } = i18n.global;
-  if (ok) toast.success(t("settings.networkProxyTest.success"));
-  else toast.error(t("settings.networkProxyTest.failed"));
-};
-
 const servicesCategory: SettingCategory = {
   id: "services",
   icon: IconLucideGlobe,
@@ -56,7 +49,16 @@ const servicesCategory: SettingCategory = {
             {
               key: "networkProxyTest",
               type: "button",
-              action: testNetworkProxy,
+              action: async () => {
+                const { t } = i18n.global;
+                try {
+                  const ok = await window.api.system.testNetworkProxy();
+                  if (ok) toast.success(t("settings.networkProxyTest.success"));
+                  else toast.error(t("settings.networkProxyTest.failed"));
+                } catch {
+                  toast.error(t("settings.networkProxyTest.failed"));
+                }
+              },
             },
           ],
         },

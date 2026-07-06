@@ -28,7 +28,9 @@ export const applyNetworkProxy = async (): Promise<void> => {
       session.defaultSession.setProxy(proxyConfig),
       session.fromPartition(MAIN_PARTITION).setProxy(proxyConfig),
     ]);
-    systemLog.info(`[proxy] mode=${proxyConfig.mode ?? "fixed_servers"}${proxyConfig.proxyRules ? ` rules=${proxyConfig.proxyRules}` : ""}`);
+    systemLog.info(
+      `[proxy] mode=${proxyConfig.mode ?? "fixed_servers"}${proxyConfig.proxyRules ? ` rules=${proxyConfig.proxyRules}` : ""}`,
+    );
   } catch (err) {
     systemLog.warn("[proxy] apply failed", err);
   }

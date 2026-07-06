@@ -139,7 +139,8 @@ const descriptionText = computed(() =>
           :disabled="isDisabled"
           clearable
           class="w-full"
-          @update:model-value="applyChange($event)"
+          @update:model-value="model = $event"
+          @blur="applyChange(model)"
         />
         <component
           :is="item.component"
