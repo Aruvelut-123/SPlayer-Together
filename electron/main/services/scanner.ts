@@ -54,7 +54,11 @@ export const scannedToUpsert = (track: JsScannedTrack): UpsertTrack => {
 };
 
 /** 同步 CUE 虚拟曲目到曲库 */
-const syncCueTracks = async (cueFiles: string[], dirs: string[]): Promise<number> => {
+const syncCueTracks = async (
+  cueFiles: string[],
+  dirs: string[],
+  unavailableDirs: string[] = [],
+): Promise<number> => {
   const allTracks = getAllTracks();
   // 真实音频文件
   const audioByPath = new Map(
@@ -119,11 +123,20 @@ const syncCueTracks = async (cueFiles: string[], dirs: string[]): Promise<number
       }
     } catch (error) {
       libraryLog.warn(`解析 CUE 失败 [${cuePath}]:`, error);
+      // 解析失败时保留既有分轨，避免误删
+      const existing = existingByCue.get(pathKey(cuePath));
+      if (existing) {
+        for (const trackPath of existing.paths) nextPaths.add(trackPath);
+      }
     }
   }
 
   if (upserts.length > 0) upsertTracks(upserts);
-  const stalePaths = getCueTrackPathsByDirs(dirs).filter((trackPath) => !nextPaths.has(trackPath));
+  const stalePaths = getCueTrackPathsByDirs(dirs).filter((trackPath) => {
+    if (nextPaths.has(trackPath)) return false;
+    // 不可达目录下的分轨不删除
+    return !unavailableDirs.some((dir) => trackPath.startsWith(dir));
+  });
   if (stalePaths.length > 0) deleteTracksByPaths(stalePaths);
   return nextPaths.size;
 };
@@ -134,7 +147,7 @@ const finishScan = async (dirs: string[], event: JsScanEvent): Promise<void> => 
     deleteTracksByPaths(event.removedPaths);
     libraryLog.info(`清理 ${event.removedPaths.length} 个已删除文件`);
   }
-  const cueCount = await syncCueTracks(event.cueFiles ?? [], dirs);
+  const cueCount = await syncCueTracks(event.cueFiles ?? [], dirs, event.unavailableDirs ?? []);
   scanning = false;
   broadcast("library:scanProgress", {
     phase: "done",

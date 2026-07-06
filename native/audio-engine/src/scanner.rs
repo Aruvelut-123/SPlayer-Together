@@ -66,6 +66,8 @@ pub enum ScanEvent {
         removed_paths: Vec<String>,
         /// 遍历时顺带收集到的 CUE 文件路径
         cue_files: Vec<String>,
+        /// 不可达的扫描目录
+        unavailable_dirs: Vec<String>,
     },
 }
 
@@ -244,6 +246,7 @@ pub fn scan_directories(
                 total,
                 removed_paths: Vec::new(),
                 cue_files: std::mem::take(&mut cue_files),
+                unavailable_dirs: unavailable_dirs.iter().map(|s| s.to_string()).collect(),
             });
             return;
         }
@@ -318,5 +321,6 @@ pub fn scan_directories(
         total,
         removed_paths,
         cue_files,
+        unavailable_dirs: unavailable_dirs.iter().map(|s| s.to_string()).collect(),
     });
 }
