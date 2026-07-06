@@ -729,6 +729,8 @@ pub struct JsScanEvent {
     pub tracks: Option<Vec<JsScannedTrack>>,
     /// 已删除的文件路径列表（仅 done 事件）
     pub removed_paths: Option<Vec<String>>,
+    /// 遍历时收集到的 CUE 文件路径（仅 done 事件）
+    pub cue_files: Option<Vec<String>>,
 }
 
 /// 批量扫描目录，通过回调推送进度和结果
@@ -781,11 +783,13 @@ pub fn scan_dirs(
                     scanned,
                     total,
                     removed_paths,
+                    cue_files,
                 } => JsScanEvent {
                     event_type: "done".into(),
                     scanned,
                     total,
                     removed_paths: Some(removed_paths),
+                    cue_files: Some(cue_files),
                     ..Default::default()
                 },
             };

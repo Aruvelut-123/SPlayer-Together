@@ -53,43 +53,37 @@ export const scannedToUpsert = (track: JsScannedTrack): UpsertTrack => {
   };
 };
 
-/** 递归查找目录下的 CUE 文件 */
-const findCueFiles = async (dirs: string[]): Promise<string[]> => {
-  const files: string[] = [];
-  const walk = async (dir: string): Promise<void> => {
-    let entries: import("node:fs").Dirent[];
-    try {
-      entries = await fs.readdir(dir, { withFileTypes: true });
-    } catch (error) {
-      libraryLog.warn(`读取 CUE 目录失败 [${dir}]:`, error);
-      return;
-    }
-    for (const entry of entries) {
-      const fullPath = path.join(dir, entry.name);
-      if (entry.isDirectory()) {
-        await walk(fullPath);
-      } else if (entry.isFile() && entry.name.toLowerCase().endsWith(".cue")) {
-        files.push(fullPath);
-      }
-    }
-  };
-  for (const dir of dirs) await walk(dir);
-  return files;
-};
-
 /** 同步 CUE 虚拟曲目到曲库 */
-const syncCueTracks = async (dirs: string[]): Promise<number> => {
-  const audioTracks = getAllTracks().filter((track) => track.source === "local" && !track.cuePath);
+const syncCueTracks = async (cueFiles: string[], dirs: string[]): Promise<number> => {
+  const allTracks = getAllTracks();
+  // 真实音频文件
   const audioByPath = new Map(
-    audioTracks.flatMap((track) => (track.path ? [[pathKey(track.path), track]] : [])),
+    allTracks.flatMap((track) =>
+      !track.cuePath && track.path ? [[pathKey(track.path), track] as const] : [],
+    ),
   );
-  const cueFiles = await findCueFiles(dirs);
+  // 跳过未变化的 CUE
+  const existingByCue = new Map<string, { mtime: number; paths: string[] }>();
+  for (const track of allTracks) {
+    if (!track.cuePath || !track.path) continue;
+    const key = pathKey(track.cuePath);
+    const group = existingByCue.get(key);
+    if (group) group.paths.push(track.path);
+    else existingByCue.set(key, { mtime: track.mtime ?? -1, paths: [track.path] });
+  }
+
   const upserts: UpsertTrack[] = [];
   const nextPaths = new Set<string>();
 
   for (const cuePath of cueFiles) {
     try {
       const cueStat = await fs.stat(cuePath);
+      const existing = existingByCue.get(pathKey(cuePath));
+      // .cue 未变化
+      if (existing && existing.mtime === cueStat.mtimeMs) {
+        for (const trackPath of existing.paths) nextPaths.add(trackPath);
+        continue;
+      }
       const content = await fs.readFile(cuePath, "utf8");
       const audioPath = getCueAudioPath(content, cuePath);
       if (!audioPath) continue;
@@ -131,7 +125,7 @@ const syncCueTracks = async (dirs: string[]): Promise<number> => {
   if (upserts.length > 0) upsertTracks(upserts);
   const stalePaths = getCueTrackPathsByDirs(dirs).filter((trackPath) => !nextPaths.has(trackPath));
   if (stalePaths.length > 0) deleteTracksByPaths(stalePaths);
-  return upserts.length;
+  return nextPaths.size;
 };
 
 /** 完成 Rust 扫描后的收尾同步 */
@@ -140,7 +134,7 @@ const finishScan = async (dirs: string[], event: JsScanEvent): Promise<void> => 
     deleteTracksByPaths(event.removedPaths);
     libraryLog.info(`清理 ${event.removedPaths.length} 个已删除文件`);
   }
-  const cueCount = await syncCueTracks(dirs);
+  const cueCount = await syncCueTracks(event.cueFiles ?? [], dirs);
   scanning = false;
   broadcast("library:scanProgress", {
     phase: "done",
