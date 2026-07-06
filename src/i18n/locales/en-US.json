@@ -1479,7 +1479,8 @@
     },
     "networkProxyProtocol": {
       "label": "Network Proxy",
-      "description": "Configure a proxy for NCM API and main-window network requests",
+      "description": "Configure a proxy for all network requests",
+      "system": "Follow system",
       "off": "Proxy off",
       "http": "HTTP proxy",
       "https": "HTTPS proxy"

@@ -146,7 +146,7 @@ export const defaultSystemConfig: SystemConfig = {
     onboardingCompleted: false,
     neteaseRealIp: false,
     networkProxy: {
-      protocol: "off",
+      protocol: "system",
       host: "127.0.0.1",
       port: 80,
     },
