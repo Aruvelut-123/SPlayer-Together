@@ -145,7 +145,8 @@ export interface ResolvedTrackSource {
 export const resolveTrackSource = async (track: Track): Promise<ResolvedTrackSource | null> => {
   // 本地文件
   if (track.source === "local") {
-    return track.path ? { source: track.path, fromCache: false } : null;
+    const localPath = track.cueAudioPath ?? track.path;
+    return localPath ? { source: localPath, fromCache: false } : null;
   }
   const settings = useSettingsStore();
   const songLevel = settings.player.songLevel;

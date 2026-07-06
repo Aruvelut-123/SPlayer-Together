@@ -7,6 +7,10 @@ import { getDb } from "./index";
 interface TrackRow {
   id: string;
   path: string;
+  cue_path: string | null;
+  cue_audio_path: string | null;
+  cue_start_ms: number | null;
+  cue_end_ms: number | null;
   title: string;
   track?: number;
   artists: string;
@@ -41,6 +45,10 @@ const rowToTrack = (row: TrackRow): Track => {
     id: row.id,
     source: "local",
     path: row.path,
+    cuePath: row.cue_path ?? undefined,
+    cueAudioPath: row.cue_audio_path ?? undefined,
+    cueStartMs: row.cue_start_ms ?? undefined,
+    cueEndMs: row.cue_end_ms ?? undefined,
     title: row.title,
     track: row.track ?? undefined,
     artists: JSON.parse(row.artists) as Artist[],
@@ -91,10 +99,12 @@ export interface FileRecord {
   size: number;
 }
 
-/** 获取所有文件记录（path + mtime + size），用于增量扫描比对 */
+/** 获取所有真实音频文件记录（path + mtime + size），用于增量扫描比对 */
 export const getFileRecords = (): FileRecord[] => {
   return getDb()
-    .prepare("SELECT path, COALESCE(file_mtime, 0) as mtime, file_size as size FROM tracks")
+    .prepare(
+      "SELECT path, COALESCE(file_mtime, 0) as mtime, file_size as size FROM tracks WHERE cue_path IS NULL",
+    )
     .all() as FileRecord[];
 };
 
@@ -102,6 +112,10 @@ export const getFileRecords = (): FileRecord[] => {
 export interface UpsertTrack {
   id: string;
   path: string;
+  cuePath?: string;
+  cueAudioPath?: string;
+  cueStartMs?: number;
+  cueEndMs?: number;
   title: string;
   track?: number;
   artists: Artist[];
@@ -124,9 +138,9 @@ export const upsertTracks = (tracks: UpsertTrack[]): void => {
   const d = getDb();
   const stmt = d.prepare(`
     INSERT OR REPLACE INTO tracks
-      (id, path, title, track, artists, album, duration, cover, codec, sample_rate, bit_rate, channels, bits_per_sample, file_size, file_mtime, file_ctime, scanned_at)
+      (id, path, cue_path, cue_audio_path, cue_start_ms, cue_end_ms, title, track, artists, album, duration, cover, codec, sample_rate, bit_rate, channels, bits_per_sample, file_size, file_mtime, file_ctime, scanned_at)
     VALUES
-      (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const now = Date.now();
   const tx = d.transaction(() => {
@@ -134,6 +148,10 @@ export const upsertTracks = (tracks: UpsertTrack[]): void => {
       stmt.run(
         t.id,
         t.path,
+        t.cuePath ?? null,
+        t.cueAudioPath ?? null,
+        t.cueStartMs ?? null,
+        t.cueEndMs ?? null,
         t.title,
         t.track ?? null,
         JSON.stringify(t.artists),
@@ -155,14 +173,26 @@ export const upsertTracks = (tracks: UpsertTrack[]): void => {
   tx();
 };
 
+/** 查询指定目录下的 CUE 虚拟曲目路径 */
+export const getCueTrackPathsByDirs = (dirs: string[]): string[] => {
+  if (dirs.length === 0) return [];
+  const rows: { path: string }[] = [];
+  const stmt = getDb().prepare("SELECT path FROM tracks WHERE cue_path LIKE ?");
+  for (const dir of dirs) {
+    const prefix = dir.endsWith("/") || dir.endsWith("\\") ? dir : dir + path.sep;
+    rows.push(...(stmt.all(prefix + "%") as { path: string }[]));
+  }
+  return rows.map((row) => row.path);
+};
+
 /** 批量删除曲目（按路径） */
 export const deleteTracksByPaths = (paths: string[]): void => {
   if (paths.length === 0) return;
   const d = getDb();
-  const stmt = d.prepare("DELETE FROM tracks WHERE path = ?");
+  const stmt = d.prepare("DELETE FROM tracks WHERE path = ? OR cue_audio_path = ? OR cue_path = ?");
   const tx = d.transaction(() => {
     for (const p of paths) {
-      stmt.run(p);
+      stmt.run(p, p, p);
     }
   });
   tx();
@@ -184,8 +214,8 @@ export const searchTracks = (query: string): Track[] => {
 export const deleteTracksByDir = (dir: string): void => {
   const prefix = dir.endsWith("/") || dir.endsWith("\\") ? dir : dir + path.sep;
   getDb()
-    .prepare("DELETE FROM tracks WHERE path LIKE ?")
-    .run(prefix + "%");
+    .prepare("DELETE FROM tracks WHERE path LIKE ? OR cue_path LIKE ? OR cue_audio_path LIKE ?")
+    .run(prefix + "%", prefix + "%", prefix + "%");
 };
 
 /** 专辑列表 */
