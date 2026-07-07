@@ -226,6 +226,19 @@ export interface ExternalApiSettings {
   port: number;
 }
 
+/** 网络代理协议 */
+export type NetworkProxyProtocol = "off" | "http" | "https" | "socks5";
+
+/** 网络代理配置 */
+export interface NetworkProxySettings {
+  /** 代理协议；off 时不改变原始请求路径 */
+  protocol: NetworkProxyProtocol;
+  /** 代理服务器地址 */
+  host: string;
+  /** 代理服务器端口 */
+  port: number;
+}
+
 /** 外部 API 服务运行时状态 */
 export interface ExternalApiStatus {
   /** 是否正在监听 */
@@ -397,6 +410,8 @@ export interface SystemConfig {
     onboardingCompleted: boolean;
     /** NCM请求注入国内 IP（X-Real-IP/X-Forwarded-For） */
     neteaseRealIp: boolean;
+    /** 网络代理配置 */
+    networkProxy: NetworkProxySettings;
     /** 听歌打卡开关 */
     neteaseScrobbleEnabled: boolean;
     /** 听歌打卡上报方式 */

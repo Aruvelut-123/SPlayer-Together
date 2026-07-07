@@ -1465,6 +1465,29 @@
       "label": "任务栏封面预览",
       "description": "悬停任务栏时以专辑封面作为窗口预览，关闭则显示系统默认的实时窗口"
     },
+    "networkProxyProtocol": {
+      "label": "网络代理",
+      "description": "为在线请求配置手动代理",
+      "off": "关闭代理",
+      "http": "HTTP 代理",
+      "https": "HTTPS 代理",
+      "socks5": "SOCKS5 代理"
+    },
+    "networkProxyHost": {
+      "label": "代理服务器地址",
+      "description": "填写代理服务器地址，例如 127.0.0.1",
+      "placeholder": "127.0.0.1"
+    },
+    "networkProxyPort": {
+      "label": "代理服务器端口",
+      "description": "填写代理服务器端口，例如 7890"
+    },
+    "networkProxyTest": {
+      "label": "测试代理",
+      "description": "测试代理配置是否可以正常连通",
+      "success": "该代理可正常使用",
+      "failed": "代理测试失败，请检查配置"
+    },
     "neteaseRealIp": {
       "label": "使用真实IP地址",
       "description": "在海外或部分地区可能会受到限制，可开启此处尝试解决"
