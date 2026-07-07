@@ -18,15 +18,15 @@ const servicesCategory: SettingCategory = {
           type: "select",
           binding: { store: "settings", path: "system.system.networkProxy.protocol" },
           options: [
-            { value: "system", labelKey: "settings.networkProxyProtocol.system" },
             { value: "off", labelKey: "settings.networkProxyProtocol.off" },
             { value: "http", labelKey: "settings.networkProxyProtocol.http" },
             { value: "https", labelKey: "settings.networkProxyProtocol.https" },
+            { value: "socks5", labelKey: "settings.networkProxyProtocol.socks5" },
           ],
-          defaultValue: "system",
+          defaultValue: "off",
           childrenCondition: () => {
             const p = useSettingsStore().system.system.networkProxy.protocol;
-            return p !== "off" && p !== "system";
+            return p !== "off";
           },
           children: [
             {
@@ -43,7 +43,7 @@ const servicesCategory: SettingCategory = {
               binding: { store: "settings", path: "system.system.networkProxy.port" },
               min: 1,
               max: 65535,
-              defaultValue: 80,
+              defaultValue: 7890,
               disabled: () => useSettingsStore().system.system.networkProxy.protocol === "off",
             },
             {

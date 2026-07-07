@@ -1,7 +1,7 @@
 import { randomBytes, randomUUID as cryptoRandomUUID } from "node:crypto";
 import * as zlib from "node:zlib";
-import { net } from "electron";
 import { CLIENT_LOG3_DOMAIN } from "./config";
+import { fetchWithProxy } from "@main/utils/proxy";
 
 interface NeteaseLogRecord {
   time: number;
@@ -438,7 +438,7 @@ export const doUpload = async (
 ): Promise<UploadResult> => {
   const payload = encryptNCBL(metaJson, body);
   const multipart = buildMultipart(payload);
-  const resp = await net.fetch(
+  const resp = await fetchWithProxy(
     `${CLIENT_LOG3_DOMAIN}/api/clientlog/encrypt/upload?multiupload=true`,
     {
       method: "POST",

@@ -1467,11 +1467,11 @@
     },
     "networkProxyProtocol": {
       "label": "网络代理",
-      "description": "为应用所有网络请求配置代理",
-      "system": "跟随系统",
+      "description": "为在线请求配置手动代理",
       "off": "关闭代理",
       "http": "HTTP 代理",
-      "https": "HTTPS 代理"
+      "https": "HTTPS 代理",
+      "socks5": "SOCKS5 代理"
     },
     "networkProxyHost": {
       "label": "代理服务器地址",
@@ -1480,7 +1480,7 @@
     },
     "networkProxyPort": {
       "label": "代理服务器端口",
-      "description": "填写代理服务器端口，例如 80"
+      "description": "填写代理服务器端口，例如 7890"
     },
     "networkProxyTest": {
       "label": "测试代理",

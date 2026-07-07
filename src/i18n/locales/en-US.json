@@ -1479,11 +1479,11 @@
     },
     "networkProxyProtocol": {
       "label": "Network Proxy",
-      "description": "Configure a proxy for all network requests",
-      "system": "Follow system",
+      "description": "Configure a manual proxy for online requests",
       "off": "Proxy off",
       "http": "HTTP proxy",
-      "https": "HTTPS proxy"
+      "https": "HTTPS proxy",
+      "socks5": "SOCKS5 proxy"
     },
     "networkProxyHost": {
       "label": "Proxy server",
@@ -1492,7 +1492,7 @@
     },
     "networkProxyPort": {
       "label": "Proxy port",
-      "description": "Enter the proxy server port, for example 80"
+      "description": "Enter the proxy server port, for example 7890"
     },
     "networkProxyTest": {
       "label": "Test proxy",

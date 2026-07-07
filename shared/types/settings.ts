@@ -227,11 +227,11 @@ export interface ExternalApiSettings {
 }
 
 /** 网络代理协议 */
-export type NetworkProxyProtocol = "system" | "off" | "http" | "https";
+export type NetworkProxyProtocol = "off" | "http" | "https" | "socks5";
 
 /** 网络代理配置 */
 export interface NetworkProxySettings {
-  /** 代理协议；system 跟随系统，off 直连 */
+  /** 代理协议；off 时不改变原始请求路径 */
   protocol: NetworkProxyProtocol;
   /** 代理服务器地址 */
   host: string;
