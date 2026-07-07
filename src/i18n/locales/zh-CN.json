@@ -834,6 +834,10 @@
       "label": "自动升级歌词格式",
       "description": "当前歌词格式较低时，从其他平台获取更高级的格式覆盖"
     },
+    "detectBackgroundLyrics": {
+      "label": "自动识别背景歌词",
+      "description": "根据括号识别背景人声，误判时可关闭"
+    },
     "enableOnlineTTMLLyric": {
       "label": "启用在线 TTML 歌词",
       "description": "从 AMLL TTML DB 获取歌词，支持逐字、翻译、音译"

@@ -78,6 +78,8 @@ export interface LyricSettings {
   lyricFormatOrder: LyricFormatOrder;
   /** 智能选择是否优先在线 */
   smartPreferOnline: boolean;
+  /** 自动识别背景歌词 */
+  detectBackgroundLyrics: boolean;
   /** 字号自适应窗口大小 */
   adaptiveFontSize: boolean;
   /** 歌词字号（px，自适应关闭时生效） */

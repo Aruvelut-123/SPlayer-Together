@@ -87,6 +87,7 @@ export const useSettingsStore = defineStore(
       lyricSourceOrder: [...DEFAULT_LYRIC_SOURCE_ORDER],
       lyricFormatOrder: [...DEFAULT_LYRIC_FORMAT_ORDER],
       smartPreferOnline: false,
+      detectBackgroundLyrics: true,
       adaptiveFontSize: true,
       fontSize: 48,
       fontWeight: 700,
@@ -264,6 +265,9 @@ export const useSettingsStore = defineStore(
       omit: ["system"],
       afterHydrate: ({ store }) => {
         const { lyric } = store as unknown as { lyric: LyricSettings };
+        if (typeof lyric.detectBackgroundLyrics !== "boolean") {
+          lyric.detectBackgroundLyrics = true;
+        }
         lyric.lyricSourceOrder = reconcileOrder(lyric.lyricSourceOrder, ALL_PLATFORMS);
         lyric.lyricFormatOrder = reconcileOrder(lyric.lyricFormatOrder, DEFAULT_LYRIC_FORMAT_ORDER);
       },
