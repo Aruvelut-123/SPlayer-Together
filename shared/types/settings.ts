@@ -408,6 +408,8 @@ export interface SystemConfig {
     uiZoom: number;
     /** 首启引导是否已完成 */
     onboardingCompleted: boolean;
+    /** 用户已同意的协议版本号 */
+    agreedAgreementVersion: number;
     /** NCM请求注入国内 IP（X-Real-IP/X-Forwarded-For） */
     neteaseRealIp: boolean;
     /** 网络代理配置 */

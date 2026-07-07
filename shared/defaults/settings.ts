@@ -144,6 +144,7 @@ export const defaultSystemConfig: SystemConfig = {
     taskbarThumbnailCover: true,
     uiZoom: 100,
     onboardingCompleted: false,
+    agreedAgreementVersion: 1,
     neteaseRealIp: false,
     networkProxy: {
       protocol: "off",

@@ -74,6 +74,11 @@
       }
     }
   },
+  "agreementUpdate": {
+    "title": "用户协议已更新",
+    "subtitle": "协议内容有变更，请重新阅读并同意后继续使用",
+    "accept": "我已阅读并同意，继续使用"
+  },
   "common": {
     "confirm": "确认",
     "cancel": "取消",

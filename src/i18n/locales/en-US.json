@@ -86,6 +86,11 @@
       }
     }
   },
+  "agreementUpdate": {
+    "title": "User Agreement Updated",
+    "subtitle": "The agreement has changed. Please re-read and accept to continue",
+    "accept": "I've read and agree, continue"
+  },
   "common": {
     "confirm": "Confirm",
     "cancel": "Cancel",
