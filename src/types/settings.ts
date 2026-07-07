@@ -176,6 +176,8 @@ export interface PlayerSettings {
   spectrumBarWidth: number;
   /** 在线歌曲音质偏好；实际可用级别取决于账号权限 */
   songLevel: QualityLevel;
+  /** 允许完整音源不可用时播放试听片段 */
+  allowTrialPlay: boolean;
   /** 时间显示格式 */
   timeFormat: TimeFormat;
   /** 显示进度条悬浮信息 */

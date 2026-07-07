@@ -787,6 +787,10 @@
       "lossless": "Lossless",
       "hi-res": "Hi-Res"
     },
+    "allowTrialPlay": {
+      "label": "Allow Trial Playback",
+      "description": "Play trial clips returned by the platform only when full sources and plugins are unavailable"
+    },
     "outputDevice": {
       "label": "Output Device",
       "description": "Select audio output device",

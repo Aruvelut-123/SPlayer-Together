@@ -775,6 +775,10 @@
       "lossless": "无损 (Lossless)",
       "hi-res": "高解析度无损 (Hi-Res)"
     },
+    "allowTrialPlay": {
+      "label": "允许播放试听",
+      "description": "完整音源和插件都不可用时，允许播放平台返回的试听片段"
+    },
     "outputDevice": {
       "label": "输出设备",
       "description": "选择音频输出设备",
