@@ -245,7 +245,7 @@ const loadTrackSourceWithFallback = async (
  */
 const loadTrack = async (track: Track | null): Promise<void> => {
   if (!track) return;
-  // DJ 模式过滤
+  // Fuck DJ Mode
   const settings = useSettingsStore();
   if (settings.preset.fuckDjMode && shouldSkipDjTrack(track)) {
     await nextTrack();
