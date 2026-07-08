@@ -189,6 +189,11 @@
       "history": "搜索历史",
       "hot": "热搜榜"
     },
+    "searchMenu": {
+      "copy": "复制",
+      "paste": "粘贴",
+      "pasteSearch": "粘贴并搜索"
+    },
     "link": {
       "song": "直接播放「{id}」",
       "album": "前往专辑「{id}」",

@@ -201,6 +201,11 @@
       "history": "Recent searches",
       "hot": "Trending"
     },
+    "searchMenu": {
+      "copy": "Copy",
+      "paste": "Paste",
+      "pasteSearch": "Paste and Search"
+    },
     "link": {
       "song": "Play [{id}]",
       "album": "Go to album [{id}]",

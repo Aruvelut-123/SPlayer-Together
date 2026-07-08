@@ -22,7 +22,7 @@ const onClose = (): void => {
 <template>
   <div class="flex items-center gap-3 shrink-0">
     <SButton
-      class="app-no-drag"
+      class="window-control-button app-no-drag"
       :type="cover ? 'cover' : undefined"
       :variant="cover ? 'ghost' : 'tertiary'"
       circle
@@ -33,7 +33,7 @@ const onClose = (): void => {
       <template #icon><IconMinus /></template>
     </SButton>
     <SButton
-      class="app-no-drag"
+      class="window-control-button app-no-drag"
       :type="cover ? 'cover' : undefined"
       :variant="cover ? 'ghost' : 'tertiary'"
       circle
@@ -46,7 +46,7 @@ const onClose = (): void => {
       </template>
     </SButton>
     <SButton
-      class="app-no-drag"
+      class="window-control-button window-control-button-close app-no-drag"
       :type="cover ? 'cover' : undefined"
       :variant="cover ? 'ghost' : 'tertiary'"
       circle
@@ -57,3 +57,19 @@ const onClose = (): void => {
     </SButton>
   </div>
 </template>
+
+<style scoped>
+.window-control-button {
+  position: relative;
+}
+
+.window-control-button::before {
+  content: "";
+  position: absolute;
+  inset: -12px -6px;
+}
+
+.window-control-button-close::before {
+  right: -12px;
+}
+</style>
