@@ -166,7 +166,7 @@ onBeforeUnmount(() => {
             <IconSkipBack class="control-icon" />
           </button>
           <button class="control-btn" type="button" @click.stop="handleTogglePlay" @dblclick.stop>
-            <component :is="playing ? IconPause : IconPlay" class="control-icon-play" />
+            <component :is="playing ? IconPause : IconPlay" class="control-icon" />
           </button>
           <button class="control-btn" type="button" @click.stop="handleNext" @dblclick.stop>
             <IconSkipForward class="control-icon" />
@@ -310,10 +310,7 @@ onBeforeUnmount(() => {
 .control-icon {
   width: 14px;
   height: 14px;
-}
-.control-icon-play {
-  width: 12px;
-  height: 12px;
+  transition: transform 0.3s;
 }
 
 .lyric-area {
