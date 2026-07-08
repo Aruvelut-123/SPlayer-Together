@@ -42,7 +42,7 @@ const currentLine = computed<LyricLine | null>(() => {
 
 const hasLyric = computed(() => lyric.value.length > 0 && primaryIndex.value >= 0);
 
-const titleText = computed<string>(() => track.value?.title ?? "SPlayer");
+const titleText = computed<string>(() => track.value?.title ?? "SPlayer Next");
 const artistsText = computed<string>(
   () => track.value?.artists?.map((a) => a.name).join(" / ") || "未知艺术家",
 );
