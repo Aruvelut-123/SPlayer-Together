@@ -52,13 +52,17 @@ impl FftAnalyzer {
         }
     }
 
-    /// 推入解码后的单声道样本（由播放线程调用）
-    pub fn push_samples(&self, samples_l: &[f32], samples_r: &[f32]) {
+    /// 直接从交织立体声样本推入（由播放线程调用），一次遍历无需中间分配
+    pub fn push_interleaved_samples(&self, interleaved: &[f32]) {
         let mut buf_l = self.sample_buffer_l.lock();
         let mut buf_r = self.sample_buffer_r.lock();
-        buf_l.extend_from_slice(samples_l);
-        buf_r.extend_from_slice(samples_r);
-        // 只保留最新的样本
+        let count = interleaved.len() / 2;
+        buf_l.reserve(count);
+        buf_r.reserve(count);
+        for pair in interleaved.chunks_exact(2) {
+            buf_l.push(pair[0]);
+            buf_r.push(pair[1]);
+        }
         if buf_l.len() > MAX_BUFFER_SIZE {
             let drain_count = buf_l.len() - MAX_BUFFER_SIZE;
             buf_l.drain(..drain_count);
