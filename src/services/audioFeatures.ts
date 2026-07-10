@@ -71,7 +71,7 @@ export const getBassPulse = (data: readonly [number[], number[]]): number => {
   for (let i = bassRange.start; i < bassRange.end; i++) {
     const position = count <= 1 ? 0 : (i - bassRange.start) / (count - 1);
     const weight = 1 - position * (1 - BASS_HIGH_BIN_WEIGHT);
-    const value = (data[0][i] ?? 0) + (data[1][i] ?? 0);
+    const value = ((data[0][i] ?? 0) + (data[1][i] ?? 0)) / 2;
     sum += value * value * weight;
     peak = Math.max(peak, value);
     weightSum += weight;
