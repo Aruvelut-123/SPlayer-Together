@@ -25,7 +25,7 @@ const AVERROR_EIO: i32 = sys::averror(libc::EIO);
 ///
 /// 1-to-N 分发：同一帧零拷贝喂给两个重采样器
 /// - player_resampler: 48k stereo f32，给 rodio 播放
-/// - fft_resampler:    48k mono   f32，给 FFT 频谱分析
+/// - fft_resampler:    48k stereo f32，给 FFT 频谱分析
 pub struct DecoderData {
     reader: AudioReader,
     player_resampler: Resampler,
@@ -195,10 +195,9 @@ fn open_source(
         .build_resampler(player_opts)
         .with_context(|| "构建播放重采样器失败")?;
 
-    // FFT 用 mono：让 ffmpeg 做正经下混，比之前 chunks_exact(2).map(|c| c[0]) 抽左声道更合理
     let fft_opts = ResampleOptions::new()
         .sample_rate(TARGET_SAMPLE_RATE as i32)
-        .channels(1)
+        .channels(2)
         .format::<f32>();
     let fft_resampler = reader
         .build_resampler(fft_opts)

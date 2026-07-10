@@ -28,7 +28,7 @@ pub enum PlayerEvent {
     /// 位置更新（秒）—— 由内部定时器推送
     Position { position: f64, duration: f64 },
     /// FFT 频谱数据推送
-    FftData { data: Vec<f32> },
+    FftData { ldata: Vec<f32>, rdata: Vec<f32> },
     /// 输出流停滞（rodio sink 长时间未消费样本，需要外部重建输出）
     OutputStalled,
 }
@@ -419,8 +419,8 @@ impl InnerPlayer {
         let handle = thread::spawn(move || {
             while !stop_flag.load(Ordering::Relaxed) {
                 if fft_enabled.load(Ordering::Relaxed) {
-                    let data = fft.analyze();
-                    cb(PlayerEvent::FftData { data });
+                    let (ldata, rdata) = fft.analyze();
+                    cb(PlayerEvent::FftData { ldata, rdata });
                 }
                 sleep_unless_stopped(&stop_flag, Duration::from_millis(50));
             }
@@ -1091,7 +1091,7 @@ impl InnerPlayer {
     }
 
     /// 获取 FFT 频谱数据（128 个频段）
-    pub fn fft_data(&self) -> Vec<f32> {
+    pub fn fft_data(&self) -> (Vec<f32>, Vec<f32>) {
         self.fft.analyze()
     }
 

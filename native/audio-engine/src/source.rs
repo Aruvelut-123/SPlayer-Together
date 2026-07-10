@@ -105,7 +105,9 @@ impl Iterator for DecoderSource {
                 // 将 FFT 样本推送给分析器
                 PopResult::Chunk(chunk) => {
                     if !chunk.fft_samples.is_empty() {
-                        self.fft.push_samples(&chunk.fft_samples);
+                        let fft_samples_l = chunk.fft_samples.iter().step_by(2).copied().collect::<Vec<_>>();
+                        let fft_samples_r = chunk.fft_samples.iter().skip(1).step_by(2).copied().collect::<Vec<_>>();
+                        self.fft.push_samples(&fft_samples_l, &fft_samples_r);
                     }
 
                     // 填充本地缓冲，一次性批量计数（而非逐采样）

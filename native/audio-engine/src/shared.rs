@@ -10,7 +10,7 @@ use crate::metadata::ExternalLyric;
 pub struct AudioChunk {
     /// 交错排列的 f32 播放样本（L R L R ...）
     pub player_samples: Vec<f32>,
-    /// 单声道 f32 样本，用于 FFT 频谱分析
+    /// 交错排列的 f32 FFT 样本（L R L R ...）
     pub fft_samples: Vec<f32>,
 }
 
