@@ -108,7 +108,7 @@ const draw = (): void => {
   const usableLen = (FFT_SIZE - SKIP_LOW) * 2;
   const barWidth = Math.max(1, settings.player.spectrumBarWidth);
   const slotWidth = barWidth + BAR_GAP;
-  // 一侧能放下的 bar 数；不再限制 ≤ usableLen，允许过采样（多个相邻 bar 共用一个 bin 的均值）
+  // 能放下的 bar 数；不再限制 ≤ usableLen，允许过采样（多个相邻 bar 共用一个 bin 的均值）
   const numBars = Math.floor(cssWidth / slotWidth);
   if (numBars === 0) return;
 
