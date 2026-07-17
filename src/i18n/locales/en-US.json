@@ -207,6 +207,10 @@
       "paste": "Paste",
       "pasteSearch": "Paste and Search"
     },
+    "menu": {
+      "hideFromSidebar": "Hide from sidebar",
+      "customizeSidebar": "Customize sidebar"
+    },
     "link": {
       "song": "Play [{id}]",
       "album": "Go to album [{id}]",
@@ -1391,6 +1395,23 @@
     "sidebarPlaylistCover": {
       "label": "Show Playlist Covers",
       "description": "Show playlist covers instead of default icons in the sidebar"
+    },
+    "sidebarCustomize": {
+      "label": "Customize Sidebar",
+      "description": "Group, reorder and toggle sidebar navigation items",
+      "hint": "Drag handles to reorder and regroup; click the eye to toggle visibility",
+      "nav": "Navigation",
+      "groups": "Playlist Groups",
+      "group": "Group {n}",
+      "addGroup": "Add Group",
+      "emptyGroup": "Drag items here",
+      "noPlaylists": "No playlists",
+      "keepEmptyDivider": "Keep dividers for empty groups",
+      "nameWithDivider": "Show dividers alongside group names",
+      "showName": "Show group name in sidebar",
+      "confirmResetTitle": "Reset to defaults?",
+      "confirmResetDesc": "Groups, names, order and visibility will be reset to defaults!",
+      "featureDisabled": "Feature disabled"
     },
     "showQualitySwitch": {
       "label": "Show Quick Quality Switch",
