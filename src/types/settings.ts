@@ -240,7 +240,7 @@ export interface AppearanceSettings {
   sidebarCollapsed: boolean;
   /** 侧边栏歌单项显示封面 */
   sidebarPlaylistCover: boolean;
-  /** 侧边栏导航分组（匿名分组，组间以分隔线区分） */
+  /** 侧边栏导航分组（匿名分组，可命名；组间以分隔线或分组名区分） */
   sidebarNavGroups: SidebarNavGroup[];
   /** 侧边栏隐藏的导航项与歌单分组 */
   sidebarHiddenKeys: string[];

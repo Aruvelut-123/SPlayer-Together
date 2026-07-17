@@ -66,6 +66,36 @@ const reconcileNavGroups = (stored: unknown): SidebarNavGroup[] => {
   return groups;
 };
 
+/**
+ * 对账侧边栏隐藏键：仅保留有效的导航项、歌单分组与歌单路由键，首页不可隐藏
+ * @param stored - 存档隐藏键
+ * @returns 对账后的隐藏键
+ */
+const reconcileHiddenKeys = (stored: string[]): string[] => {
+  const valid = new Set([
+    ...DEFAULT_SIDEBAR_NAV_GROUPS.flatMap((group) => group.keys),
+    SIDEBAR_GROUP_MY_PLAYLISTS,
+    SIDEBAR_GROUP_SUBSCRIBED,
+  ]);
+  return stored.filter((key) => key !== "/" && (valid.has(key) || key.startsWith("/collection/")));
+};
+
+/**
+ * 对账侧边栏歌单顺序：剔除非法存档，保证各字段均为字符串数组
+ * @param stored - 存档顺序
+ * @returns 对账后的顺序
+ */
+const reconcilePlaylistOrder = (stored: unknown): SidebarPlaylistOrder => {
+  const record = (stored ?? {}) as Partial<Record<keyof SidebarPlaylistOrder, unknown>>;
+  const orderOf = (value: unknown): string[] =>
+    Array.isArray(value) ? value.filter((key) => typeof key === "string") : [];
+  return {
+    myLocal: orderOf(record.myLocal),
+    myOnline: orderOf(record.myOnline),
+    subscribed: orderOf(record.subscribed),
+  };
+};
+
 export const useSettingsStore = defineStore(
   "settings",
   () => {
@@ -320,24 +350,8 @@ export const useSettingsStore = defineStore(
         lyric.lyricSourceOrder = reconcileOrder(lyric.lyricSourceOrder, ALL_PLATFORMS);
         lyric.lyricFormatOrder = reconcileOrder(lyric.lyricFormatOrder, DEFAULT_LYRIC_FORMAT_ORDER);
         appearance.sidebarNavGroups = reconcileNavGroups(appearance.sidebarNavGroups ?? []);
-        const validHiddenKeys = new Set([
-          ...DEFAULT_SIDEBAR_NAV_GROUPS.flatMap((group) => group.keys),
-          SIDEBAR_GROUP_MY_PLAYLISTS,
-          SIDEBAR_GROUP_SUBSCRIBED,
-        ]);
-        appearance.sidebarHiddenKeys = (appearance.sidebarHiddenKeys ?? []).filter(
-          (key) => key !== "/" && (validHiddenKeys.has(key) || key.startsWith("/collection/")),
-        );
-        const storedOrder = (appearance.sidebarPlaylistOrder ?? {}) as Partial<
-          Record<keyof SidebarPlaylistOrder, unknown>
-        >;
-        const orderOf = (value: unknown): string[] =>
-          Array.isArray(value) ? value.filter((key) => typeof key === "string") : [];
-        appearance.sidebarPlaylistOrder = {
-          myLocal: orderOf(storedOrder.myLocal),
-          myOnline: orderOf(storedOrder.myOnline),
-          subscribed: orderOf(storedOrder.subscribed),
-        };
+        appearance.sidebarHiddenKeys = reconcileHiddenKeys(appearance.sidebarHiddenKeys ?? []);
+        appearance.sidebarPlaylistOrder = reconcilePlaylistOrder(appearance.sidebarPlaylistOrder);
       },
     },
   },
