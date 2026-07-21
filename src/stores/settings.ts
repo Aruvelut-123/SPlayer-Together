@@ -32,7 +32,7 @@ const reconcileOrder = <T>(stored: T[], all: readonly T[]): T[] => {
 export const useSettingsStore = defineStore(
   "settings",
   () => {
-    /** 界面语言（持久化，由 main.ts 同步到 vue-i18n） */
+    /** 界面语言 */
     const locale = ref<LocaleCode>("zh-CN");
 
     /** 外观 */

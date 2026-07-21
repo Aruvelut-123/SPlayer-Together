@@ -50,7 +50,7 @@ watch(open, async (value) => {
 
   <SDialog v-model:open="open" :title="t('settings.mcpConfigDetails.label')" width="600px">
     <div class="flex flex-col gap-3">
-      <div class="relative rounded-lg bg-field overflow-hidden">
+      <div class="relative rounded-lg bg-on-surface/5 overflow-hidden">
         <pre
           class="m-0 px-4 py-3.5 pr-14 overflow-x-auto font-sans text-sm leading-6 text-on-surface-variant tabular-nums"
           >{{ clientConfig }}</pre
