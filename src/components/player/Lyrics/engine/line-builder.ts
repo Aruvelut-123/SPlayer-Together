@@ -4,6 +4,7 @@
 
 import type { LyricLine } from "@shared/types/lyrics";
 import { buildWordSpans, type WordMeasurement, type WordAnimTarget } from "./word-builder";
+import { getLyricLanguage } from "@/utils/lyric/language";
 
 /** 行 DOM 构建选项 */
 export interface LineBuildOptions {
@@ -65,6 +66,12 @@ export const buildLineElements = (
     lineEl.className = "lp-line" + (line.isDuet ? " duet" : "") + (line.isBG ? " bg" : "");
     const mainDiv = document.createElement("div");
     mainDiv.className = "lp-main";
+
+    // 为主歌词行设置 lang 属性，便于浏览器选择正确字体与排版
+    const mainContent = line.words.map((w) => w.word).join("");
+    if (mainContent) {
+      mainDiv.setAttribute("lang", getLyricLanguage(mainContent));
+    }
 
     // 行歌词是否静态（≤1 个单词，无逐字动画）
     const isStatic = line.words.length === 0 || (line.words.length === 1 && !hasMultiWordLine);

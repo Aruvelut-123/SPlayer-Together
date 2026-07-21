@@ -2,6 +2,7 @@
 import type { LyricLine } from "@shared/types/lyrics";
 import { LyricPlayer as CoreLyricPlayer } from "@applemusic-like-lyrics/core";
 import { useSettingsStore } from "@/stores/settings";
+import { getLyricLanguage } from "@/utils/lyric/language";
 import "@applemusic-like-lyrics/core/style.css";
 import "./renderer.css";
 
@@ -91,6 +92,28 @@ const handleLineClick = (e: Event) => {
   }
 };
 
+// 为所有主歌词行设置 html lang 属性
+const processLyricLanguage = (player = playerRef.value) => {
+  const lyricGroups = player?.currentLyricGroups;
+  if (!Array.isArray(lyricGroups) || lyricGroups.length === 0) return;
+
+  for (const group of lyricGroups) {
+    for (const line of [group.mainLine, group.bgLine]) {
+      const lyricLine = line?.getLine();
+      const lyricLineElement = line?.getElement();
+      if (!lyricLine || !lyricLineElement) continue;
+
+      const content = lyricLine.words.map((w) => w.word).join("");
+      if (!content) continue;
+
+      const lyricMainLineElement = lyricLineElement.firstChild;
+      if (lyricMainLineElement instanceof HTMLElement) {
+        lyricMainLineElement.setAttribute("lang", getLyricLanguage(content));
+      }
+    }
+  }
+};
+
 const { resume: resumeRaf, pause: pauseRaf } = useRafFn(
   ({ delta }) => {
     playerRef.value?.update(delta);
@@ -136,6 +159,7 @@ onMounted(() => {
 
   if (processedLyrics.value.length > 0) {
     playerRef.value.setLyricLines(processedLyrics.value, props.initialTime);
+    processLyricLanguage();
   } else if (Number.isFinite(props.initialTime) && props.initialTime >= 0) {
     playerRef.value.setCurrentTime(props.initialTime, true);
   }
@@ -211,6 +235,7 @@ watch(processedLyrics, (newLyrics) => {
     pendingLyrics = newLyrics;
   } else {
     playerRef.value.setLyricLines(newLyrics, props.initialTime);
+    processLyricLanguage();
   }
 });
 
@@ -228,6 +253,7 @@ const freeze = () => {
 const resume = () => {
   if (pendingLyrics) {
     playerRef.value?.setLyricLines(pendingLyrics);
+    processLyricLanguage();
     pendingLyrics = null;
   }
   isFrozen.value = false;
