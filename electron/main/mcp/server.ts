@@ -4,6 +4,7 @@ import { z } from "zod/v4";
 import { getPlayer } from "@main/services/engine";
 import { playerControl } from "@main/services/playerControl";
 import * as nowPlaying from "@main/services/nowPlaying";
+import type { Track } from "@shared/types/player";
 import {
   getAlbumList,
   getArtistList,
@@ -101,6 +102,47 @@ const createServer = (): McpServer => {
     ({ volume }) => {
       playerControl.setVolume(volume);
       return jsonContent({ ok: true, volume });
+    },
+  );
+
+  server.registerTool(
+    "play_track",
+    {
+      title: "播放指定曲目",
+      description:
+        "将指定曲目加入播放队列并立即播放。传入完整的 Track 对象（通常来自 search_library 或 get_random_tracks 的返回值）。",
+      inputSchema: { track: z.record(z.string(), z.any()) },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
+    },
+    ({ track }) => {
+      if (!track || typeof track.id !== "string") {
+        throw new Error("Invalid track object.");
+      }
+      playerControl.playTrack(track as Track);
+      return jsonContent({ ok: true, id: track.id });
+    },
+  );
+
+  server.registerTool(
+    "set_play_mode",
+    {
+      title: "设置播放模式",
+      description:
+        "设置播放器的循环模式或随机模式。repeat: 循环模式 (off/list/one), shuffle: 随机播放 (on/off)",
+      inputSchema: {
+        repeat: z.enum(["off", "list", "one"]).optional(),
+        shuffle: z.enum(["on", "off"]).optional(),
+      },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
+    },
+    ({ repeat, shuffle }) => {
+      if (repeat) {
+        playerControl.setRepeat(repeat);
+      }
+      if (shuffle) {
+        playerControl.setShuffle(shuffle);
+      }
+      return jsonContent({ ok: true, repeat, shuffle });
     },
   );
 

@@ -15,6 +15,7 @@ import {
   nextTrack,
   pause,
   play,
+  playNow,
   prevTrack,
   recoverFromSourceFailure,
   refreshDevices,
@@ -110,6 +111,9 @@ export const handleEvent = async (event: PlayerEvent): Promise<void> => {
       break;
     case "play":
       await play();
+      break;
+    case "playTrack":
+      await playNow(event.data.track);
       break;
     case "pause":
       await pause();
