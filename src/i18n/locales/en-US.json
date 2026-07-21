@@ -676,6 +676,7 @@
       "appearance": "Appearance",
       "hotkeys": "Hotkey Settings",
       "services": "Services",
+      "aiIntegration": "AI Integration",
       "mediaSource": "Media Sources",
       "download": "Downloads",
       "localCache": "Local & Cache",
@@ -715,6 +716,7 @@
       "discord": "Discord RPC",
       "lastfm": "Last.fm",
       "externalApi": "External API",
+      "mcp": "MCP",
       "systemConfig": "System",
       "pluginManage": "Import Plugins",
       "pluginsList": "Plugin Management",
@@ -1563,19 +1565,32 @@
       "label": "Listen port",
       "description": "TCP port for the external API (1024–65535)"
     },
-    "externalApiPanel": {
-      "label": "",
-      "description": ""
-    },
     "externalApi": {
       "restart": "Restart server",
-      "restartHint": "Restart required after changing the port or LAN access",
       "restarted": "Server restarted",
       "portInUse": "Port {port} is already in use, pick another",
-      "pendingChange": "Pending restart",
-      "pendingChangeHint": "Settings changed, restart the server to apply",
-      "endpoint": "Address",
+      "running": "Server is running",
       "stopped": "Server not running"
+    },
+    "mcpEnabled": {
+      "label": "Enable MCP server",
+      "description": "Enable the local MCP server so AI Agents can join the app ecosystem and extend capabilities on demand"
+    },
+    "mcpPort": {
+      "label": "Listen port",
+      "description": "After changing the port, click Restart server to apply it (1024–65535)"
+    },
+    "mcpConfigDetails": {
+      "label": "MCP configuration",
+      "description": "View and copy the MCP configuration required to connect an AI Agent"
+    },
+    "mcp": {
+      "restart": "Restart server",
+      "configHint": "Copy the JSON above and paste it into the MCP server settings of your AI Agent to connect.",
+      "restarted": "MCP server restarted",
+      "portInUse": "Port {port} is already in use, pick another",
+      "running": "MCP server is running",
+      "stopped": "MCP server is not running"
     },
     "closeAction": {
       "label": "Close Button Action",

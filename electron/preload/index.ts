@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from "electron";
 import { electronAPI } from "@electron-toolkit/preload";
-import type { TaskbarLyricSettings } from "@shared/types/settings";
+import type { ExternalApiStatus, McpStatus, TaskbarLyricSettings } from "@shared/types/settings";
 import type {
   PluginInfo,
   PluginResolveUrlArgs,
@@ -474,6 +474,24 @@ const api = {
     restart: () => ipcRenderer.invoke("externalApi:restart"),
     // 查询当前运行状态
     getStatus: () => ipcRenderer.invoke("externalApi:getStatus"),
+    // 订阅外部 API 服务状态变化
+    onStatus: (callback: (status: ExternalApiStatus) => void) => {
+      ipcRenderer.removeAllListeners("externalApi:status");
+      return subscribe<ExternalApiStatus>("externalApi:status", callback);
+    },
+  },
+  mcp: {
+    // 重启 MCP 服务
+    restart: () => ipcRenderer.invoke("mcp:restart"),
+    // 查询 MCP 服务状态
+    getStatus: () => ipcRenderer.invoke("mcp:getStatus"),
+    // 获取生成 AI 客户端配置所需的动态参数
+    getClientConfigParams: () => ipcRenderer.invoke("mcp:getClientConfigParams"),
+    // 订阅 MCP 服务状态变化
+    onStatus: (callback: (status: McpStatus) => void) => {
+      ipcRenderer.removeAllListeners("mcp:status");
+      return subscribe<McpStatus>("mcp:status", callback);
+    },
   },
   update: {
     // 检查更新

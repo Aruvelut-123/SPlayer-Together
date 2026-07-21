@@ -664,6 +664,7 @@
       "appearance": "外观设置",
       "hotkeys": "快捷键配置",
       "services": "网络与服务",
+      "aiIntegration": "AI 集成",
       "mediaSource": "媒体源配置",
       "download": "下载配置",
       "localCache": "本地与缓存",
@@ -703,6 +704,7 @@
       "discord": "Discord RPC",
       "lastfm": "Last.fm",
       "externalApi": "外部 API",
+      "mcp": "MCP",
       "systemConfig": "系统配置",
       "pluginManage": "导入插件",
       "pluginsList": "插件管理",
@@ -1551,19 +1553,32 @@
       "label": "监听端口",
       "description": "外部 API 服务监听的端口（1024–65535）"
     },
-    "externalApiPanel": {
-      "label": "",
-      "description": ""
-    },
     "externalApi": {
       "restart": "重启服务",
-      "restartHint": "修改端口或局域网访问开关后需重启服务",
       "restarted": "服务已重启",
       "portInUse": "端口 {port} 已被占用，请换一个",
-      "pendingChange": "待重启",
-      "pendingChangeHint": "配置已变更，重启服务后生效",
-      "endpoint": "服务地址",
+      "running": "服务运行中",
       "stopped": "服务未运行"
+    },
+    "mcpEnabled": {
+      "label": "启用 MCP 服务",
+      "description": "启用本地 MCP 服务，让 AI Agent 接入应用生态，按需扩展能力"
+    },
+    "mcpPort": {
+      "label": "监听端口",
+      "description": "修改端口后需要点击“重启服务”生效（1024–65535）"
+    },
+    "mcpConfigDetails": {
+      "label": "MCP 配置详情",
+      "description": "查看并复制 AI Agent 连接所需的 MCP 配置"
+    },
+    "mcp": {
+      "restart": "重启服务",
+      "configHint": "复制上方 JSON 配置，在 AI Agent 的 MCP 服务器设置中粘贴并保存，即可完成连接",
+      "restarted": "MCP 服务已重启",
+      "portInUse": "端口 {port} 已被占用，请换一个",
+      "running": "MCP 服务运行中",
+      "stopped": "MCP 服务未运行"
     },
     "closeAction": {
       "label": "关闭按钮行为",
