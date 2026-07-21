@@ -175,6 +175,22 @@
   }
 }
 
+.lp-main:lang(zh) {
+  font-family: var(--lyric-font-zh, inherit);
+}
+
+.lp-main:lang(ja) {
+  font-family: var(--lyric-font-ja, inherit);
+}
+
+.lp-main:lang(ko) {
+  font-family: var(--lyric-font-ko, inherit);
+}
+
+.lp-main:lang(en) {
+  font-family: var(--lyric-font-en, inherit);
+}
+
 /* ---- 副文本（翻译/音译） ---- */
 
 .lp-sub {
