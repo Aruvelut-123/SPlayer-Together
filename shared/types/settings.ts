@@ -281,6 +281,18 @@ export interface McpClientConfigParams {
   accessKey: string;
 }
 
+/** 外部 AI Agent MCP 客户端应用 */
+export interface McpAgentApp {
+  /** 客户端应用标识 */
+  id: string;
+  /** 外部 AI Agent MCP 客户端应用显示名称 */
+  name: string;
+  /** 配置文件路径 */
+  configPath: string;
+  /** 是否已配置 splayer-next */
+  configured: boolean;
+}
+
 /** 在线歌词服务配置 */
 export interface OnlineLyricSettings {
   /** 启用在线 TTML 歌词 */

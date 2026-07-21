@@ -108,6 +108,7 @@
     "noData": "No data",
     "noMore": "No more ~",
     "refreshCache": "Refresh cache",
+    "success": "Success",
     "copied": "Copied",
     "copyFailed": "Copy failed",
     "playAll": "Play All",
@@ -1586,11 +1587,14 @@
     },
     "mcp": {
       "restart": "Restart server",
-      "configHint": "Copy the JSON above and paste it into the MCP server settings of your AI Agent to connect.",
       "restarted": "MCP server restarted",
       "portInUse": "Port {port} is already in use, pick another",
       "running": "MCP server is running",
-      "stopped": "MCP server is not running"
+      "stopped": "MCP server is not running",
+      "detectHint": "Detected the following AI Agents. One-click configuration is available.",
+      "inject": "Configure",
+      "injected": "Configured",
+      "injectSuccess": "Configured successfully"
     },
     "closeAction": {
       "label": "Close Button Action",

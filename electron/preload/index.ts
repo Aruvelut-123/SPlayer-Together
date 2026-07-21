@@ -487,6 +487,11 @@ const api = {
     getStatus: () => ipcRenderer.invoke("mcp:getStatus"),
     // 获取生成 AI 客户端配置所需的动态参数
     getClientConfigParams: () => ipcRenderer.invoke("mcp:getClientConfigParams"),
+    // 检测 Agent
+    detectAgents: () => ipcRenderer.invoke("mcp:detectAgents"),
+    // 注入 Agent 配置
+    injectAgentConfig: (agentId: string, params: any) =>
+      ipcRenderer.invoke("mcp:injectAgentConfig", agentId, params),
     // 订阅 MCP 服务状态变化
     onStatus: (callback: (status: McpStatus) => void) => {
       ipcRenderer.removeAllListeners("mcp:status");

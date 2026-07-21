@@ -25,7 +25,7 @@ withDefaults(defineProps<SCardProps>(), {
 
 /** 变体到背景 / 边框样式的映射 */
 const variantClass: Record<NonNullable<SCardProps["variant"]>, { bg: string; border: string }> = {
-  default: { bg: "bg-surface-panel", border: "border-primary/20" },
+  default: { bg: "bg-on-surface/5", border: "border-primary/20" },
   primary: { bg: "bg-primary/5", border: "border-primary/25" },
 };
 

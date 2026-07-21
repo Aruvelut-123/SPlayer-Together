@@ -96,6 +96,7 @@
     "noData": "暂无数据",
     "noMore": "没有更多了 ~",
     "refreshCache": "刷新缓存",
+    "success": "成功",
     "copied": "已复制",
     "copyFailed": "复制失败",
     "playAll": "播放全部",
@@ -1574,11 +1575,14 @@
     },
     "mcp": {
       "restart": "重启服务",
-      "configHint": "复制上方 JSON 配置，在 AI Agent 的 MCP 服务器设置中粘贴并保存，即可完成连接",
       "restarted": "MCP 服务已重启",
       "portInUse": "端口 {port} 已被占用，请换一个",
       "running": "MCP 服务运行中",
-      "stopped": "MCP 服务未运行"
+      "stopped": "MCP 服务未运行",
+      "detectHint": "检测到以下 AI Agent 应用，可一键写入 MCP 配置",
+      "inject": "一键配置",
+      "injected": "已配置",
+      "injectSuccess": "配置成功"
     },
     "closeAction": {
       "label": "关闭按钮行为",

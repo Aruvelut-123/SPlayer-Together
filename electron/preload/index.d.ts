@@ -5,6 +5,7 @@ import {
   ExternalApiStatus,
   LocaleCode,
   McpClientConfigParams,
+  McpAgentApp,
   McpStatus,
 } from "@shared/types/settings";
 import { LibraryApi } from "@shared/types/library";
@@ -101,6 +102,8 @@ declare global {
         restart: () => Promise<McpStatus>;
         getStatus: () => Promise<McpStatus>;
         getClientConfigParams: () => Promise<McpClientConfigParams>;
+        detectAgents: () => Promise<McpAgentApp[]>;
+        injectAgentConfig: (agentId: string, params: McpClientConfigParams) => Promise<boolean>;
         onStatus: (callback: (status: McpStatus) => void) => () => void;
       };
       update: UpdateApi;

@@ -2,7 +2,7 @@
 import { toast } from "@/composables/useToast";
 import { useCopyText } from "@/composables/useCopyText";
 import { useSettingsStore } from "@/stores/settings";
-import type { McpClientConfigParams } from "@shared/types/settings";
+import type { McpClientConfigParams, McpAgentApp } from "@shared/types/settings";
 import IconLucideCopy from "~icons/lucide/copy";
 
 defineOptions({ inheritAttrs: false });
@@ -15,6 +15,8 @@ const params = ref<McpClientConfigParams>({
   port: settings.system.mcp.port,
   accessKey: "********************************",
 });
+const agents = ref<McpAgentApp[]>([]);
+const injecting = ref<Record<string, boolean>>({});
 
 const clientConfig = computed(() =>
   JSON.stringify(
@@ -37,10 +39,25 @@ watch(open, async (value) => {
 
   try {
     params.value = await window.api.mcp.getClientConfigParams();
+    agents.value = await window.api.mcp.detectAgents();
   } catch (error) {
     toast.error(error instanceof Error ? error.message : String(error));
   }
 });
+
+const handleInject = async (agent: McpAgentApp) => {
+  if (agent.configured) return;
+  injecting.value[agent.id] = true;
+  try {
+    await window.api.mcp.injectAgentConfig(agent.id, toRaw(params.value));
+    agent.configured = true;
+    toast.success(t("settings.mcp.injectSuccess"));
+  } catch (error) {
+    toast.error(error instanceof Error ? error.message : String(error));
+  } finally {
+    injecting.value[agent.id] = false;
+  }
+};
 </script>
 
 <template>
@@ -59,9 +76,40 @@ watch(open, async (value) => {
           <template #icon><IconLucideCopy /></template>
         </SButton>
       </div>
-      <p class="m-0 text-sm text-on-surface-variant/75 text-pretty">
-        {{ t("settings.mcp.configHint") }}
-      </p>
+
+      <div v-if="agents.length > 0" class="mt-2 flex flex-col gap-2.5">
+        <p class="font-medium">
+          {{ t("settings.mcp.detectHint") }}
+        </p>
+        <SCard
+          v-for="agent in agents"
+          :key="agent.id"
+          size="small"
+          class="flex items-center gap-3 pr-2.5"
+        >
+          <SImg
+            class="size-8 shrink-0 rounded-md"
+            :src="`/images/ai/${agent.id}.webp`"
+            :alt="agent.name"
+          />
+          <div class="flex-1 min-w-0 flex flex-col">
+            <span class="text-sm text-on-surface font-medium truncate">{{ agent.name }}</span>
+            <span class="text-xs text-on-surface-variant/70 truncate" :title="agent.configPath">
+              {{ agent.configPath }}
+            </span>
+          </div>
+          <SButton
+            size="small"
+            variant="secondary"
+            :type="agent.configured ? 'default' : 'primary'"
+            :disabled="agent.configured"
+            :loading="injecting[agent.id]"
+            @click="handleInject(agent)"
+          >
+            {{ agent.configured ? t("settings.mcp.injected") : t("settings.mcp.inject") }}
+          </SButton>
+        </SCard>
+      </div>
     </div>
 
     <template #footer="{ close }">
