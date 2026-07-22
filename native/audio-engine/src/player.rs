@@ -213,6 +213,7 @@ impl InnerPlayer {
         let rate = self.output_sample_rate();
         self.equalizer.lock().set_sample_rate(rate);
         self.tempo.lock().set_sample_rate(rate);
+        self.fft.set_sample_rate(rate);
     }
 
     pub fn new() -> Result<Self> {
@@ -231,7 +232,7 @@ impl InnerPlayer {
             sink: None,
             shared: None,
             decoder_thread: None,
-            fft: Arc::new(FftAnalyzer::new(decoder::TARGET_SAMPLE_RATE)),
+            fft: Arc::new(FftAnalyzer::new(initial_rate)),
             audio_sample_rate: 0,
             audio_channels: 0,
             audio_duration: 0.0,
@@ -405,6 +406,9 @@ impl InnerPlayer {
     /// 启动 FFT 推送定时器（独立线程，每 50ms 推送一次频谱数据）
     fn start_fft_timer(&mut self) {
         self.stop_fft_timer();
+        if !self.fft_enabled() {
+            return;
+        }
 
         let stop_flag = Arc::new(AtomicBool::new(false));
         self.fft_timer_stop = Some(Arc::clone(&stop_flag));
@@ -441,6 +445,12 @@ impl InnerPlayer {
     /// 设置 FFT 推送开关
     pub fn set_fft_enabled(&mut self, enabled: bool) {
         self.fft_enabled.store(enabled, Ordering::Relaxed);
+        self.fft.set_enabled(enabled);
+        if enabled && self.state == PlayerState::Playing {
+            self.start_fft_timer();
+        } else if !enabled {
+            self.stop_fft_timer();
+        }
     }
 
     /// 获取 FFT 推送开关状态

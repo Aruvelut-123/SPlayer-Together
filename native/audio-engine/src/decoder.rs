@@ -23,13 +23,10 @@ const AVERROR_EIO: i32 = sys::averror(libc::EIO);
 
 /// 解码会话所需的资源（跨 seek 复用，避免重建 ffmpeg_audio 上下文）
 ///
-/// 1-to-N 分发：同一帧零拷贝喂给两个重采样器
-/// - player_resampler: 48k stereo f32，给 rodio 播放
-/// - fft_resampler:    48k stereo f32，给 FFT 频谱分析
+/// 播放重采样器输出设备采样率的 stereo f32，FFT 按需复用这份 PCM
 pub struct DecoderData {
     reader: AudioReader,
     player_resampler: Resampler,
-    fft_resampler: Resampler,
     /// 中断标志：仅网络源持有；本地 File 不会长时间阻塞，没必要绑
     /// 通过 shared.bind_interrupt 注入，外部 stop() 触发后 HttpRangeSource::read 会返回 Interrupted
     interrupt_flag: Option<Arc<AtomicBool>>,
@@ -38,7 +35,7 @@ pub struct DecoderData {
 impl DecoderData {
     /// 在已有 reader 上 seek，失败时调用方应回退到完整 load
     ///
-    /// seek 后两个重采样器要 flush 掉残留样本，否则播放/FFT 会带上上一段尾巴
+    /// seek 后重采样器要 flush 掉残留样本，否则播放会带上上一段尾巴
     pub fn seek(&mut self, position_secs: f64) -> bool {
         if self
             .reader
@@ -48,7 +45,6 @@ impl DecoderData {
             return false;
         }
         let _ = self.player_resampler.flush();
-        let _ = self.fft_resampler.flush();
         true
     }
 
@@ -79,8 +75,7 @@ pub fn start_decode(
 ) -> Result<(AudioMetadata, JoinHandle<DecoderData>)> {
     // 播放重采样目标 = 输出设备原生采样率
     let target_rate = shared.sample_rate();
-    let (reader, player_resampler, fft_resampler, interrupt_flag) =
-        open_source(source, target_rate)?;
+    let (reader, player_resampler, interrupt_flag) = open_source(source, target_rate)?;
     if let Some(ref flag) = interrupt_flag {
         shared.bind_interrupt(Arc::clone(flag));
     }
@@ -125,7 +120,6 @@ pub fn start_decode(
     let data = DecoderData {
         reader,
         player_resampler,
-        fft_resampler,
         interrupt_flag,
     };
 
@@ -167,13 +161,11 @@ pub fn resume_decode(data: DecoderData, shared: Arc<Shared>) -> Result<JoinHandl
 
 /// 根据 source 协议打开音频：http(s) 走 HttpRangeSource + 拿 cancel flag，其他走本地 File
 ///
-/// `target_rate` 为播放重采样目标采样率（输出设备原生采样率）；FFT 路径固定 48000
-///
-/// 返回 (reader, 播放重采样器, FFT 重采样器, cancel 标志)
+/// `target_rate` 为播放重采样目标采样率（输出设备原生采样率）
 fn open_source(
     source: &str,
     target_rate: u32,
-) -> Result<(AudioReader, Resampler, Resampler, Option<Arc<AtomicBool>>)> {
+) -> Result<(AudioReader, Resampler, Option<Arc<AtomicBool>>)> {
     let (reader, cancel) = if http_source::is_network_source(source) {
         let http = http_source::HttpRangeSource::new(source)?;
         let cancel = http.cancel_handle();
@@ -195,18 +187,10 @@ fn open_source(
         .build_resampler(player_opts)
         .with_context(|| "构建播放重采样器失败")?;
 
-    let fft_opts = ResampleOptions::new()
-        .sample_rate(TARGET_SAMPLE_RATE as i32)
-        .channels(2)
-        .format::<f32>();
-    let fft_resampler = reader
-        .build_resampler(fft_opts)
-        .with_context(|| "构建 FFT 重采样器失败")?;
-
-    Ok((reader, player_resampler, fft_resampler, cancel))
+    Ok((reader, player_resampler, cancel))
 }
 
-/// 核心解码循环：每帧解码一次，零拷贝分发到播放 + FFT 两个重采样器
+/// 核心解码循环：每帧解码一次并重采样到输出设备格式
 fn run_decoding_loop(data: &mut DecoderData, shared: &Shared) {
     // 响度归一化：有 ReplayGain 标签时用固定增益，否则用实时分析
     let has_replay_gain = (shared.normalization_gain() - 1.0).abs() > f32::EPSILON;
@@ -224,7 +208,6 @@ fn run_decoding_loop(data: &mut DecoderData, shared: &Shared) {
 
         match data.reader.receive_frame() {
             Ok(Some(frame)) => {
-                // 1-to-N：同一帧顺序喂两个重采样器
                 if data.player_resampler.process::<f32>(Some(&frame)).is_err() {
                     debug!("player resampler 处理失败，结束解码");
                     shared.mark_decode_failed();
@@ -232,14 +215,8 @@ fn run_decoding_loop(data: &mut DecoderData, shared: &Shared) {
                 }
                 let mut player_samples = data.player_resampler.output_as::<f32>().to_vec();
 
-                if data.fft_resampler.process::<f32>(Some(&frame)).is_err() {
-                    debug!("fft resampler 处理失败，结束解码");
-                    return;
-                }
-                let fft_samples = data.fft_resampler.output_as::<f32>().to_vec();
-
                 // 重采样可能还在攒样本，本轮没出数据就跳过
-                if player_samples.is_empty() && fft_samples.is_empty() {
+                if player_samples.is_empty() {
                     continue;
                 }
                 had_success = true;
@@ -257,22 +234,14 @@ fn run_decoding_loop(data: &mut DecoderData, shared: &Shared) {
                     }
                 }
 
-                shared.push(AudioChunk {
-                    player_samples,
-                    fft_samples,
-                });
+                shared.push(AudioChunk { player_samples });
             }
             Ok(None) | Err(AudioError::Eof) => {
-                // EOF flush：把两个重采样器内部残留挤出来，否则最后几十毫秒丢
+                // EOF flush：把重采样器内部残留挤出来，否则最后几十毫秒丢
                 let _ = data.player_resampler.process::<f32>(None);
-                let _ = data.fft_resampler.process::<f32>(None);
                 let player_samples = data.player_resampler.output_as::<f32>().to_vec();
-                let fft_samples = data.fft_resampler.output_as::<f32>().to_vec();
-                if !player_samples.is_empty() || !fft_samples.is_empty() {
-                    shared.push(AudioChunk {
-                        player_samples,
-                        fft_samples,
-                    });
+                if !player_samples.is_empty() {
+                    shared.push(AudioChunk { player_samples });
                 }
                 return;
             }

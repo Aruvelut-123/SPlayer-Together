@@ -593,15 +593,9 @@ impl AudioPlayer {
     /// 获取 FFT 频谱数据（128 个频段，值域 0.0 ~ 1.0）
     #[napi]
     pub fn get_fft_data(&self) -> JsFftData {
-        let (ldata, rdata) = self.inner
-            .lock()
-            .fft_data();
-        let ldata = ldata.into_iter()
-            .map(|v| v as f64)
-            .collect();
-        let rdata = rdata.into_iter()
-            .map(|v| v as f64)
-            .collect();
+        let (ldata, rdata) = self.inner.lock().fft_data();
+        let ldata = ldata.into_iter().map(|v| v as f64).collect();
+        let rdata = rdata.into_iter().map(|v| v as f64).collect();
         JsFftData { ldata, rdata }
     }
 

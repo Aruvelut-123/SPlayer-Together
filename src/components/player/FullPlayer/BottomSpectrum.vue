@@ -100,12 +100,16 @@ const draw = (): void => {
       }
     }
   }
-  // 连接双声道以进行统一平滑与绘制，左半边翻转并预先裁掉极低频
-  stereoDisplay.set([...display[0].slice(SKIP_LOW).reverse(), ...display[1].slice(SKIP_LOW)]);
+  // 直接写入预分配缓冲区，避免 RAF 热路径产生临时数组
+  const channelLength = FFT_SIZE - SKIP_LOW;
+  for (let i = 0; i < channelLength; i++) {
+    stereoDisplay[i] = display[0][FFT_SIZE - 1 - i];
+    stereoDisplay[channelLength + i] = display[1][SKIP_LOW + i];
+  }
 
   const cssWidth = canvas.clientWidth;
   const cssHeight = canvas.clientHeight;
-  const usableLen = (FFT_SIZE - SKIP_LOW) * 2;
+  const usableLen = channelLength * 2;
   const barWidth = Math.max(1, settings.player.spectrumBarWidth);
   const slotWidth = barWidth + BAR_GAP;
   // 能放下的 bar 数；不再限制 ≤ usableLen，允许过采样（多个相邻 bar 共用一个 bin 的均值）
