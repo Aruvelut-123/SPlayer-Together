@@ -16,7 +16,7 @@ type FontDraftKey =
   | "lyricChinese"
   | "lyricJapanese"
   | "lyricKorean"
-  | "lyricEnglish"
+  | "lyricLatin"
   | "desktopLyric"
   | "dynamicIsland"
   | "taskbarLyric";
@@ -29,7 +29,7 @@ interface FontDraft {
   lyricChinese: string;
   lyricJapanese: string;
   lyricKorean: string;
-  lyricEnglish: string;
+  lyricLatin: string;
   desktopLyric: string;
   dynamicIsland: string;
   taskbarLyric: string;
@@ -56,7 +56,7 @@ const draft = reactive<FontDraft>({
   lyricChinese: "",
   lyricJapanese: "",
   lyricKorean: "",
-  lyricEnglish: "",
+  lyricLatin: "",
   desktopLyric: "",
   dynamicIsland: "",
   taskbarLyric: "",
@@ -69,7 +69,7 @@ const TARGET_DEFS: Array<{ key: FontDraftKey; group: FontGroup }> = [
   { key: "lyricChinese", group: "appLyric" },
   { key: "lyricJapanese", group: "appLyric" },
   { key: "lyricKorean", group: "appLyric" },
-  { key: "lyricEnglish", group: "appLyric" },
+  { key: "lyricLatin", group: "appLyric" },
   { key: "desktopLyric", group: "externalLyric" },
   { key: "dynamicIsland", group: "externalLyric" },
   { key: "taskbarLyric", group: "externalLyric" },
@@ -85,7 +85,7 @@ const groupedTargets = computed<Array<{ group: FontGroup; items: FontTarget[] }>
       "lyricChinese",
       "lyricJapanese",
       "lyricKorean",
-      "lyricEnglish",
+      "lyricLatin",
     ];
     return {
       key,
@@ -136,7 +136,7 @@ const syncDraft = (): void => {
   draft.lyricChinese = settings.lyric.fontFamilyChinese;
   draft.lyricJapanese = settings.lyric.fontFamilyJapanese;
   draft.lyricKorean = settings.lyric.fontFamilyKorean;
-  draft.lyricEnglish = settings.lyric.fontFamilyEnglish;
+  draft.lyricLatin = settings.lyric.fontFamilyLatin;
   draft.desktopLyric = settings.system.desktopLyric.fontFamily;
   draft.dynamicIsland = settings.system.dynamicIsland.fontFamily;
   draft.taskbarLyric = settings.system.taskbarLyric.fontFamily;
@@ -180,7 +180,7 @@ const handleSave = async (): Promise<void> => {
   settings.lyric.fontFamilyChinese = draft.lyricChinese;
   settings.lyric.fontFamilyJapanese = draft.lyricJapanese;
   settings.lyric.fontFamilyKorean = draft.lyricKorean;
-  settings.lyric.fontFamilyEnglish = draft.lyricEnglish;
+  settings.lyric.fontFamilyLatin = draft.lyricLatin;
   await Promise.all([
     settings.setSystem("desktopLyric.fontFamily", draft.desktopLyric),
     settings.setSystem("dynamicIsland.fontFamily", draft.dynamicIsland),

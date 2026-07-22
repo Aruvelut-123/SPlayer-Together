@@ -2,7 +2,6 @@
 import type { LyricLine } from "@shared/types/lyrics";
 import { LyricPlayer as CoreLyricPlayer } from "@applemusic-like-lyrics/core";
 import { useSettingsStore } from "@/stores/settings";
-import { getLyricLanguage } from "@/utils/lyric/language";
 import "@applemusic-like-lyrics/core/style.css";
 import "./renderer.css";
 
@@ -103,12 +102,9 @@ const processLyricLanguage = (player = playerRef.value) => {
       const lyricLineElement = line?.getElement();
       if (!lyricLine || !lyricLineElement) continue;
 
-      const content = lyricLine.words.map((w) => w.word).join("");
-      if (!content) continue;
-
       const lyricMainLineElement = lyricLineElement.firstChild;
       if (lyricMainLineElement instanceof HTMLElement) {
-        const language = getLyricLanguage(content);
+        const language = (lyricLine as LyricLine).language;
         if (language) lyricMainLineElement.lang = language;
         else lyricMainLineElement.removeAttribute("lang");
       }
@@ -304,8 +300,8 @@ defineExpose({
   font-family: var(--lyric-font-ko, inherit);
 }
 
-:deep(:lang(en)) {
-  font-family: var(--lyric-font-en, inherit);
+:deep(:lang(und-Latn)) {
+  font-family: var(--lyric-font-latin, inherit);
 }
 
 :deep(.lp-line.lp-credit) {

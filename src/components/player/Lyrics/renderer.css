@@ -187,8 +187,8 @@
   font-family: var(--lyric-font-ko, inherit);
 }
 
-.lp-main:lang(en) {
-  font-family: var(--lyric-font-en, inherit);
+.lp-main:lang(und-Latn) {
+  font-family: var(--lyric-font-latin, inherit);
 }
 
 /* ---- 副文本（翻译/音译） ---- */

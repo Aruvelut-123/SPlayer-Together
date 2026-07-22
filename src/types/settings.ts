@@ -90,8 +90,8 @@ export interface LyricSettings {
   lyricBlendMode: LyricBlendMode;
   /** 歌词字体 */
   fontFamily: string;
-  /** 英文歌词字体（为空时跟随歌词字体） */
-  fontFamilyEnglish: string;
+  /** 拉丁文字歌词字体（为空时跟随歌词字体） */
+  fontFamilyLatin: string;
   /** 日文歌词字体（为空时跟随歌词字体） */
   fontFamilyJapanese: string;
   /** 韩文歌词字体（为空时跟随歌词字体） */

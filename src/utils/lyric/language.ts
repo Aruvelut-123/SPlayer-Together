@@ -1,7 +1,4 @@
-/** Han 脚本无法区分中日及简繁体，调用方不能把仅含汉字的结果视为确定语言。 */
-
-/** 歌词语言代码（BCP 47 子集） */
-export type LyricLanguage = "ja" | "ko" | "zh-CN" | "en";
+import type { LyricLanguage, LyricLine } from "@shared/types/lyrics";
 
 /** 日语假名：平假名 + 片假名 + 半角假名 + 促音/长音符号 */
 const KANA_RE = /[\p{Script=Hiragana}\p{Script=Katakana}\u30FC\uFF66-\uFF9F]/u;
@@ -16,19 +13,27 @@ const HAN_RE = /\p{Script=Han}/u;
 const LATIN_RE = /\p{Script=Latin}/u;
 
 /**
- * 检测歌词语言
- * @param lyric - 歌词内容（通常为一行主歌词合并后的文本）
- * @returns 可识别的语言代码，未知脚本返回 undefined
+ * 为歌词行补充语言信息
+ *
+ * Han 脚本无法独立区分中日；同一首歌词出现假名时，将纯汉字行视为日语，
+ * 否则视为中文。拉丁文字使用 BCP 47 的 und-Latn，避免误标为英语。
+ *
+ * @param lines - 已解析的整首歌词
  */
-export const getLyricLanguage = (lyric: string): LyricLanguage | undefined => {
-  if (!lyric) return undefined;
-  // 日语：含假名即判定（汉字+假名混排是日语歌词的典型形态）
-  if (KANA_RE.test(lyric)) return "ja";
-  // 韩语：含谚文音节
-  if (HANGUL_RE.test(lyric)) return "ko";
-  // 中文：含汉字（简繁不区分）
-  if (HAN_RE.test(lyric)) return "zh-CN";
-  // 英语：至少包含拉丁字母，避免把数字、标点和其他脚本误标为英文
-  if (LATIN_RE.test(lyric)) return "en";
-  return undefined;
+export const applyLyricLanguages = (lines: LyricLine[]): void => {
+  const contents = lines.map((line) => line.words.map((word) => word.word).join(""));
+  const hanLanguage: LyricLanguage = contents.some((content) => KANA_RE.test(content))
+    ? "ja"
+    : contents.some((content) => HANGUL_RE.test(content))
+      ? "ko"
+      : "zh-CN";
+
+  for (let i = 0; i < lines.length; i++) {
+    const content = contents[i];
+    if (KANA_RE.test(content)) lines[i].language = "ja";
+    else if (HANGUL_RE.test(content)) lines[i].language = "ko";
+    else if (HAN_RE.test(content)) lines[i].language = hanLanguage;
+    else if (LATIN_RE.test(content)) lines[i].language = "und-Latn";
+    else delete lines[i].language;
+  }
 };

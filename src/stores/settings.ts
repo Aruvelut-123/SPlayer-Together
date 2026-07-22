@@ -94,7 +94,7 @@ export const useSettingsStore = defineStore(
       fontWeight: 700,
       lyricBlendMode: "normal",
       fontFamily: "",
-      fontFamilyEnglish: "",
+      fontFamilyLatin: "",
       fontFamilyJapanese: "",
       fontFamilyKorean: "",
       fontFamilyChinese: "",
