@@ -2,10 +2,6 @@
 
 SPlayer-Next 内置 [Model Context Protocol](https://modelcontextprotocol.io/) 服务，允许支持 MCP 的 AI 应用查询当前播放状态、本地曲库并控制播放器。
 
-::: warning 默认关闭且仅限本机
-在 **设置 → AI 集成 → MCP** 中开启「启用 MCP 服务」。MCP 拥有独立的本机监听服务，不依赖外部 HTTP API，也不会随“允许外部控制”开关启停。
-:::
-
 ## 连接
 
 - **传输协议**：Streamable HTTP
@@ -33,30 +29,32 @@ SPlayer-Next 内置 [Model Context Protocol](https://modelcontextprotocol.io/) �
 
 ## 工具
 
-| 工具                  | 参数              | 说明                                      |
-| --------------------- | ----------------- | ----------------------------------------- |
-| `get_playback_status` | —                 | 获取播放状态、进度、时长和音量            |
-| `get_now_playing`     | —                 | 获取当前曲目、歌词和播放位置              |
-| `play`                | —                 | 继续播放                                  |
-| `pause`               | —                 | 暂停播放                                  |
-| `stop`                | —                 | 停止播放                                  |
-| `next_track`          | —                 | 下一曲                                    |
-| `previous_track`      | —                 | 上一曲                                    |
-| `seek`                | `positionMs`      | 跳转到指定毫秒位置                        |
-| `set_volume`          | `volume`          | 设置音量，范围 `0` 到 `1`                 |
-| `search_library`      | `query`, `limit?` | 搜索本地曲库，默认返回 20 条，最多 100 条 |
-| `get_random_tracks`   | `limit?`          | 随机获取曲目，默认 10 条，最多 50 条      |
-| `list_albums`         | `limit?`          | 获取专辑摘要，默认 50 条，最多 100 条     |
-| `list_artists`        | `limit?`          | 获取艺术家摘要，默认 50 条，最多 100 条   |
-
-曲库工具不会返回本地文件路径或封面缓存路径。
+| 工具                  | 参数                                   | 说明                                      |
+| --------------------- | -------------------------------------- | ----------------------------------------- |
+| `get_playback_status` | —                                      | 获取播放状态、进度、音量和播放模式        |
+| `get_now_playing`     | —                                      | 获取不含完整歌词正文的当前曲目轻量快照    |
+| `play`                | —                                      | 继续播放                                  |
+| `pause`               | —                                      | 暂停播放                                  |
+| `stop`                | —                                      | 停止播放                                  |
+| `next_track`          | —                                      | 下一曲                                    |
+| `previous_track`      | —                                      | 上一曲                                    |
+| `seek`                | `positionMs`                           | 跳转到指定毫秒位置                        |
+| `set_volume`          | `volume`                               | 设置音量，范围 `0` 到 `1`                 |
+| `set_play_mode`       | `repeat?`, `shuffle?`                  | 设置循环和随机播放模式                    |
+| `play_track`          | `track`                                | 将完整 Track 加入队列并立即播放           |
+| `add_to_queue`        | `tracks`, `position?`                  | 添加最多 50 首到下一首位置或队列末尾      |
+| `search_library`      | `query`, `limit?`                      | 搜索本地曲库，默认返回 20 条，最多 100 条 |
+| `search_online_songs` | `platform`, `query`, `page?`, `limit?` | 搜索在线音乐资源，单页最多返回 50 条      |
+| `get_random_tracks`   | `limit?`                               | 随机获取曲目，默认 10 条，最多 50 条      |
+| `list_albums`         | `limit?`                               | 获取专辑摘要，默认 50 条，最多 100 条     |
+| `list_artists`        | `limit?`                               | 获取艺术家摘要，默认 50 条，最多 100 条   |
 
 ## 资源
 
-| URI                         | 说明                         |
-| --------------------------- | ---------------------------- |
-| `splayer://now-playing`     | 当前歌曲、歌词与播放位置快照 |
-| `splayer://library/summary` | 曲库歌曲、专辑与艺术家数量   |
+| URI                         | 说明                           |
+| --------------------------- | ------------------------------ |
+| `splayer://now-playing`     | 不含完整歌词的当前播放轻量快照 |
+| `splayer://library/summary` | 曲库歌曲、专辑与艺术家数量     |
 
 ## 使用 MCP Inspector 调试
 
@@ -65,10 +63,3 @@ npx @modelcontextprotocol/inspector
 ```
 
 在 Inspector 中选择 Streamable HTTP，并填写 `http://127.0.0.1:14559/mcp`。如果连接失败，请检查 MCP 服务开关和设置页显示的实际端口。
-
-## 安全边界
-
-- MCP 使用独立端口，只在 MCP 服务开关开启时监听。
-- MCP 会校验 `X-MCP-Key` 请求头和浏览器请求的 `Origin`，只接受已配置的本机客户端。
-- MCP 固定监听 `127.0.0.1`，不应通过端口转发或反向代理暴露到公网。
-- 搜索结果有数量上限，避免一次向 AI 发送整个曲库。

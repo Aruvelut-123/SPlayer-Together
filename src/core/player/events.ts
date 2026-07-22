@@ -10,6 +10,7 @@ import * as cacheScheduler from "@/services/cacheScheduler";
 import * as playStats from "./stats";
 import {
   hasReachedSeekTarget,
+  insertManyToQueue,
   isSeeking,
   markSeek,
   nextTrack,
@@ -129,6 +130,9 @@ export const handleEvent = async (event: PlayerEvent): Promise<void> => {
       break;
     case "setRepeat":
       setRepeatMode(event.data.mode);
+      break;
+    case "addToQueue":
+      insertManyToQueue(event.data.tracks, event.data.position);
       break;
     case "toggleLike":
       await useFavorite().toggle(useMediaStore().track);

@@ -181,6 +181,7 @@ export type PlayerEvent =
   | { type: "playTrack"; data: { track: Track } }
   | { type: "setShuffle"; data: { mode: ShuffleMode } }
   | { type: "setRepeat"; data: { mode: RepeatMode } }
+  | { type: "addToQueue"; data: { tracks: Track[]; position: "next" | "end" } }
   | { type: "toggleLike" }
   | { type: "fftData"; data: number[] }
   | { type: "error"; error: string }

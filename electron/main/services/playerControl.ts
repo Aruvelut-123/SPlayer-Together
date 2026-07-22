@@ -36,6 +36,8 @@ export const playerControl = {
     sendToMain("player:event", { type: "setRepeat", data: { mode } }),
   playTrack: (track: Track): void =>
     sendToMain("player:event", { type: "playTrack", data: { track } }),
+  addToQueue: (tracks: Track[], position: "next" | "end"): void =>
+    sendToMain("player:event", { type: "addToQueue", data: { tracks, position } }),
   seek,
   setVolume: (volume: number): void => getPlayer().setVolume(volume),
   /** 当前播放进度（毫秒） */
