@@ -11,8 +11,6 @@ use crate::metadata::ExternalLyric;
 pub struct AudioChunk {
     /// 交错排列的 f32 播放样本（L R L R ...）
     pub player_samples: Vec<f32>,
-    /// 单声道 f32 样本，用于 FFT 频谱分析
-    pub fft_samples: Vec<f32>,
 }
 
 /// 非阻塞弹出缓冲区的结果
