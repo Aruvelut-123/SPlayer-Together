@@ -1404,6 +1404,7 @@
       "placeholder": "Enter a font name",
       "useSystem": "System default",
       "useGlobal": "Follow global",
+      "useLyric": "Follow lyric",
       "modeLabel": "Input method",
       "modeHint": "All fields below use this method",
       "modeSelect": "Manual pick",
@@ -1418,6 +1419,10 @@
       "fields": {
         "global": "global",
         "lyric": "lyrics",
+        "lyricChinese": "Chinese lyrics",
+        "lyricJapanese": "Japanese lyrics",
+        "lyricKorean": "Korean lyrics",
+        "lyricLatin": "English / Latin-script lyrics",
         "desktopLyric": "desktop lyric",
         "dynamicIsland": "dynamic island lyric",
         "taskbarLyric": "taskbar lyric"

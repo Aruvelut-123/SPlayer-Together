@@ -1392,6 +1392,7 @@
       "placeholder": "输入字体名称",
       "useSystem": "系统默认",
       "useGlobal": "跟随全局",
+      "useLyric": "跟随歌词",
       "modeLabel": "设置方式",
       "modeHint": "下方所有字段统一使用该方式",
       "modeSelect": "手动选择",
@@ -1406,6 +1407,10 @@
       "fields": {
         "global": "全局",
         "lyric": "歌词",
+        "lyricChinese": "中文歌词",
+        "lyricJapanese": "日语歌词",
+        "lyricKorean": "韩语歌词",
+        "lyricLatin": "英语 / 拉丁文字歌词",
         "desktopLyric": "桌面歌词",
         "dynamicIsland": "灵动岛歌词",
         "taskbarLyric": "任务栏歌词"
