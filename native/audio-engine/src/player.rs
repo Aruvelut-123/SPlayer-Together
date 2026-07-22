@@ -993,10 +993,6 @@ impl InnerPlayer {
             return self.seek_via_reload();
         };
 
-        // 清掉中断标志：上面 shared.stop() 已让 interrupt_flag=true，
-        // 否则 ffmpeg 的 avformat_seek_file 一进入就会被中断
-        decoder_data.reset_interrupt();
-
         if !decoder_data.seek(position_secs) {
             drop(decoder_data);
             return self.seek_via_reload();

@@ -6,7 +6,6 @@ mod decoder;
 mod equalizer;
 mod error;
 mod fft;
-mod http_source;
 mod logger;
 mod loudness;
 mod metadata;
@@ -414,10 +413,6 @@ impl AudioPlayer {
                 Some(d) => d,
                 None => return SeekOutcome::Fallback,
             };
-            // 关键：清掉中断标志再 seek
-            // take_for_async_seek 调过 old_shared.stop()，已把 interrupt_flag 设为 true，
-            // 否则 ffmpeg 的 avformat_seek_file 一进入就会被中断回调拒绝
-            decoder_data.reset_interrupt();
             if !decoder_data.seek(position) {
                 return SeekOutcome::Fallback;
             }
