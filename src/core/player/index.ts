@@ -669,9 +669,8 @@ export const dislikeFmTrack = async (): Promise<void> => {
 
 /**
  * 播放下一首
- * @param manual - 用户手动点下一曲
  */
-export const nextTrack = async (manual = false): Promise<void> => {
+export const nextTrack = async (): Promise<void> => {
   const status = useStatusStore();
   // 私人 FM
   if (status.fmMode) {
@@ -682,20 +681,12 @@ export const nextTrack = async (manual = false): Promise<void> => {
   if (queue.queueLength.value === 0) return;
   // 到末尾了
   if (status.playIndex >= queue.queueLength.value - 1) {
-    // 列表循环 / 单曲循环，或用户手动点下一曲
-    if (status.repeatMode === "list" || status.repeatMode === "one" || manual) {
-      if (status.shuffleMode === "on" && queue.queueLength.value > 1) {
-        // 重新洗牌产生新顺序，当前歌在 index 0，从 1 开始避免重复
-        queue.shuffleQueue(status.playIndex);
-        status.playIndex = 1;
-      } else {
-        status.playIndex = 0;
-      }
-    }
-    // 非循环：队列播完
-    else {
-      await onQueueEnded();
-      return;
+    if (status.shuffleMode === "on" && queue.queueLength.value > 1) {
+      // 重新洗牌产生新顺序，当前歌在 index 0，从 1 开始避免重复
+      queue.shuffleQueue(status.playIndex);
+      status.playIndex = 1;
+    } else {
+      status.playIndex = 0;
     }
   } else {
     status.playIndex++;
@@ -749,7 +740,7 @@ const syncPlayMode = (): void => {
 
 /**
  * 设置循环模式
- * @param mode - off（不循环）、list（列表循环）、one（单曲循环）
+ * @param mode - list（列表循环）、one（单曲循环）
  */
 export const setRepeatMode = (mode: RepeatMode): void => {
   const status = useStatusStore();
@@ -759,10 +750,10 @@ export const setRepeatMode = (mode: RepeatMode): void => {
   toast.info(i18n.global.t(`player.repeatMode.${mode}`), { icon: false });
 };
 
-/** 循环切换循环模式：list → one → off → list */
+/** 循环切换循环模式：list → one → list */
 export const cycleRepeatMode = (): void => {
   const status = useStatusStore();
-  const cycle: RepeatMode[] = ["list", "one", "off"];
+  const cycle: RepeatMode[] = ["list", "one"];
   const nextIndex = (cycle.indexOf(status.repeatMode) + 1) % cycle.length;
   setRepeatMode(cycle[nextIndex]);
 };
@@ -948,6 +939,8 @@ export const initPlayer = async (): Promise<void> => {
   void usePluginsStore().load();
   await queue.restoreQueue();
   const status = useStatusStore();
+  // 兼容移除“不循环”前持久化的旧状态
+  if ((status.repeatMode as string) === "off") status.repeatMode = "list";
   // 恢复上次的音量和播放模式到主进程
   await window.api.player.setVolume(status.volume);
   syncPlayMode();

@@ -448,8 +448,7 @@
     },
     "repeatMode": {
       "list": "列表循环",
-      "one": "单曲循环",
-      "off": "关闭循环"
+      "one": "单曲循环"
     },
     "shuffleMode": {
       "on": "随机播放",
@@ -1580,8 +1579,8 @@
       "description": "配置应用使用的 AI 模型"
     },
     "aiModel": {
-      "hint": "添加应用可使用的 AI 模型",
-      "hintDetail": "支持添加多个 OpenAI Compatible 或 Anthropic 配置，并选择当前使用的模型",
+      "hint": "AI 模型配置",
+      "hintDetail": "可为项目中的部分 AI 功能提供支持",
       "add": "添加模型",
       "editModel": "编辑模型",
       "empty": "暂未配置 AI 模型",

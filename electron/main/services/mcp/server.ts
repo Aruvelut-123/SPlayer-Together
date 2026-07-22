@@ -144,9 +144,9 @@ const createServer = (): McpServer => {
     {
       title: "设置播放模式",
       description:
-        "设置播放器的循环模式或随机模式。repeat: 循环模式 (off/list/one), shuffle: 随机播放 (on/off)",
+        "设置播放器的循环模式或随机模式。repeat: 循环模式 (list/one), shuffle: 随机播放 (on/off)",
       inputSchema: {
-        repeat: z.enum(["off", "list", "one"]).optional(),
+        repeat: z.enum(["list", "one"]).optional(),
         shuffle: z.enum(["on", "off"]).optional(),
       },
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },

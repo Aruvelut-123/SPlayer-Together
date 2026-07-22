@@ -460,8 +460,7 @@
     },
     "repeatMode": {
       "list": "Repeat all",
-      "one": "Repeat one",
-      "off": "Repeat off"
+      "one": "Repeat one"
     },
     "shuffleMode": {
       "on": "Shuffle on",
@@ -1592,8 +1591,8 @@
       "description": "Configure AI models used by the app"
     },
     "aiModel": {
-      "hint": "Add AI models for the app to use",
-      "hintDetail": "Add multiple OpenAI Compatible or Anthropic configurations and select the active model",
+      "hint": "AI Model Configuration",
+      "hintDetail": "Provides model support for selected AI features in the app",
       "add": "Add model",
       "editModel": "Edit model",
       "empty": "No AI models configured",
