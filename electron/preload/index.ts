@@ -16,6 +16,7 @@ import type { TagEditRequest } from "@shared/types/tagEditor";
 import type { UpdateEvent } from "@shared/types/update";
 import type { CloudUploadProgress } from "@shared/types/cloudUpload";
 import type { MusicCommentQuery } from "@shared/types/comment";
+import type { AiModelSaveInput } from "@shared/types/ai";
 
 /** 订阅主进程推送的事件 */
 const subscribe = <T>(channel: string, callback: (data: T) => void): (() => void) => {
@@ -497,6 +498,12 @@ const api = {
       ipcRenderer.removeAllListeners("mcp:status");
       return subscribe<McpStatus>("mcp:status", callback);
     },
+  },
+  aiModel: {
+    list: () => ipcRenderer.invoke("aiModel:list"),
+    save: (input: AiModelSaveInput) => ipcRenderer.invoke("aiModel:save", input),
+    remove: (id: string) => ipcRenderer.invoke("aiModel:remove", id),
+    setActive: (id: string | null) => ipcRenderer.invoke("aiModel:setActive", id),
   },
   update: {
     // 检查更新

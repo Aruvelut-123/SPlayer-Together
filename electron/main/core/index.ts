@@ -24,7 +24,7 @@ import {
 } from "@main/plugins/playbackBridge";
 import { registerCacheScheme, handleCacheProtocol } from "@main/utils/protocol";
 import { startServer, stopServer } from "@main/server";
-import { startMcpServer, stopMcpServer } from "@main/mcp/http";
+import { startMcpServer, stopMcpServer } from "@main/services/mcp/http";
 import { initUpdater, disposeUpdater } from "@main/services/updater";
 import { coreLog, initLogger } from "@main/utils/logger";
 import {

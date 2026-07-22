@@ -29,7 +29,7 @@ import {
 import { broadcast } from "@main/utils/broadcast";
 import { isWin } from "@main/utils/config";
 import { startServer, stopServer } from "@main/server";
-import { startMcpServer, stopMcpServer } from "@main/mcp/http";
+import { startMcpServer, stopMcpServer } from "@main/services/mcp/http";
 import { setOrpheusProtocolRegistered } from "@main/services/orpheus";
 import { setTaskbarThumbnailEnabled } from "@main/services/thumbnail";
 

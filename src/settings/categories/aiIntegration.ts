@@ -1,12 +1,26 @@
 import type { SettingCategory } from "@/types/settings-schema";
 import McpConfigDialog from "@/components/settings/custom/McpConfigDialog.vue";
 import McpStatusCard from "@/components/settings/custom/McpStatusCard.vue";
+import AiModelConfig from "@/components/settings/custom/AiModelConfig.vue";
 import IconLucideBot from "~icons/lucide/bot";
 
 const aiIntegrationCategory: SettingCategory = {
   id: "aiIntegration",
   icon: IconLucideBot,
   sections: [
+    {
+      id: "aiModel",
+      tag: { text: "未实现", type: "warning" },
+      items: [
+        {
+          key: "aiModelConfig",
+          type: "custom",
+          component: AiModelConfig,
+          fullWidth: true,
+          searchable: false,
+        },
+      ],
+    },
     {
       id: "mcp",
       tag: { text: "Beta" },

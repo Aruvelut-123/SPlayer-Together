@@ -1,6 +1,6 @@
 import { ipcMain } from "electron";
-import { getMcpClientConfigParams, getMcpStatus, restartMcpServer } from "@main/mcp/http";
-import { detectMcpAgents, injectMcpAgentConfig } from "@main/mcp/injector";
+import { getMcpClientConfigParams, getMcpStatus, restartMcpServer } from "@main/services/mcp/http";
+import { detectMcpAgents, injectMcpAgentConfig } from "@main/services/mcp/injector";
 import type { McpClientConfigParams } from "@shared/types/settings";
 
 /** 注册 MCP 服务状态与重启接口 */

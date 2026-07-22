@@ -28,6 +28,7 @@ import { StatsApi } from "@shared/types/stats";
 import { UpdateApi } from "@shared/types/update";
 import { CloudUploadApi } from "@shared/types/cloudUpload";
 import { CommentsApi } from "@shared/types/comment";
+import { AiModelApi } from "@shared/types/ai";
 
 declare global {
   interface Window {
@@ -106,6 +107,7 @@ declare global {
         injectAgentConfig: (agentId: string, params: McpClientConfigParams) => Promise<boolean>;
         onStatus: (callback: (status: McpStatus) => void) => () => void;
       };
+      aiModel: AiModelApi;
       update: UpdateApi;
     };
   }

@@ -13,6 +13,7 @@ declare module 'vue' {
   export interface GlobalComponents {
     AbLoopDialog: typeof import('./src/components/modals/AbLoopDialog.vue')['default']
     AboutSettings: typeof import('./src/components/settings/custom/AboutSettings.vue')['default']
+    AiModelConfig: typeof import('./src/components/settings/custom/AiModelConfig.vue')['default']
     AmllDbServerConfig: typeof import('./src/components/settings/custom/AmllDbServerConfig.vue')['default']
     AMLLLyrics: typeof import('./src/components/player/Lyrics/AMLLLyrics.vue')['default']
     AppBackground: typeof import('./src/components/AppBackground.vue')['default']
