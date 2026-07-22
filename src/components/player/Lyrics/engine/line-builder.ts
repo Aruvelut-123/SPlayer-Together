@@ -69,9 +69,8 @@ export const buildLineElements = (
 
     // 为主歌词行设置 lang 属性，便于浏览器选择正确字体与排版
     const mainContent = line.words.map((w) => w.word).join("");
-    if (mainContent) {
-      mainDiv.setAttribute("lang", getLyricLanguage(mainContent));
-    }
+    const language = getLyricLanguage(mainContent);
+    if (language) mainDiv.lang = language;
 
     // 行歌词是否静态（≤1 个单词，无逐字动画）
     const isStatic = line.words.length === 0 || (line.words.length === 1 && !hasMultiWordLine);

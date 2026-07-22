@@ -108,7 +108,9 @@ const processLyricLanguage = (player = playerRef.value) => {
 
       const lyricMainLineElement = lyricLineElement.firstChild;
       if (lyricMainLineElement instanceof HTMLElement) {
-        lyricMainLineElement.setAttribute("lang", getLyricLanguage(content));
+        const language = getLyricLanguage(content);
+        if (language) lyricMainLineElement.lang = language;
+        else lyricMainLineElement.removeAttribute("lang");
       }
     }
   }
