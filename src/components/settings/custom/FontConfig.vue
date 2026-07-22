@@ -163,7 +163,7 @@ const handleSave = async (): Promise<void> => {
   >
     <div class="flex flex-col gap-3">
       <!-- 设置方式 -->
-      <SCard class="flex items-center gap-3">
+      <SCard variant="settings" class="flex items-center gap-3">
         <div class="min-w-0 flex-1">
           <div class="text-base">{{ t("settings.fontConfig.modeLabel") }}</div>
           <div class="text-sm text-on-surface-variant/70 mt-0.5">
@@ -181,7 +181,12 @@ const handleSave = async (): Promise<void> => {
           <span class="w-1 h-4 rounded-full bg-primary" />
           {{ t(`settings.fontConfig.groups.${g.group}`) }}
         </h4>
-        <SCard v-for="target in g.items" :key="target.key" class="flex flex-col gap-2.5">
+        <SCard
+          v-for="target in g.items"
+          :key="target.key"
+          variant="settings"
+          class="flex flex-col gap-2.5"
+        >
           <div class="flex items-center gap-3">
             <div class="min-w-0 flex-1 text-base">{{ target.label }}</div>
             <SButton

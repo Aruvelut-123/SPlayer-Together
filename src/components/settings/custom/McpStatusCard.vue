@@ -18,6 +18,7 @@ const address = computed(
 );
 
 const restart = async (): Promise<void> => {
+  if (!settings.system.mcp.enabled || restarting.value) return;
   restarting.value = true;
   try {
     const result = await window.api.mcp.restart();
@@ -65,7 +66,14 @@ onBeforeUnmount(() => unsubscribe?.());
     <SButton variant="ghost" circle size="small" @click="copy(address)">
       <template #icon><IconLucideCopy /></template>
     </SButton>
-    <SButton type="primary" variant="secondary" size="small" :loading="restarting" @click="restart">
+    <SButton
+      type="primary"
+      variant="secondary"
+      size="small"
+      :disabled="!settings.system.mcp.enabled"
+      :loading="restarting"
+      @click="restart"
+    >
       {{ t("settings.mcp.restart") }}
     </SButton>
   </div>

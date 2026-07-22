@@ -1591,8 +1591,9 @@
       "portInUse": "Port {port} is already in use, pick another",
       "running": "MCP server is running",
       "stopped": "MCP server is not running",
-      "detectHint": "Detected the following AI Agents. One-click configuration is available.",
+      "detectHint": "Detected the following AI Agents. Supported apps can be configured automatically.",
       "inject": "Configure",
+      "notSupported": "Not supported yet",
       "injected": "Configured",
       "injectSuccess": "Configured successfully"
     },

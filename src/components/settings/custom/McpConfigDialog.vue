@@ -46,7 +46,7 @@ watch(open, async (value) => {
 });
 
 const handleInject = async (agent: McpAgentApp) => {
-  if (agent.configured) return;
+  if (agent.configured || !agent.injectable) return;
   injecting.value[agent.id] = true;
   try {
     await window.api.mcp.injectAgentConfig(agent.id, toRaw(params.value));
@@ -77,13 +77,14 @@ const handleInject = async (agent: McpAgentApp) => {
         </SButton>
       </div>
 
-      <div v-if="agents.length > 0" class="mt-2 flex flex-col gap-2.5">
+      <div v-if="agents.length > 0" class="mt-2 flex flex-col gap-2.5 pb-2">
         <p class="font-medium">
           {{ t("settings.mcp.detectHint") }}
         </p>
         <SCard
           v-for="agent in agents"
           :key="agent.id"
+          variant="settings"
           size="small"
           class="flex items-center gap-3 pr-2.5"
         >
@@ -102,11 +103,17 @@ const handleInject = async (agent: McpAgentApp) => {
             size="small"
             variant="secondary"
             :type="agent.configured ? 'default' : 'primary'"
-            :disabled="agent.configured"
+            :disabled="agent.configured || !agent.injectable"
             :loading="injecting[agent.id]"
             @click="handleInject(agent)"
           >
-            {{ agent.configured ? t("settings.mcp.injected") : t("settings.mcp.inject") }}
+            {{
+              !agent.injectable
+                ? t("settings.mcp.notSupported")
+                : agent.configured
+                  ? t("settings.mcp.injected")
+                  : t("settings.mcp.inject")
+            }}
           </SButton>
         </SCard>
       </div>

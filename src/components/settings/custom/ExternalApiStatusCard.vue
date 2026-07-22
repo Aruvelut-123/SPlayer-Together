@@ -27,6 +27,7 @@ const address = computed(() => {
 });
 
 const restart = async (): Promise<void> => {
+  if (!settings.system.externalApi.enabled || restarting.value) return;
   restarting.value = true;
   try {
     const result = await window.api.externalApi.restart();
@@ -74,7 +75,14 @@ onBeforeUnmount(() => unsubscribe?.());
     <SButton variant="ghost" circle size="small" @click="copy(address)">
       <template #icon><IconLucideCopy /></template>
     </SButton>
-    <SButton type="primary" variant="secondary" size="small" :loading="restarting" @click="restart">
+    <SButton
+      type="primary"
+      variant="secondary"
+      size="small"
+      :disabled="!settings.system.externalApi.enabled"
+      :loading="restarting"
+      @click="restart"
+    >
       {{ t("settings.externalApi.restart") }}
     </SButton>
   </div>

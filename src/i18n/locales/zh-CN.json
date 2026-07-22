@@ -1579,8 +1579,9 @@
       "portInUse": "端口 {port} 已被占用，请换一个",
       "running": "MCP 服务运行中",
       "stopped": "MCP 服务未运行",
-      "detectHint": "检测到以下 AI Agent 应用，可一键写入 MCP 配置",
+      "detectHint": "检测到以下 AI Agent 应用，支持的平台可一键写入 MCP 配置",
       "inject": "一键配置",
+      "notSupported": "暂不支持",
       "injected": "已配置",
       "injectSuccess": "配置成功"
     },

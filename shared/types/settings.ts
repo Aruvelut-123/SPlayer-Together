@@ -291,6 +291,8 @@ export interface McpAgentApp {
   configPath: string;
   /** 是否已配置 splayer-next */
   configured: boolean;
+  /** 是否支持自动写入配置 */
+  injectable: boolean;
 }
 
 /** 在线歌词服务配置 */
