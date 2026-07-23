@@ -327,6 +327,16 @@ const taskbarLyricSection: SettingSection = {
       marks: { 12: "12", 14: "14", 17: "17", 20: "20" },
     },
     {
+      key: "taskbarLyricFontWeight",
+      type: "slider",
+      binding: { store: "settings", path: "system.taskbarLyric.fontWeight" },
+      min: 100,
+      max: 900,
+      step: 100,
+      defaultValue: 400,
+      marks: { 100: "100", 400: "400", 700: "700", 900: "900" },
+    },
+    {
       key: "taskbarLyricShowCover",
       type: "switch",
       binding: { store: "settings", path: "system.taskbarLyric.showCover" },

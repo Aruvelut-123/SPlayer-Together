@@ -22,6 +22,7 @@ const config = reactive<TaskbarLyricSettings>({
   showCover: true,
   wordByWord: true,
   fontSize: 14,
+  fontWeight: 400,
   fontFamily: "",
 });
 
@@ -101,6 +102,7 @@ const items = computed<RenderItem[]>(() => {
 
 const rootStyle = computed(() => ({
   "--tbl-font-size": `${config.fontSize}px`,
+  fontWeight: config.fontWeight,
   fontFamily: config.fontFamily || undefined,
 }));
 

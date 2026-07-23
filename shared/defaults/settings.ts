@@ -88,6 +88,7 @@ export const defaultSystemConfig: SystemConfig = {
     showCover: true,
     wordByWord: true,
     fontSize: 14,
+    fontWeight: 400,
     fontFamily: "",
   },
   lyric: {

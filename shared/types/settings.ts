@@ -198,6 +198,8 @@ export interface TaskbarLyricSettings {
   wordByWord: boolean;
   /** 字号（逻辑像素） */
   fontSize: number;
+  /** 字重 */
+  fontWeight: number;
   /** 字体 */
   fontFamily: string;
 }

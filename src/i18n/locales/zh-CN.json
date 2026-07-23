@@ -1267,6 +1267,10 @@
       "label": "字号",
       "description": "任务栏歌词的文字大小（像素）"
     },
+    "taskbarLyricFontWeight": {
+      "label": "字重",
+      "description": "任务栏歌词的文字粗细"
+    },
     "taskbarLyricShowCover": {
       "label": "显示封面",
       "description": "在歌词旁显示当前曲目的封面缩略图"

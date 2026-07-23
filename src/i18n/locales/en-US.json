@@ -1279,6 +1279,10 @@
       "label": "Font Size",
       "description": "Taskbar lyric text size (px)"
     },
+    "taskbarLyricFontWeight": {
+      "label": "Font Weight",
+      "description": "Taskbar lyric text weight"
+    },
     "taskbarLyricShowCover": {
       "label": "Show Cover",
       "description": "Show the current track's cover thumbnail beside the lyric"
