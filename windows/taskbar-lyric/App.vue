@@ -29,6 +29,22 @@ const config = reactive<TaskbarLyricSettings>({
 const anchor = ref<"left" | "right">("left");
 const taskbarIsLight = ref(false);
 const isHovered = ref(false);
+let hoverLeaveTimer: number | null = null;
+
+const setContentHovered = (hovered: boolean): void => {
+  if (hoverLeaveTimer !== null) {
+    window.clearTimeout(hoverLeaveTimer);
+    hoverLeaveTimer = null;
+  }
+  if (hovered) {
+    isHovered.value = true;
+    return;
+  }
+  hoverLeaveTimer = window.setTimeout(() => {
+    hoverLeaveTimer = null;
+    isHovered.value = false;
+  }, 40);
+};
 
 const { track, lyric, primaryIndex, playing } = useNowPlayingSync({
   pickIndex: pickPrimaryIndex,
@@ -135,6 +151,10 @@ onMounted(async () => {
 });
 
 onBeforeUnmount(() => {
+  if (hoverLeaveTimer !== null) {
+    window.clearTimeout(hoverLeaveTimer);
+    hoverLeaveTimer = null;
+  }
   for (const off of unsubscribers) off();
 });
 </script>
@@ -147,11 +167,14 @@ onBeforeUnmount(() => {
       :data-theme="effectiveTheme"
       :data-align="anchor"
       :style="rootStyle"
-      @mouseenter="isHovered = true"
-      @mouseleave="isHovered = false"
       @dblclick="handleFocusMain"
     >
-      <div v-if="config.showCover" class="cover-wrapper">
+      <div
+        v-if="config.showCover"
+        class="cover-wrapper"
+        @mouseenter="setContentHovered(true)"
+        @mouseleave="setContentHovered(false)"
+      >
         <img
           class="cover"
           :src="track?.cover || DEFAULT_COVER"
@@ -162,7 +185,11 @@ onBeforeUnmount(() => {
       </div>
 
       <!-- 播放控件 -->
-      <div class="controls-wrapper">
+      <div
+        class="controls-wrapper"
+        @mouseenter="setContentHovered(true)"
+        @mouseleave="setContentHovered(false)"
+      >
         <div class="controls-inner">
           <button class="control-btn" type="button" @click.stop="handlePrev" @dblclick.stop>
             <IconSkipBack class="control-icon" />
@@ -186,13 +213,25 @@ onBeforeUnmount(() => {
               :text="item.text"
               :word-by-word="config.wordByWord && !!item.line"
               :anchor="anchor"
+              @hover-change="setContentHovered"
             />
           </div>
         </TransitionGroup>
         <!-- 歌曲信息 -->
         <div class="song-info">
-          <div class="song-title">{{ titleText }}</div>
-          <div v-if="config.doubleLine" class="song-artist">
+          <div
+            class="song-title"
+            @mouseenter="setContentHovered(true)"
+            @mouseleave="setContentHovered(false)"
+          >
+            {{ titleText }}
+          </div>
+          <div
+            v-if="config.doubleLine"
+            class="song-artist"
+            @mouseenter="setContentHovered(true)"
+            @mouseleave="setContentHovered(false)"
+          >
             {{ artistsText }}
           </div>
         </div>
@@ -218,7 +257,6 @@ onBeforeUnmount(() => {
   /* 深色主题 */
   --tbl-text-primary: #ffffff;
   --tbl-text-secondary: rgba(255, 255, 255, 0.5);
-  --tbl-hover-bg: rgba(255, 255, 255, 0.12);
   --tbl-played: var(--tbl-text-primary);
   --tbl-unplayed: var(--tbl-text-secondary);
   position: relative;
@@ -229,9 +267,8 @@ onBeforeUnmount(() => {
   border-radius: 8px;
   background: transparent;
   overflow: hidden;
-  pointer-events: auto;
+  pointer-events: none;
   color: var(--tbl-text-primary);
-  transition: background 0.3s;
 }
 .container[data-align="right"] {
   flex-direction: row-reverse;
@@ -239,10 +276,6 @@ onBeforeUnmount(() => {
 .container[data-theme="light"] {
   --tbl-text-primary: #1a1a1a;
   --tbl-text-secondary: rgba(0, 0, 0, 0.62);
-  --tbl-hover-bg: rgba(0, 0, 0, 0.08);
-}
-.container:hover {
-  background: var(--tbl-hover-bg);
 }
 /* 封面 */
 .cover-wrapper {
@@ -251,6 +284,7 @@ onBeforeUnmount(() => {
   aspect-ratio: 1 / 1;
   padding: 4px;
   overflow: hidden;
+  pointer-events: auto;
 }
 .cover {
   width: 100%;
@@ -399,23 +433,26 @@ onBeforeUnmount(() => {
 }
 .container.is-hovered .song-info {
   opacity: 1;
-  pointer-events: auto;
   transition-delay: 0.08s;
 }
 .song-title {
+  width: fit-content;
   font-size: var(--tbl-font-size);
   color: var(--tbl-text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 100%;
+  pointer-events: auto;
 }
 .song-artist {
+  width: fit-content;
   font-size: calc(var(--tbl-font-size) * 0.82);
   color: var(--tbl-text-secondary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 100%;
+  pointer-events: auto;
 }
 </style>

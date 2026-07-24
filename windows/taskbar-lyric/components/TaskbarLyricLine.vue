@@ -13,6 +13,10 @@ const props = withDefaults(
   { wordByWord: false, anchor: "left" },
 );
 
+const emit = defineEmits<{
+  hoverChange: [hovered: boolean];
+}>();
+
 const useKaraoke = computed(() => props.wordByWord && !!props.line);
 const plainText = computed(() => props.text ?? props.line?.words.map((w) => w.word).join("") ?? "");
 
@@ -149,7 +153,12 @@ onBeforeUnmount(() => {
     :data-anchor="anchor"
     :class="{ 'is-overflow': isOverflow }"
   >
-    <div ref="contentRef" class="scroll-content">
+    <div
+      ref="contentRef"
+      class="scroll-content"
+      @mouseenter="emit('hoverChange', true)"
+      @mouseleave="emit('hoverChange', false)"
+    >
       <template v-if="useKaraoke">
         <span
           v-for="(word, i) in line!.words"
@@ -178,6 +187,7 @@ onBeforeUnmount(() => {
 }
 .scroll-content {
   display: inline-block;
+  pointer-events: auto;
   will-change: transform;
 }
 .tb-word {
