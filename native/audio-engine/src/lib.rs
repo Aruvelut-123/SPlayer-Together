@@ -6,6 +6,7 @@ mod decoder;
 mod equalizer;
 mod error;
 mod fft;
+mod http_source;
 mod logger;
 mod loudness;
 mod metadata;
