@@ -1188,6 +1188,12 @@
       "label": "逐字高亮",
       "description": "按单词进度逐字渲染高亮"
     },
+    "dynamicIslandTransition": {
+      "label": "切换动画",
+      "description": "选择灵动岛宽度与歌词行的切换方式",
+      "bounce": "灵动回弹",
+      "smooth": "平滑过渡"
+    },
     "dynamicIslandDoubleLine": {
       "label": "总是显示双行",
       "description": "即使没有翻译可用也保持双行布局"

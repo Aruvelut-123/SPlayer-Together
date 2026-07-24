@@ -16,6 +16,7 @@ import {
   saveDynamicIslandState,
   applyDynamicIslandWidth,
   applyDynamicIslandHeight,
+  applyDynamicIslandShape,
   toggleTaskbarLyricWindow,
   closeTaskbarLyricWindow,
   getTaskbarLyricWindow,
@@ -80,6 +81,9 @@ export const registerWindowIpc = (): void => {
   // 灵动岛宽度变化：渲染端上报目标宽度
   ipcMain.on("dynamicIsland:resize", (_event, width: number) => {
     applyDynamicIslandWidth(width);
+  });
+  ipcMain.on("dynamicIsland:setShape", (_event, width: number | null) => {
+    applyDynamicIslandShape(width);
   });
 
   // 灵动岛高度变化

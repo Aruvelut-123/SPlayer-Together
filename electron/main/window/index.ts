@@ -37,6 +37,7 @@ export {
   getDynamicIslandWindow,
   applyDynamicIslandAlwaysOnTop,
   applyDynamicIslandHeight,
+  applyDynamicIslandShape,
   applyDynamicIslandWidth,
   applyDynamicIslandSnapCentered,
   applyDynamicIslandNotchFusion,

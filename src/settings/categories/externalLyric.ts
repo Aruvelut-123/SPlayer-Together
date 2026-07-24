@@ -179,6 +179,16 @@ const dynamicIslandSection: SettingSection = {
       defaultValue: true,
     },
     {
+      key: "dynamicIslandTransition",
+      type: "select",
+      binding: { store: "settings", path: "system.dynamicIsland.transition" },
+      options: [
+        { value: "bounce", labelKey: "settings.dynamicIslandTransition.bounce" },
+        { value: "smooth", labelKey: "settings.dynamicIslandTransition.smooth" },
+      ],
+      defaultValue: "bounce",
+    },
+    {
       key: "dynamicIslandDoubleLine",
       type: "switch",
       binding: { store: "settings", path: "system.dynamicIsland.doubleLine" },

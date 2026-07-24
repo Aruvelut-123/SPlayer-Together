@@ -1200,6 +1200,12 @@
       "label": "Word Highlight",
       "description": "Render progressive word-by-word highlight"
     },
+    "dynamicIslandTransition": {
+      "label": "Transition",
+      "description": "Choose how the island width and lyric lines transition",
+      "bounce": "Dynamic Bounce",
+      "smooth": "Smooth Transition"
+    },
     "dynamicIslandDoubleLine": {
       "label": "Always Two Lines",
       "description": "Keep two-line layout even when no translation is available"

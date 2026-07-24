@@ -136,6 +136,9 @@ export interface DesktopLyricSettings {
   useCSSDrag: boolean;
 }
 
+/** 灵动岛歌词切换动画 */
+export type DynamicIslandTransition = "bounce" | "smooth";
+
 /** 灵动岛歌词配置 */
 export interface DynamicIslandSettings {
   /** 缩放比例（0.5 ~ 2.0），1 = 100%；实际窗口高度由渲染端按基准高度 × 缩放算出 */
@@ -146,6 +149,8 @@ export interface DynamicIslandSettings {
   fontFamily: string;
   /** 逐字高亮 */
   wordByWord: boolean;
+  /** 歌词行切换动画 */
+  transition: DynamicIslandTransition;
   /** 已播放颜色 */
   playedColor: string;
   /** 未播放颜色 */

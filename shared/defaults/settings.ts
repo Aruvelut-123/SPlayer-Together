@@ -65,6 +65,7 @@ export const defaultSystemConfig: SystemConfig = {
     fontWeight: 500,
     fontFamily: "",
     wordByWord: true,
+    transition: "bounce",
     playedColor: "rgba(255, 255, 255, 1)",
     unplayedColor: "rgba(255, 255, 255, 0.5)",
     backgroundColor: "rgba(0, 0, 0, 1)",
