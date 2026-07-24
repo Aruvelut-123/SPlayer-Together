@@ -69,6 +69,8 @@ export interface TaskbarLyricLayoutEvent {
   /** 任务栏是否浅色主题 */
   isLight: boolean;
   anchor: "left" | "right";
+  /** 当前任务栏区域允许的最大窗口宽度 */
+  maxWidth: number;
 }
 
 /** 任务栏歌词 API */
@@ -77,6 +79,8 @@ export interface TaskbarLyricApi {
   onLayout: (callback: (data: TaskbarLyricLayoutEvent) => void) => () => void;
   /** 订阅配置变化 */
   onConfigChange: (callback: (config: TaskbarLyricSettings) => void) => () => void;
+  /** 上报内容需要的实际窗口宽度 */
+  setContentWidth: (width: number) => void;
 }
 
 /** 灵动岛 API */

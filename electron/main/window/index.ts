@@ -51,6 +51,7 @@ export {
   toggleTaskbarLyricWindow,
   getTaskbarLyricWindow,
   applyTaskbarLyricLayout,
+  updateTaskbarLyricContentWidth,
 } from "./taskbarLyric";
 
 /** 恢复歌词相关窗口 */

@@ -284,12 +284,21 @@ const taskbarLyricSection: SettingSection = {
       type: "switch",
       binding: { store: "settings", path: "system.taskbarLyric.autoMaxWidth" },
       defaultValue: true,
-      childrenCondition: () => useSettingsStore().system.taskbarLyric.autoMaxWidth === false,
+      childrenCondition: () => true,
       children: [
+        {
+          key: "taskbarLyricAutoAdjustOccupiedSpace",
+          type: "switch",
+          binding: { store: "settings", path: "system.taskbarLyric.autoAdjustOccupiedSpace" },
+          defaultValue: false,
+          visible: () => useSettingsStore().system.taskbarLyric.autoMaxWidth === true,
+          tag: { text: "Beta" },
+        },
         {
           key: "taskbarLyricMaxWidth",
           type: "slider",
           binding: { store: "settings", path: "system.taskbarLyric.maxWidth" },
+          visible: () => useSettingsStore().system.taskbarLyric.autoMaxWidth === false,
           min: 200,
           max: 800,
           step: 20,
@@ -325,6 +334,12 @@ const taskbarLyricSection: SettingSection = {
         { value: "dark", labelKey: "settings.taskbarLyricColorMode.dark" },
       ],
       defaultValue: "taskbar",
+    },
+    {
+      key: "taskbarLyricShowBackground",
+      type: "switch",
+      binding: { store: "settings", path: "system.taskbarLyric.showBackground" },
+      defaultValue: false,
     },
     {
       key: "taskbarLyricFontSize",
