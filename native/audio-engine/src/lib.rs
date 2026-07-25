@@ -192,9 +192,102 @@ impl AudioPlayer {
 
     /// 重新初始化音频输出设备（系统休眠唤醒后调用）
     #[napi]
-    pub fn reinit_output(&self) -> Result<()> {
+    pub async fn reinit_output(&self) -> Result<()> {
         info!("重新初始化音频输出设备");
-        self.inner.lock().reinit_output().into_napi()
+
+        let (take, position, was_playing, current_source) = {
+            let mut player = self.inner.lock();
+            let position = player.position();
+            let was_playing = player.state() == PlayerState::Playing;
+            let current_source = player.current_source();
+
+            let take = player.take_for_async_seek();
+
+            if let Err(e) = player.recreate_output_device() {
+                warn!("重建输出设备失败: {}", e);
+            }
+
+            let take = take.map(|mut t| {
+                t.output_sample_rate = player.output_sample_rate();
+                t
+            });
+
+            (take, position, was_playing, current_source)
+        };
+
+        let Some(take) = take else {
+            return Ok(());
+        };
+
+        let SeekTake {
+            old_threads,
+            normalization_enabled,
+            normalization_gain,
+            current_source: _,
+            was_playing: _,
+            output_sample_rate,
+            token,
+        } = take;
+
+        let outcome: SeekOutcome = tokio::task::spawn_blocking(move || {
+            let decoder_data = old_threads.join_aux().and_then(|h| h.join().ok());
+            let mut decoder_data = match decoder_data {
+                Some(d) => d,
+                None => return SeekOutcome::Fallback,
+            };
+            if !decoder_data.seek(position) {
+                return SeekOutcome::Fallback;
+            }
+            let shared =
+                crate::shared::Shared::new(output_sample_rate, crate::decoder::TARGET_CHANNELS);
+            shared.set_normalization_enabled(normalization_enabled);
+            shared.set_normalization_gain(normalization_gain);
+            let handle =
+                match crate::decoder::resume_decode(decoder_data, std::sync::Arc::clone(&shared)) {
+                    Ok(handle) => handle,
+                    Err(err) => {
+                        warn!(error = %err, "重建输出后启动解码线程失败，回退到重新加载");
+                        return SeekOutcome::Fallback;
+                    }
+                };
+            SeekOutcome::Resumed { shared, handle }
+        })
+        .await
+        .map_err(|e| Error::from_reason(format!("reinit task join error: {e}")))?;
+
+        match outcome {
+            SeekOutcome::Resumed { shared, handle } => {
+                let mut player = self.inner.lock();
+                let committed = player
+                    .commit_seeked(token, position, shared, handle)
+                    .into_napi()?;
+                if !committed {
+                    info!("reinit 已被更新的 load/seek/stop 取代，丢弃结果");
+                }
+                Ok(())
+            }
+            SeekOutcome::Fallback => {
+                if !self.inner.lock().is_load_token_current(token) {
+                    return Ok(());
+                }
+                if let Some(src) = current_source {
+                    let is_remote = src.starts_with("http://") || src.starts_with("https://");
+                    if let Err(e) = self.load(src, Some(was_playing)).await {
+                        if e.reason == LOAD_SUPERSEDED_REASON {
+                            return Ok(());
+                        }
+                        if is_remote {
+                            self.inner.lock().emit_source_error();
+                            return Ok(());
+                        }
+                        return Err(e);
+                    }
+                    Ok(())
+                } else {
+                    Ok(())
+                }
+            }
+        }
     }
 
     /// 设置封面缓存目录（在 load 前调用一次即可）
@@ -621,9 +714,10 @@ impl AudioPlayer {
 
     /// 切换输出设备（传 None/undefined 使用系统默认）
     #[napi]
-    pub fn set_output_device(&self, device_name: Option<String>) -> Result<()> {
+    pub async fn set_output_device(&self, device_name: Option<String>) -> Result<()> {
         info!(device = ?device_name, "切换输出设备");
-        self.inner.lock().set_output_device(device_name).into_napi()
+        self.inner.lock().set_output_device(device_name);
+        self.reinit_output().await
     }
 
     /// 获取当前选择的输出设备名称（None = 系统默认）
@@ -1021,12 +1115,17 @@ pub fn get_lyric_priority(norm_key: &str) -> u8 {
     if !is_lyric_field_key(norm_key) {
         return 0;
     }
-    if norm_key.starts_with("lyrics") || norm_key.starts_with("syncedlyrics") || norm_key.starts_with("sylt") {
+    if norm_key.starts_with("lyrics")
+        || norm_key.starts_with("syncedlyrics")
+        || norm_key.starts_with("sylt")
+    {
         return 2;
     }
-    if norm_key.starts_with("unsyncedlyrics") || norm_key.starts_with("uslt") || norm_key.starts_with("lyric") {
+    if norm_key.starts_with("unsyncedlyrics")
+        || norm_key.starts_with("uslt")
+        || norm_key.starts_with("lyric")
+    {
         return 1;
     }
     1
 }
-

@@ -284,7 +284,7 @@ mod tests {
         let path = temp_wav("custom_unsynced_lyrics.wav");
         let mut tagged = open_tagged(&path).unwrap();
         let tag_type = editing_tag_type(tagged.file_type());
-        
+
         // 保证 tag 存在，WAV 空文件没有 ID3v2 标签段，需要先 insert
         if tagged.tag(tag_type).is_none() {
             tagged.insert_tag(Tag::new(tag_type));

@@ -5,7 +5,7 @@ export declare class AudioPlayer {
   /** 创建新的播放器实例 */
   constructor()
   /** 重新初始化音频输出设备（系统休眠唤醒后调用） */
-  reinitOutput(): void
+  reinitOutput(): Promise<void>
   /** 设置封面缓存目录（在 load 前调用一次即可） */
   setCoverCacheDir(dir: string): void
   /** 注册事件回调，Rust 侧会在状态变化、位置更新、播放结束时主动调用 */
@@ -83,7 +83,7 @@ export declare class AudioPlayer {
   /** 获取系统默认输出设备名称 */
   getDefaultDeviceName(): string | null
   /** 切换输出设备（传 None/undefined 使用系统默认） */
-  setOutputDevice(deviceName?: string | undefined | null): void
+  setOutputDevice(deviceName?: string | undefined | null): Promise<void>
   /** 获取当前选择的输出设备名称（None = 系统默认） */
   getSelectedDeviceName(): string | null
   /** 设置播放速度（自动 clamp 到 [0.5, 2.0]） */
