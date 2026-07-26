@@ -130,6 +130,8 @@ const handleVisibility = () => {
     } else {
       playerRef.value?.pause();
     }
+    // 恢复后立即 update(0) 校准 Core 内部时钟，避免逐词效果丢失
+    playerRef.value?.update(0);
     resumeRaf();
   }
 };
