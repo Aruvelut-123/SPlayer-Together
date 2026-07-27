@@ -797,6 +797,10 @@
       "label": "允许播放试听",
       "description": "完整音源和插件都不可用时，允许播放平台返回的试听片段"
     },
+    "preloadNextTrack": {
+      "label": "预载下一首歌曲",
+      "description": "播放当前歌曲时提前获取下一首的播放地址、歌词和封面，以缩短切歌等待时间"
+    },
     "outputDevice": {
       "label": "输出设备",
       "description": "选择音频输出设备",

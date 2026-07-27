@@ -21,6 +21,8 @@ export interface ResolveTrackSourceOptions {
   skipPluginIds?: readonly string[];
   /** 是否跳过官方在线接口，直接进入插件兜底 */
   skipOfficialOnline?: boolean;
+  /** 是否静默解析 */
+  silent?: boolean;
 }
 
 /**
@@ -176,6 +178,19 @@ export interface ResolvedTrackSource {
 }
 
 /**
+ * 记录解析错误，支持静默模式抑制
+ * @param err - 错误信息或错误码
+ * @param silent - 是否开启静默模式，开启则只在控制台警告而不弹窗
+ */
+const reportLoadError = (err: ErrorCode | string, silent?: boolean): void => {
+  if (!silent) {
+    handleError(err);
+  } else {
+    console.warn("[audioSource] silent mode suppressed error:", err);
+  }
+};
+
+/**
  * 根据 track 信息解析出最终的音频源 URL
  * @param track - 要解析的 track
  */
@@ -221,7 +236,7 @@ export const resolveTrackSource = async (
       }
       return result;
     } catch (err) {
-      handleError(err instanceof Error ? err.message : String(err));
+      reportLoadError(err instanceof Error ? err.message : String(err), options.silent);
       return null;
     }
   }
@@ -230,7 +245,7 @@ export const resolveTrackSource = async (
     try {
       const resolved = await resolveOnlineUrl(track, songLevel, options);
       if (!resolved.ok) {
-        handleError(resolved.errorCode);
+        reportLoadError(resolved.errorCode, options.silent);
         return null;
       }
       const url = resolved.url;
@@ -247,7 +262,7 @@ export const resolveTrackSource = async (
       }
       return result;
     } catch (err) {
-      handleError(err instanceof Error ? err.message : String(err));
+      reportLoadError(err instanceof Error ? err.message : String(err), options.silent);
       return null;
     }
   }

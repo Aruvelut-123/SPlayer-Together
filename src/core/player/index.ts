@@ -17,6 +17,10 @@ import * as coverLoader from "@/services/coverLoader";
 import * as abLoop from "@/services/abLoop";
 import * as cacheScheduler from "@/services/cacheScheduler";
 import { resolveTrackSource, type ResolvedTrackSource } from "@/services/audioSource";
+import {
+  scheduleNextTrackPreload,
+  consumePreloadedTrack,
+} from "@/services/nextTrackPreloader";
 import { installPlayStats } from "./stats";
 import { useFavorite } from "@/composables/useFavorite";
 import { extractColorFromUrl } from "@/utils/color";
@@ -219,10 +223,13 @@ const loadTrackSourceWithFallback = async (
   autoPlay: boolean,
   shouldContinue: () => boolean,
   retryOnAnyFailure = false,
+  initialResolved?: ResolvedTrackSource | null,
 ): Promise<LoadSourceResult> => {
   const retry = createSourceRetryState();
+  let firstTry = initialResolved ?? null;
   while (true) {
-    const resolved = await resolveTrackSourceWithRetry(track, retry);
+    const resolved = firstTry ?? (await resolveTrackSourceWithRetry(track, retry));
+    firstTry = null;
     if (!shouldContinue()) return { status: "cancelled" };
     if (!resolved) return { status: "unresolved" };
     const result = await load(resolved.source, autoPlay, track, {
@@ -252,6 +259,8 @@ const loadTrack = async (track: Track | null): Promise<void> => {
     return;
   }
   const myToken = ++trackToken;
+  // 消费预载结果
+  const preloaded = consumePreloadedTrack(track);
   // 乐观更新
   useMediaStore().setTrack(track);
   lyricLoader.beginLoad();
@@ -259,7 +268,13 @@ const loadTrack = async (track: Track | null): Promise<void> => {
   void window.api.player.stop();
   // 是否可跳曲
   let shouldSkip = false;
-  const loaded = await loadTrackSourceWithFallback(track, true, () => myToken === trackToken);
+  const loaded = await loadTrackSourceWithFallback(
+    track,
+    true,
+    () => myToken === trackToken,
+    false,
+    preloaded?.source,
+  );
   if (loaded.status === "cancelled") return;
   if (loaded.status === "unresolved") {
     const status = useStatusStore();
@@ -279,6 +294,7 @@ const loadTrack = async (track: Track | null): Promise<void> => {
       if (resolved.cacheRequest) {
         cacheScheduler.schedule(track.id, resolved.cacheRequest);
       }
+      scheduleNextTrackPreload();
     } else if (result.error) {
       handleError(result.error);
     }
@@ -1008,6 +1024,8 @@ export const initPlayer = async (): Promise<void> => {
   } else {
     status.state = "idle";
   }
+
+  scheduleNextTrackPreload();
 };
 
 /** 清理事件订阅 */

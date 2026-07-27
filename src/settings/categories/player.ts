@@ -75,6 +75,12 @@ const playerCategory: SettingCategory = {
           binding: { store: "settings", path: "player.allowTrialPlay" },
           defaultValue: false,
         },
+        {
+          key: "preloadNextTrack",
+          type: "switch",
+          binding: { store: "settings", path: "player.preloadNextTrack" },
+          defaultValue: false,
+        },
       ],
     },
     {
