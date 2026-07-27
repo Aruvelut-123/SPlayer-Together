@@ -194,16 +194,11 @@ const shouldTryTTMLByFormat = (mainFormat: LyricFormat): boolean => {
   return ttmlIdx < mainIdx;
 };
 
-/** 支持 AMLL TTML DB 的平台列表，按用户格式优先级无关的固定顺序 */
+/** 支持 AMLL TTML DB 的平台列表 */
 const TTML_PLATFORMS: readonly ("netease" | "qqmusic")[] = ["netease", "qqmusic"];
 
 /**
  * 拉取在线歌词对应的 TTML 覆盖版本
- *
- * 遍历所有支持 TTML 的平台（NCM + QM）依次尝试，而非仅尝试 online 结果所在平台。
- * 这样在「智能选择」模式下，即使主歌词来自 QQ 音乐（QRC），
- * 仍能从网易云 AMLL DB 拿到 TTML 覆盖（如果 NCM 有而 QM 没有）。
- *
  * @param track - 歌曲信息
  * @param online - 在线歌词结果
  */
@@ -212,15 +207,21 @@ export const resolveTTMLOverlay = async (
   online: OnlineResult,
 ): Promise<ResolvedLyric | null> => {
   if (!shouldTryTTMLByFormat(online.source.format)) return null;
-  for (const platform of TTML_PLATFORMS) {
-    const resp = await window.api.lyrics.fetchTTMLOverlay(track, platform);
-    if (!resp.ok || !resp.data) continue;
-    return {
-      source: { source: "online", format: "ttml", platform },
-      input: { content: resp.data },
-    };
-  }
-  return null;
+  const candidates = await Promise.all(
+    TTML_PLATFORMS.map(async (platform) => ({
+      platform,
+      response: await window.api.lyrics.fetchTTMLOverlay(track, platform),
+    })),
+  );
+  const match = candidates.find(
+    (candidate): candidate is typeof candidate & { response: { ok: true; data: string } } =>
+      candidate.response.ok && !!candidate.response.data,
+  );
+  if (!match) return null;
+  return {
+    source: { source: "online", format: "ttml", platform: match.platform },
+    input: { content: match.response.data },
+  };
 };
 
 /**
