@@ -179,15 +179,10 @@ export const resolveOnlineByPreference = async (
 };
 
 /**
- * 是否对该平台尝试 TTML 升级
- * @param platform - 平台
- * @param mainFormat - 主格式
+ * 判断是否应该尝试 TTML 升级（与平台无关，仅看格式优先级）
+ * @param mainFormat - 当前主歌词格式
  */
-export const shouldTryTTML = (
-  platform: Platform,
-  mainFormat: LyricFormat,
-): platform is "netease" | "qqmusic" => {
-  if (platform !== "netease" && platform !== "qqmusic") return false;
+const shouldTryTTMLByFormat = (mainFormat: LyricFormat): boolean => {
   const settings = useSettingsStore();
   if (!settings.system.lyric.enableOnlineTTMLLyric) return false;
   if (settings.lyric.lyricSourcePreference === "self") return false;
@@ -199,6 +194,9 @@ export const shouldTryTTML = (
   return ttmlIdx < mainIdx;
 };
 
+/** 支持 AMLL TTML DB 的平台列表 */
+const TTML_PLATFORMS: readonly ("netease" | "qqmusic")[] = ["netease", "qqmusic"];
+
 /**
  * 拉取在线歌词对应的 TTML 覆盖版本
  * @param track - 歌曲信息
@@ -208,12 +206,21 @@ export const resolveTTMLOverlay = async (
   track: Track,
   online: OnlineResult,
 ): Promise<ResolvedLyric | null> => {
-  if (!shouldTryTTML(online.source.platform, online.source.format)) return null;
-  const resp = await window.api.lyrics.fetchTTMLOverlay(track, online.source.platform);
-  if (!resp.ok || !resp.data) return null;
+  if (!shouldTryTTMLByFormat(online.source.format)) return null;
+  const candidates = await Promise.all(
+    TTML_PLATFORMS.map(async (platform) => ({
+      platform,
+      response: await window.api.lyrics.fetchTTMLOverlay(track, platform),
+    })),
+  );
+  const match = candidates.find(
+    (candidate): candidate is typeof candidate & { response: { ok: true; data: string } } =>
+      candidate.response.ok && !!candidate.response.data,
+  );
+  if (!match) return null;
   return {
-    source: { source: "online", format: "ttml", platform: online.source.platform },
-    input: { content: resp.data },
+    source: { source: "online", format: "ttml", platform: match.platform },
+    input: { content: match.response.data },
   };
 };
 
