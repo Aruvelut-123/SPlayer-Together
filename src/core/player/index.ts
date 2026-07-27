@@ -17,10 +17,7 @@ import * as coverLoader from "@/services/coverLoader";
 import * as abLoop from "@/services/abLoop";
 import * as cacheScheduler from "@/services/cacheScheduler";
 import { resolveTrackSource, type ResolvedTrackSource } from "@/services/audioSource";
-import {
-  scheduleNextTrackPreload,
-  consumePreloadedTrack,
-} from "@/services/nextTrackPreloader";
+import { scheduleNextTrackPreload, consumePreloadedTrack } from "@/services/nextTrackPreloader";
 import { installPlayStats } from "./stats";
 import { useFavorite } from "@/composables/useFavorite";
 import { extractColorFromUrl } from "@/utils/color";

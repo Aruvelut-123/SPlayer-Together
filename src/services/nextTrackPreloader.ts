@@ -6,6 +6,7 @@ import type { Track } from "@shared/types/player";
 import type { ResolvedTrackSource } from "@/services/audioSource";
 import { resolveTrackSource } from "@/services/audioSource";
 import { getNextTrackCandidate } from "@/core/player/candidate";
+import { prefetchLyricForTrack } from "@/services/lyricResolve";
 import { useStatusStore } from "@/stores/status";
 import { useSettingsStore } from "@/stores/settings";
 import { useStreamingStore } from "@/stores/streaming";
@@ -133,13 +134,11 @@ export const scheduleNextTrackPreload = (): void => {
       if (candidateTrack.cover) {
         void preloadCover(candidateTrack.cover);
       }
-
+      // 歌词预拉取
+      prefetchLyricForTrack(candidateTrack);
+      // 音源预拉取
       const source = await resolveTrackSource(candidateTrack, { silent: true });
-
-      if (token !== currentToken) {
-        return;
-      }
-
+      if (token !== currentToken) return;
       cachedResult = {
         trackId: candidateTrack.id,
         source,
@@ -153,4 +152,3 @@ export const scheduleNextTrackPreload = (): void => {
     }
   })();
 };
-

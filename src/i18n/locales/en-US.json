@@ -698,6 +698,7 @@
       "language": "Language",
       "playback": "Player",
       "playControl": "Playback Control",
+      "audioSource": "Audio Source",
       "scrobble": "Scrobble",
       "lyricContent": "Lyric Content",
       "lyricTTML": "TTML Lyrics",
@@ -811,7 +812,7 @@
     },
     "preloadNextTrack": {
       "label": "Preload next track",
-      "description": "Fetch the next track's playback source, lyrics, and cover while the current track is playing"
+      "description": "Fetch the next track's playback info in advance, which may increase network usage"
     },
     "outputDevice": {
       "label": "Output Device",

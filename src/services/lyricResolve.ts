@@ -8,6 +8,29 @@ import { useStreamingStore } from "@/stores/streaming";
 import { usePluginsStore } from "@/stores/plugins";
 import { DEFAULT_LYRIC_FORMAT_ORDER, DEFAULT_LYRIC_SOURCE_ORDER } from "@/types/settings";
 
+/** 歌词下一首预载 */
+const prefetchCache = new Map<string, Promise<unknown>>();
+
+/**
+ * 包装网络请求
+ * 若命中预载缓存则直接返回并清理缓存，否则发起真实请求
+ */
+const withPrefetchCache = <T>(key: string, fetcher: () => Promise<T>): Promise<T> => {
+  if (prefetchCache.has(key)) {
+    const cachedPromise = prefetchCache.get(key)! as Promise<T>;
+    prefetchCache.delete(key);
+    return cachedPromise;
+  }
+  return fetcher();
+};
+
+/** 触发预载网络请求并存入缓存字典 */
+const seedPrefetchCache = <T>(key: string, fetcher: () => Promise<T>): void => {
+  if (!prefetchCache.has(key)) {
+    prefetchCache.set(key, fetcher());
+  }
+};
+
 /** 一次在线 fetch 的结果 */
 export interface OnlineResult {
   source: { source: "online"; format: LyricFormat; platform: Platform };
@@ -51,19 +74,21 @@ export const embeddedLyricFromDetail = (detail: TrackDetail | null): LocalLyric 
  * 向指定平台请求歌词
  * track.platform 等于目标平台时走 byId（精确），否则 byQuery（搜索打分）
  */
-export const fetchFromPlatform = async (
+export const fetchFromPlatform = (
   platform: Platform,
   track: Track,
 ): Promise<OnlineResult | null> => {
-  const mode = track.source === platform ? "byId" : "byQuery";
-  // QM lyric 接口要数字 songID
-  const lookupId = platform === "qqmusic" ? (track.extId ?? track.id) : track.id;
-  const resp =
-    mode === "byId"
-      ? await window.api.lyrics.matchById(platform, lookupId)
-      : await window.api.lyrics.matchByQuery(platform, track);
-  if (!resp.ok || !resp.data) return null;
-  return toOnlineResult(resp.data);
+  return withPrefetchCache(`platform:${platform}:${track.id}`, async () => {
+    const mode = track.source === platform ? "byId" : "byQuery";
+    // QM lyric 接口要数字 songID
+    const lookupId = platform === "qqmusic" ? (track.extId ?? track.id) : track.id;
+    const resp =
+      mode === "byId"
+        ? await window.api.lyrics.matchById(platform, lookupId)
+        : await window.api.lyrics.matchByQuery(platform, track);
+    if (!resp.ok || !resp.data) return null;
+    return toOnlineResult(resp.data);
+  });
 };
 
 /** 平台主格式可达列表 */
@@ -210,7 +235,9 @@ export const resolveTTMLOverlay = async (
   const candidates = await Promise.all(
     TTML_PLATFORMS.map(async (platform) => ({
       platform,
-      response: await window.api.lyrics.fetchTTMLOverlay(track, platform),
+      response: await withPrefetchCache(`ttml:${platform}:${track.id}`, () =>
+        window.api.lyrics.fetchTTMLOverlay(track, platform),
+      ),
     })),
   );
   const match = candidates.find(
@@ -272,8 +299,42 @@ export const resolvePluginLyric = async (track: Track): Promise<ResolvedLyric | 
  * 取流媒体服务端歌词
  * @param track - 歌曲信息
  */
-export const resolveStreamingServerLyric = async (track: Track): Promise<ResolvedLyric | null> => {
-  const text = await useStreamingStore().getLyrics(track);
-  if (!text?.trim()) return null;
-  return { source: { source: "external", format: detectFormat(text) }, input: { content: text } };
+export const resolveStreamingServerLyric = (track: Track): Promise<ResolvedLyric | null> => {
+  return withPrefetchCache(`streaming:${track.id}`, async () => {
+    const text = await useStreamingStore().getLyrics(track);
+    if (!text?.trim()) return null;
+    return { source: { source: "external", format: detectFormat(text) }, input: { content: text } };
+  });
+};
+
+/**
+ * 触发候选歌曲的网络歌词预拉取
+ * @param track - 候选歌曲
+ */
+export const prefetchLyricForTrack = (track: Track): void => {
+  const settings = useSettingsStore();
+  if (track.source === "streaming") {
+    seedPrefetchCache(`streaming:${track.id}`, () => resolveStreamingServerLyric(track));
+  }
+  const preference = settings.lyric.lyricSourcePreference;
+  if (preference === "self") {
+    const source = track.source;
+    if (isPlatform(source)) {
+      seedPrefetchCache(`platform:${source}:${track.id}`, () => fetchFromPlatform(source, track));
+    }
+  } else if (preference === "auto") {
+    const order = settings.lyric.lyricSourceOrder ?? DEFAULT_LYRIC_SOURCE_ORDER;
+    order.forEach((p) => {
+      seedPrefetchCache(`platform:${p}:${track.id}`, () => fetchFromPlatform(p, track));
+    });
+  }
+
+  // 预载 TTML 覆盖（仅在非 self 模式且开启 TTML 时有效）
+  if (settings.system.lyric.enableOnlineTTMLLyric && preference !== "self") {
+    TTML_PLATFORMS.forEach((p) => {
+      seedPrefetchCache(`ttml:${p}:${track.id}`, () =>
+        window.api.lyrics.fetchTTMLOverlay(track, p),
+      );
+    });
+  }
 };

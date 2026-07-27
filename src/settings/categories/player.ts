@@ -56,6 +56,11 @@ const playerCategory: SettingCategory = {
           defaultValue: false,
           tag: { text: "Beta" },
         },
+      ],
+    },
+    {
+      id: "audioSource",
+      items: [
         {
           key: "songLevel",
           type: "select",
