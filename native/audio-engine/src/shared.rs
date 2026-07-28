@@ -10,6 +10,8 @@ use parking_lot::{Condvar, Mutex};
 pub struct AudioChunk {
     /// 交错排列的 f32 播放样本（L R L R ...）
     pub player_samples: Vec<f32>,
+    /// 交错排列的 f32 FFT 样本（L R L R ...）
+    pub fft_samples: Vec<f32>,
 }
 
 /// 非阻塞弹出缓冲区的结果
