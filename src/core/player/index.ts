@@ -12,12 +12,17 @@ import { useLibraryStore } from "@/stores/library";
 import * as queue from "@/stores/queue";
 import * as fm from "./fm";
 import * as playback from "@/services/playback";
-import * as lyricLoader from "@/services/lyricLoader";
+import * as lyricLoader from "@/services/lyric/loader";
 import * as coverLoader from "@/services/coverLoader";
 import * as abLoop from "@/services/abLoop";
 import * as cacheScheduler from "@/services/cacheScheduler";
 import { resolveTrackSource, type ResolvedTrackSource } from "@/services/audioSource";
-import { scheduleNextTrackPreload, consumePreloadedTrack } from "@/services/nextTrackPreloader";
+import {
+  consumePreloadedTrack,
+  disposeNextTrackPreload,
+  installNextTrackPreloadWatchers,
+  scheduleNextTrackPreload,
+} from "@/services/nextTrackPreloader";
 import { installPlayStats } from "./stats";
 import { useFavorite } from "@/composables/useFavorite";
 import { extractColorFromUrl } from "@/utils/color";
@@ -225,14 +230,24 @@ const loadTrackSourceWithFallback = async (
   const retry = createSourceRetryState();
   let firstTry = initialResolved ?? null;
   while (true) {
+    const usingInitial = firstTry !== null;
     const resolved = firstTry ?? (await resolveTrackSourceWithRetry(track, retry));
     firstTry = null;
     if (!shouldContinue()) return { status: "cancelled" };
     if (!resolved) return { status: "unresolved" };
     const result = await load(resolved.source, autoPlay, track, {
-      suppressErrorToast: shouldSuppressLoadError(resolved),
+      suppressErrorToast: usingInitial || shouldSuppressLoadError(resolved),
     });
     if (!shouldContinue()) return { status: "cancelled" };
+    // 预载 URL 可能已经过期，非本地来源失败后重新解析一次最新地址
+    if (
+      usingInitial &&
+      !result.ok &&
+      resolved.provider !== "local" &&
+      resolved.provider !== "cache"
+    ) {
+      continue;
+    }
     const canRetry =
       !result.ok &&
       (retryOnAnyFailure || Boolean(result.error && isSkippableError(result.error))) &&
@@ -1021,12 +1036,14 @@ export const initPlayer = async (): Promise<void> => {
   } else {
     status.state = "idle";
   }
-
+  // 下一首预载的监听器
+  installNextTrackPreloadWatchers();
   scheduleNextTrackPreload();
 };
 
 /** 清理事件订阅 */
 export const disposePlayer = (): void => {
+  disposeNextTrackPreload();
   if (unsubscribe) {
     unsubscribe();
     unsubscribe = null;

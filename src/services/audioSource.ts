@@ -23,6 +23,8 @@ export interface ResolveTrackSourceOptions {
   skipOfficialOnline?: boolean;
   /** 是否静默解析 */
   silent?: boolean;
+  /** 流媒体 PlaySessionId，用于预载时隔离当前播放会话 */
+  streamingPlaySessionId?: string;
 }
 
 /**
@@ -180,14 +182,10 @@ export interface ResolvedTrackSource {
 /**
  * 记录解析错误，支持静默模式抑制
  * @param err - 错误信息或错误码
- * @param silent - 是否开启静默模式，开启则只在控制台警告而不弹窗
+ * @param silent - 是否开启静默模式
  */
 const reportLoadError = (err: ErrorCode | string, silent?: boolean): void => {
-  if (!silent) {
-    handleError(err);
-  } else {
-    console.warn("[audioSource] silent mode suppressed error:", err);
-  }
+  if (!silent) handleError(err);
 };
 
 /**
@@ -215,7 +213,12 @@ export const resolveTrackSource = async (
   if (track.source === "streaming") {
     try {
       const store = useStreamingStore();
-      const streamUrl = await store.getStreamUrl(track);
+      const streamUrl = await store.getStreamUrl(
+        track,
+        options.streamingPlaySessionId
+          ? { playSessionId: options.streamingPlaySessionId }
+          : undefined,
+      );
       const result: ResolvedTrackSource = {
         source: streamUrl,
         fromCache: false,
