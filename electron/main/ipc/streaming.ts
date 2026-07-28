@@ -9,6 +9,7 @@ import { writeFileSync as atomicWriteSync } from "atomically";
 import { streamingLog } from "@main/utils/logger";
 import { configDir } from "@main/utils/paths";
 import type { StreamingServerConfig } from "@shared/types/streaming";
+import { queueShadowSync } from "@main/services/streaming/shadowSync";
 
 const STORAGE_FILE = path.join(configDir, "streaming.json");
 
@@ -95,6 +96,10 @@ export const registerStreamingIpc = (): void => {
   ipcMain.handle(
     "streaming:saveServers",
     (_e, payload: { servers: StreamingServerConfig[]; activeServerId: string | null }): void => {
+      const previous = readPersisted();
+      const previousConnectedAt = new Map(
+        previous.servers.map((server) => [server.id, server.lastConnected] as const),
+      );
       const servers: PersistedServer[] = (payload?.servers ?? []).map((s) => ({
         id: s.id,
         name: s.name,
@@ -105,6 +110,11 @@ export const registerStreamingIpc = (): void => {
         lastConnected: s.lastConnected,
       }));
       writePersisted({ servers, activeServerId: payload?.activeServerId ?? null });
+      for (const server of payload?.servers ?? []) {
+        if (server.lastConnected && server.lastConnected !== previousConnectedAt.get(server.id)) {
+          queueShadowSync(server);
+        }
+      }
     },
   );
 };
