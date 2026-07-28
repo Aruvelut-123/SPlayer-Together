@@ -14,7 +14,7 @@ import IconLucideMusic from "~icons/lucide/music";
 import IconLucideUser from "~icons/lucide/user";
 import IconLucideDisc3 from "~icons/lucide/disc-3";
 import IconLucideFolder from "~icons/lucide/folder";
-import IconLucideServer from "~icons/lucide/server";
+import IconLucideLibrary from "~icons/lucide/library";
 import IconLucideListMusic from "~icons/lucide/list-music";
 import IconMaterialSymbolsFavoriteOutline from "~icons/material-symbols/favorite-outline-rounded";
 import IconLucideStar from "~icons/lucide/star";
@@ -193,7 +193,7 @@ const menuItems = computed<SMenuItem[]>(() => [
     : []),
   ...(systemSettings.streaming.enabled
     ? ([
-        { key: "/streaming", label: t("nav.streaming"), icon: markRaw(IconLucideServer) },
+        { key: "/streaming", label: t("nav.streaming"), icon: markRaw(IconLucideLibrary) },
       ] satisfies SMenuItem[])
     : []),
   { key: "/history", label: t("nav.history"), icon: markRaw(IconLucideHistory) },
@@ -212,7 +212,7 @@ const menuItems = computed<SMenuItem[]>(() => [
 ]);
 
 const activeKey = computed(() => {
-  // 流媒体
+  // 媒体源
   if (route.path.startsWith("/streaming")) return "/streaming";
   if (route.path.startsWith("/collection/streaming/")) return "/streaming";
   if (route.path.startsWith("/artist/streaming/")) return "/streaming";

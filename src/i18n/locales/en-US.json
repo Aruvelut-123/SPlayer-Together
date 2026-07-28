@@ -196,7 +196,7 @@
     "download": "Downloads",
     "favorites": "Favorites",
     "cloud": "My Cloud",
-    "streaming": "Streaming",
+    "streaming": "Media Sources",
     "reload": "Reload",
     "devtools": "Developer Tools",
     "globalSettings": "Global Settings",
@@ -1580,7 +1580,7 @@
     },
     "streamingEnabled": {
       "label": "Enable streaming",
-      "description": "When disabled, the streaming entry is hidden from the sidebar"
+      "description": "When disabled, the media sources entry is hidden from the sidebar"
     },
     "externalApiEnabled": {
       "label": "Allow external control",

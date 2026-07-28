@@ -184,7 +184,7 @@
     "download": "下载管理",
     "favorites": "我的收藏",
     "cloud": "我的云盘",
-    "streaming": "流媒体",
+    "streaming": "媒体源",
     "reload": "热重载",
     "devtools": "开发者工具",
     "globalSettings": "全局设置",
@@ -1568,7 +1568,7 @@
     },
     "streamingEnabled": {
       "label": "启用流媒体",
-      "description": "关闭后将隐藏侧边栏的流媒体入口"
+      "description": "关闭后将隐藏侧边栏的媒体源入口"
     },
     "externalApiEnabled": {
       "label": "允许外部控制",
