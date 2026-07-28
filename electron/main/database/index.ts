@@ -136,6 +136,90 @@ export const initDatabase = (): void => {
       finished_at INTEGER
     );
     CREATE INDEX IF NOT EXISTS idx_download_tasks_created ON download_tasks(created_at);
+
+    CREATE TABLE IF NOT EXISTS remote_tracks (
+      server_id TEXT NOT NULL,
+      remote_id TEXT NOT NULL,
+      data TEXT NOT NULL,
+      title TEXT NOT NULL,
+      search_text TEXT NOT NULL,
+      relative_path TEXT,
+      etag TEXT,
+      generation INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      PRIMARY KEY (server_id, remote_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_remote_tracks_title
+      ON remote_tracks(server_id, title);
+    CREATE INDEX IF NOT EXISTS idx_remote_tracks_generation
+      ON remote_tracks(server_id, generation);
+    CREATE INDEX IF NOT EXISTS idx_remote_tracks_path
+      ON remote_tracks(server_id, relative_path);
+
+    CREATE TABLE IF NOT EXISTS remote_albums (
+      server_id TEXT NOT NULL,
+      remote_id TEXT NOT NULL,
+      data TEXT NOT NULL,
+      name TEXT NOT NULL,
+      generation INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      PRIMARY KEY (server_id, remote_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_remote_albums_name
+      ON remote_albums(server_id, name);
+    CREATE INDEX IF NOT EXISTS idx_remote_albums_generation
+      ON remote_albums(server_id, generation);
+
+    CREATE TABLE IF NOT EXISTS remote_artists (
+      server_id TEXT NOT NULL,
+      remote_id TEXT NOT NULL,
+      data TEXT NOT NULL,
+      name TEXT NOT NULL,
+      generation INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      PRIMARY KEY (server_id, remote_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_remote_artists_name
+      ON remote_artists(server_id, name);
+    CREATE INDEX IF NOT EXISTS idx_remote_artists_generation
+      ON remote_artists(server_id, generation);
+
+    CREATE TABLE IF NOT EXISTS remote_playlists (
+      server_id TEXT NOT NULL,
+      remote_id TEXT NOT NULL,
+      data TEXT NOT NULL,
+      name TEXT NOT NULL,
+      generation INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      PRIMARY KEY (server_id, remote_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_remote_playlists_name
+      ON remote_playlists(server_id, name);
+    CREATE INDEX IF NOT EXISTS idx_remote_playlists_generation
+      ON remote_playlists(server_id, generation);
+
+    CREATE TABLE IF NOT EXISTS remote_playlist_tracks (
+      server_id TEXT NOT NULL,
+      playlist_id TEXT NOT NULL,
+      track_id TEXT NOT NULL,
+      position INTEGER NOT NULL,
+      PRIMARY KEY (server_id, playlist_id, position)
+    );
+    CREATE INDEX IF NOT EXISTS idx_remote_playlist_tracks_track
+      ON remote_playlist_tracks(server_id, track_id);
+
+    CREATE TABLE IF NOT EXISTS remote_sync_state (
+      server_id TEXT PRIMARY KEY,
+      phase TEXT NOT NULL CHECK (phase IN ('idle', 'syncing', 'completed', 'partial', 'failed')),
+      generation INTEGER NOT NULL DEFAULT 0,
+      cursor TEXT,
+      discovered INTEGER NOT NULL DEFAULT 0,
+      completed INTEGER NOT NULL DEFAULT 0,
+      failed INTEGER NOT NULL DEFAULT 0,
+      started_at INTEGER,
+      completed_at INTEGER,
+      error TEXT
+    );
   `);
   migrate(db);
   libraryLog.info(`数据库已初始化: ${dbPath}`);
