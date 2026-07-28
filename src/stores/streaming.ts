@@ -5,6 +5,7 @@ import type {
   StreamingListParams,
   StreamingPingResult,
   StreamingSearchResult,
+  StreamingLibrarySnapshot,
   StreamingServerConfig,
   StreamingServerInput,
   StreamingServerType,
@@ -42,8 +43,6 @@ export const useStreamingStore = defineStore("streaming", () => {
   }>({ connected: false });
   /** 是否正在拉数据（首次加载/刷新；后台分批继续拉时仍为 false，UI 不再阻塞） */
   const loading = ref(false);
-  /** 单页歌曲数量；首批返回后后台继续按此分批拉到拉完 */
-  const SONGS_PAGE_SIZE = 500;
 
   /** 运行时缓存 */
   const songs = shallowRef<Track[]>([]);
@@ -72,25 +71,6 @@ export const useStreamingStore = defineStore("streaming", () => {
   const currentCacheKey = (): string | null =>
     activeServerId.value ? cacheKey(activeServerId.value) : null;
 
-  /** 落盘前剥离 cover/avatar URL 上的鉴权参数；落盘的不是可重放凭据 */
-  const stripCacheAuth = (snapshot: ServerCache, type: StreamingServerType): ServerCache => ({
-    songs: snapshot.songs.map((track) =>
-      track.cover ? { ...track, cover: client.stripCoverAuth(track.cover, type) } : track,
-    ),
-    albums: snapshot.albums.map((album) =>
-      album.cover ? { ...album, cover: client.stripCoverAuth(album.cover, type) } : album,
-    ),
-    artists: snapshot.artists.map((artist) =>
-      artist.avatar ? { ...artist, avatar: client.stripCoverAuth(artist.avatar, type) } : artist,
-    ),
-    playlists: snapshot.playlists.map((playlist) =>
-      playlist.cover
-        ? { ...playlist, cover: client.stripCoverAuth(playlist.cover, type) }
-        : playlist,
-    ),
-    updatedAt: snapshot.updatedAt,
-  });
-
   /** 用当前 cfg 凭据为内存中的 cover/avatar URL 重新贴上鉴权 */
   const refreshCoverUrlsForActive = (): void => {
     const cfg = activeServer.value;
@@ -109,24 +89,6 @@ export const useStreamingStore = defineStore("streaming", () => {
         ? { ...playlist, cover: client.refreshCoverAuth(playlist.cover, cfg) }
         : playlist,
     );
-  };
-
-  const persistCache = (): void => {
-    const key = currentCacheKey();
-    const cfg = activeServer.value;
-    if (!key || !cfg) return;
-    const snapshot = stripCacheAuth(
-      {
-        songs: toRaw(songs.value),
-        albums: toRaw(albums.value),
-        artists: toRaw(artists.value),
-        playlists: toRaw(playlists.value),
-        updatedAt: Date.now(),
-      },
-      cfg.type,
-    );
-    lastFetchedAt.value = snapshot.updatedAt;
-    cacheDb.setItem(key, snapshot).catch(() => {});
   };
 
   const clearMemoryLists = (): void => {
@@ -382,105 +344,77 @@ export const useStreamingStore = defineStore("streaming", () => {
   const withActive = <T>(fn: (cfg: StreamingServerConfig) => Promise<T>): Promise<T> =>
     withAutoReauthFor(requireActiveCfg(), fn);
 
-  /**
-   * 拉一次列表并写入对应运行时缓存；带 loading 与失败日志
-   * fetchSongs 不走这里（它有分批 + seq 竞态）
-   */
-  const runListFetch = async <T>(
-    fetch: (cfg: StreamingServerConfig) => Promise<T[]>,
-    target: ShallowRef<T[]>,
-    label: string,
-  ): Promise<void> => {
-    loading.value = true;
-    try {
-      target.value = await withActive(fetch);
-      persistCache();
-    } catch (err) {
-      console.error(`[streaming] ${label} failed:`, err);
-    } finally {
-      loading.value = false;
+  /** 防止服务器切换或新一轮刷新被旧轮询覆盖 */
+  let snapshotFetchSeq = 0;
+
+  const applySnapshot = (snapshot: StreamingLibrarySnapshot): void => {
+    const authoritative = snapshot.syncState.phase === "completed";
+    if (authoritative || snapshot.songs.length > 0 || songs.value.length === 0) {
+      songs.value = snapshot.songs;
     }
+    if (authoritative || snapshot.albums.length > 0 || albums.value.length === 0) {
+      albums.value = snapshot.albums;
+    }
+    if (authoritative || snapshot.artists.length > 0 || artists.value.length === 0) {
+      artists.value = snapshot.artists;
+    }
+    if (authoritative || snapshot.playlists.length > 0 || playlists.value.length === 0) {
+      playlists.value = snapshot.playlists;
+    }
+    lastFetchedAt.value = snapshot.syncState.completedAt ?? snapshot.syncState.startedAt ?? 0;
+    refreshCoverUrlsForActive();
   };
 
-  /**
-   * 拉取专辑列表并写入运行时缓存
-   * @param params - 可选分页参数（offset/limit）
-   */
-  const fetchAlbums = (params?: StreamingListParams): Promise<void> =>
-    runListFetch((cfg) => client.listAlbums(cfg, params), albums, "fetchAlbums");
+  const waitForNextSnapshot = (): Promise<void> =>
+    new Promise((resolve) => setTimeout(resolve, 500));
 
-  /** 拉取歌手列表并写入运行时缓存 */
-  const fetchArtists = (): Promise<void> =>
-    runListFetch((cfg) => client.listArtists(cfg), artists, "fetchArtists");
-
-  /** 拉取歌单列表并写入运行时缓存 */
-  const fetchPlaylists = (): Promise<void> =>
-    runListFetch((cfg) => client.listPlaylists(cfg), playlists, "fetchPlaylists");
-
-  /** 防止刷新撞上后台分批 */
-  let songsFetchSeq = 0;
-
-  /** 拉取所有歌曲，覆盖现有缓存 */
-  const fetchSongs = async (): Promise<void> => {
+  /** 从主进程 SQLite 读取快照，并在后台同步期间按批次刷新 */
+  const fetchLibrarySnapshot = async (force = false): Promise<void> => {
     const serverId = activeServerId.value;
-    const seq = ++songsFetchSeq;
-    loading.value = true;
+    if (!serverId) return;
+    const seq = ++snapshotFetchSeq;
+    loading.value = songs.value.length === 0;
     try {
-      const first = await withActive((cfg) =>
-        client.listSongs(cfg, { offset: 0, limit: SONGS_PAGE_SIZE }),
-      );
-      if (seq !== songsFetchSeq) return;
-      songs.value = first;
-      persistCache();
-      if (first.length >= SONGS_PAGE_SIZE) {
-        void fetchRemainingSongs(serverId, seq);
+      const initial = await window.api.streaming.getSnapshot(serverId);
+      if (seq !== snapshotFetchSeq || activeServerId.value !== serverId) return;
+      applySnapshot(initial);
+      const initialGeneration = initial.syncState.generation;
+      let lastCompleted = initial.syncState.completed;
+      const started = await window.api.streaming.sync(serverId, force);
+      if (!started) return;
+      let polls = 0;
+      while (seq === snapshotFetchSeq && activeServerId.value === serverId && polls < 240) {
+        polls += 1;
+        await waitForNextSnapshot();
+        const syncState = await window.api.streaming.getSyncState(serverId);
+        if (seq !== snapshotFetchSeq || activeServerId.value !== serverId) return;
+        const completedChanged = syncState.completed !== lastCompleted;
+        const completedNewGeneration = syncState.generation !== initialGeneration;
+        const failed = syncState.phase === "failed";
+        const terminal =
+          syncState.phase === "completed" ||
+          syncState.phase === "partial" ||
+          syncState.phase === "failed";
+        if (completedChanged || (completedNewGeneration && terminal)) {
+          const snapshot = await window.api.streaming.getSnapshot(serverId);
+          if (seq !== snapshotFetchSeq || activeServerId.value !== serverId) return;
+          applySnapshot(snapshot);
+          lastCompleted = syncState.completed;
+        }
+        if ((completedNewGeneration && terminal) || failed) break;
       }
     } catch (err) {
-      console.error("[streaming] fetchSongs failed:", err);
+      console.error("[streaming] fetchLibrarySnapshot failed:", err);
     } finally {
-      if (seq === songsFetchSeq) loading.value = false;
+      if (seq === snapshotFetchSeq) loading.value = false;
     }
   };
 
-  /**
-   * 后台递归拉剩余歌曲；服务器切换、断开或被新一轮 fetchSongs 覆盖时自动停止
-   * @param serverId - 启动时绑定的 server id
-   * @param seq - 启动时绑定的 songsFetchSeq
-   */
-  const fetchRemainingSongs = async (serverId: string | null, seq: number): Promise<void> => {
-    // 每 4 批落盘一次而非每批：每次落盘都对四个完整数组克隆 + 序列化，逐批落
-    // 是 O(n²) 写放大；完全不落则进程中途退出会丢掉本轮全部进度
-    const PERSIST_EVERY_BATCHES = 4;
-    let batchesSincePersist = 0;
-    try {
-      while (
-        seq === songsFetchSeq &&
-        activeServerId.value === serverId &&
-        connectionStatus.value.connected &&
-        songs.value.length % SONGS_PAGE_SIZE === 0
-      ) {
-        try {
-          const offset = songs.value.length;
-          const next = await withActive((cfg) =>
-            client.listSongs(cfg, { offset, limit: SONGS_PAGE_SIZE }),
-          );
-          if (seq !== songsFetchSeq || activeServerId.value !== serverId) return;
-          if (next.length === 0) return;
-          songs.value = [...songs.value, ...next];
-          if (next.length < SONGS_PAGE_SIZE) return;
-          if (++batchesSincePersist >= PERSIST_EVERY_BATCHES) {
-            batchesSincePersist = 0;
-            persistCache();
-          }
-        } catch (err) {
-          console.error("[streaming] fetchRemainingSongs failed:", err);
-          return;
-        }
-      }
-    } finally {
-      if (seq === songsFetchSeq && activeServerId.value === serverId) persistCache();
-    }
-  };
+  const fetchSongs = fetchLibrarySnapshot;
+  const fetchAlbums = (_params?: StreamingListParams, force = false): Promise<void> =>
+    fetchLibrarySnapshot(force);
+  const fetchArtists = fetchLibrarySnapshot;
+  const fetchPlaylists = fetchLibrarySnapshot;
 
   /**
    * 拉取指定专辑的歌曲
@@ -515,7 +449,9 @@ export const useStreamingStore = defineStore("streaming", () => {
    * @param query - 搜索关键词
    */
   const search = (query: string): Promise<StreamingSearchResult> =>
-    withActive((cfg) => client.search(cfg, query));
+    activeServerId.value
+      ? window.api.streaming.search(activeServerId.value, query)
+      : Promise.reject(new Error("没有激活的流媒体服务器"));
 
   /** Track.serverId 找 cfg；找不到抛错 */
   const findCfgForTrack = (track: Track): StreamingServerConfig => {

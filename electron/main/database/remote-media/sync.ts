@@ -1,19 +1,5 @@
 import { getDb } from "@main/database";
-
-export type RemoteSyncPhase = "idle" | "syncing" | "completed" | "partial" | "failed";
-
-export interface RemoteSyncState {
-  serverId: string;
-  phase: RemoteSyncPhase;
-  generation: number;
-  cursor?: string;
-  discovered: number;
-  completed: number;
-  failed: number;
-  startedAt?: number;
-  completedAt?: number;
-  error?: string;
-}
+import type { RemoteSyncPhase, RemoteSyncState } from "@shared/types/streaming";
 
 interface SyncStateRow {
   server_id: string;

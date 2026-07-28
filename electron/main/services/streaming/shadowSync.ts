@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type { StreamingServerConfig, StreamingServerType } from "@shared/types/streaming";
 import { isDbOpen } from "@main/database";
 import { upsertTracks, deleteStaleTracks } from "@main/database/remote-media/tracks";
@@ -23,13 +24,20 @@ const SUBSONIC_TYPES = new Set<StreamingServerType>([
   "gonic",
   "lms",
 ]);
+const FIRST_SONG_BATCH_SIZE = 100;
 const SONG_BATCH_SIZE = 500;
 const runningServers = new Set<string>();
+const syncedSignatures = new Map<string, string>();
+
+const getConfigSignature = (config: StreamingServerConfig): string =>
+  createHash("sha256")
+    .update([config.type, config.url, config.username, config.password].join("\0"))
+    .digest("hex");
 
 const syncServer = async (
   config: StreamingServerConfig,
   adapter: StreamingAdapter,
-): Promise<void> => {
+): Promise<boolean> => {
   const generation = Date.now();
   let songCount = 0;
   setSyncState({
@@ -42,10 +50,11 @@ const syncServer = async (
     startedAt: generation,
   });
   try {
+    let limit = FIRST_SONG_BATCH_SIZE;
     while (true) {
       const songs = await adapter.listSongs(config, {
         offset: songCount,
-        limit: SONG_BATCH_SIZE,
+        limit,
       });
       upsertTracks(
         songs.map((track) => ({
@@ -65,7 +74,8 @@ const syncServer = async (
         failed: 0,
         startedAt: generation,
       });
-      if (songs.length < SONG_BATCH_SIZE) break;
+      if (songs.length < limit) break;
+      limit = SONG_BATCH_SIZE;
     }
 
     const albums = await adapter.listAlbums(config, { offset: 0, limit: 500 });
@@ -107,6 +117,7 @@ const syncServer = async (
     streamingLog.info(
       `${config.type} 旁路同步完成 [${config.name}]: 歌曲 ${songCount}，专辑 ${albums.length}，歌手 ${artists.length}，歌单 ${playlists.length}`,
     );
+    return true;
   } catch (error) {
     setSyncState({
       serverId: config.id,
@@ -120,6 +131,7 @@ const syncServer = async (
       error: error instanceof Error ? error.message : String(error),
     });
     streamingLog.warn(`${config.type} 旁路同步失败 [${config.name}]:`, error);
+    return false;
   }
 };
 
@@ -134,17 +146,30 @@ const resolveAdapter = async (
   return null;
 };
 
-/** 开发环境连接成功后启动不影响 renderer 的流媒体旁路同步 */
-export const queueShadowSync = (config: StreamingServerConfig): void => {
-  if (!isDev || runningServers.has(config.id)) return;
+/**
+ * 启动开发环境后台流媒体同步
+ * @param config - 服务器配置
+ * @param force - 是否忽略本次应用运行内的成功同步记录
+ * @returns 是否启动了新任务
+ */
+export const queueShadowSync = (config: StreamingServerConfig, force = false): boolean => {
+  if (!isDev) return false;
+  if (runningServers.has(config.id)) return false;
+  const signature = getConfigSignature(config);
+  if (!force && syncedSignatures.get(config.id) === signature) return false;
   if (!isDbOpen()) {
-    streamingLog.warn(`数据库尚未初始化，跳过 Subsonic 旁路同步 [${config.name}]`);
-    return;
+    streamingLog.warn(`数据库尚未初始化，跳过流媒体旁路同步 [${config.name}]`);
+    return false;
   }
   runningServers.add(config.id);
   void resolveAdapter(config)
-    .then((resolved) => (resolved ? syncServer(resolved.config, resolved.adapter) : undefined))
+    .then((resolved) => (resolved ? syncServer(resolved.config, resolved.adapter) : false))
+    .then((success) => {
+      if (success) syncedSignatures.set(config.id, signature);
+      else syncedSignatures.delete(config.id);
+    })
     .catch((error) => {
+      syncedSignatures.delete(config.id);
       setSyncState({
         serverId: config.id,
         phase: "failed",
@@ -158,4 +183,5 @@ export const queueShadowSync = (config: StreamingServerConfig): void => {
       streamingLog.warn(`${config.type} 旁路登录失败 [${config.name}]:`, error);
     })
     .finally(() => runningServers.delete(config.id));
+  return true;
 };

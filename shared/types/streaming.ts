@@ -1,4 +1,4 @@
-import type { Album, Artist, Track } from "./player";
+import type { Album, Artist, Playlist, Track } from "./player";
 
 /** 支持的流媒体服务器类型 */
 export type StreamingServerType =
@@ -74,6 +74,30 @@ export interface StreamingSearchResult {
   artists: Artist[];
 }
 
+export type RemoteSyncPhase = "idle" | "syncing" | "completed" | "partial" | "failed";
+
+export interface RemoteSyncState {
+  serverId: string;
+  phase: RemoteSyncPhase;
+  generation: number;
+  cursor?: string;
+  discovered: number;
+  completed: number;
+  failed: number;
+  startedAt?: number;
+  completedAt?: number;
+  error?: string;
+}
+
+/** 主进程 SQLite 中一个远程服务器的完整媒体快照 */
+export interface StreamingLibrarySnapshot {
+  songs: Track[];
+  albums: Album[];
+  artists: Artist[];
+  playlists: Playlist[];
+  syncState: RemoteSyncState;
+}
+
 export interface StreamingApi {
   loadServers: () => Promise<{
     servers: StreamingServerConfig[];
@@ -83,4 +107,12 @@ export interface StreamingApi {
     servers: StreamingServerConfig[];
     activeServerId: string | null;
   }) => Promise<void>;
+  /** 读取主进程 SQLite 快照 */
+  getSnapshot: (serverId: string) => Promise<StreamingLibrarySnapshot>;
+  /** 轻量读取后台同步状态 */
+  getSyncState: (serverId: string) => Promise<RemoteSyncState>;
+  /** 启动后台同步；force 仅供用户显式刷新 */
+  sync: (serverId: string, force?: boolean) => Promise<boolean>;
+  /** 搜索主进程 SQLite 中的远程媒体 */
+  search: (serverId: string, query: string) => Promise<StreamingSearchResult>;
 }

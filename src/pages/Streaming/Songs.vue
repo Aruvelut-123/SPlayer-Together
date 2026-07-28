@@ -12,13 +12,13 @@ const { songs, loading, isConnected } = storeToRefs(streaming);
 const refreshKey = inject<{ value: number }>("streamingRefreshKey", { value: 0 });
 const searchQuery = ref("");
 
-const refresh = (): void => {
+const refresh = (force = false): void => {
   if (!isConnected.value) return;
-  streaming.fetchSongs();
+  streaming.fetchSongs(force);
 };
 
 // 父组件按刷新按钮时触发
-watch(refreshKey, refresh);
+watch(refreshKey, () => refresh(true));
 // 连接成功时自动拉
 watch(isConnected, (v) => v && refresh());
 // 首次挂载：已连接且数据为空才拉（store 有缓存就直接显示，避免重复请求）

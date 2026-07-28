@@ -460,6 +460,12 @@ const api = {
       servers: StreamingServerConfig[];
       activeServerId: string | null;
     }): Promise<void> => ipcRenderer.invoke("streaming:saveServers", payload),
+    getSnapshot: (serverId: string) => ipcRenderer.invoke("streaming:getSnapshot", serverId),
+    getSyncState: (serverId: string) => ipcRenderer.invoke("streaming:getSyncState", serverId),
+    sync: (serverId: string, force?: boolean): Promise<boolean> =>
+      ipcRenderer.invoke("streaming:sync", serverId, force),
+    search: (serverId: string, query: string) =>
+      ipcRenderer.invoke("streaming:search", serverId, query),
   },
   lastfm: {
     // 发起授权

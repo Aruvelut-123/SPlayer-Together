@@ -10,6 +10,11 @@ import { streamingLog } from "@main/utils/logger";
 import { configDir } from "@main/utils/paths";
 import type { StreamingServerConfig } from "@shared/types/streaming";
 import { queueShadowSync } from "@main/services/streaming/shadowSync";
+import {
+  getLibrarySnapshot,
+  getLibrarySyncState,
+  searchLibrary,
+} from "@main/services/streaming/library";
 
 const STORAGE_FILE = path.join(configDir, "streaming.json");
 
@@ -78,18 +83,20 @@ const decryptPassword = (encrypted: string): string => {
   }
 };
 
+const toRuntimeConfig = (server: PersistedServer): StreamingServerConfig => ({
+  id: server.id,
+  name: server.name,
+  type: server.type,
+  url: server.url,
+  username: server.username,
+  password: decryptPassword(server.encryptedPassword),
+  lastConnected: server.lastConnected,
+});
+
 export const registerStreamingIpc = (): void => {
   ipcMain.handle("streaming:loadServers", () => {
     const persisted = readPersisted();
-    const servers: StreamingServerConfig[] = persisted.servers.map((s) => ({
-      id: s.id,
-      name: s.name,
-      type: s.type,
-      url: s.url,
-      username: s.username,
-      password: decryptPassword(s.encryptedPassword),
-      lastConnected: s.lastConnected,
-    }));
+    const servers = persisted.servers.map(toRuntimeConfig);
     return { servers, activeServerId: persisted.activeServerId };
   });
 
@@ -117,4 +124,28 @@ export const registerStreamingIpc = (): void => {
       }
     },
   );
+
+  ipcMain.handle("streaming:getSnapshot", (_event, serverId: string) => {
+    const exists = readPersisted().servers.some((server) => server.id === serverId);
+    if (!exists) throw new Error("找不到流媒体服务器");
+    return getLibrarySnapshot(serverId);
+  });
+
+  ipcMain.handle("streaming:getSyncState", (_event, serverId: string) => {
+    const exists = readPersisted().servers.some((server) => server.id === serverId);
+    if (!exists) throw new Error("找不到流媒体服务器");
+    return getLibrarySyncState(serverId);
+  });
+
+  ipcMain.handle("streaming:sync", (_event, serverId: string, force = false): boolean => {
+    const server = readPersisted().servers.find((item) => item.id === serverId);
+    if (!server) throw new Error("找不到流媒体服务器");
+    return queueShadowSync(toRuntimeConfig(server), force);
+  });
+
+  ipcMain.handle("streaming:search", (_event, serverId: string, query: string) => {
+    const exists = readPersisted().servers.some((server) => server.id === serverId);
+    if (!exists) throw new Error("找不到流媒体服务器");
+    return searchLibrary(serverId, query.slice(0, 200));
+  });
 };
