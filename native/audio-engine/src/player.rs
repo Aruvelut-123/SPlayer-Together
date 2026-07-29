@@ -203,7 +203,7 @@ impl InnerPlayer {
         self.output
             .as_ref()
             .map(|out| out.sample_rate())
-            .unwrap_or(decoder::TARGET_SAMPLE_RATE)
+            .unwrap_or(decoder::DEFAULT_TARGET_SAMPLE_RATE)
     }
 
     /// 把 EQ / stretch 的采样率对齐到当前输出设备率
@@ -213,7 +213,6 @@ impl InnerPlayer {
         let rate = self.output_sample_rate();
         self.equalizer.lock().set_sample_rate(rate);
         self.tempo.lock().set_sample_rate(rate);
-        self.fft.set_sample_rate(rate);
     }
 
     pub fn new() -> Result<Self> {
@@ -224,7 +223,7 @@ impl InnerPlayer {
         let initial_rate = output
             .as_ref()
             .map(|out| out.sample_rate())
-            .unwrap_or(decoder::TARGET_SAMPLE_RATE);
+            .unwrap_or(decoder::DEFAULT_TARGET_SAMPLE_RATE);
         debug!("InnerPlayer 已创建");
 
         Ok(Self {
@@ -232,7 +231,7 @@ impl InnerPlayer {
             sink: None,
             shared: None,
             decoder_thread: None,
-            fft: Arc::new(FftAnalyzer::new(initial_rate)),
+            fft: Arc::new(FftAnalyzer::new()),
             audio_sample_rate: 0,
             audio_channels: 0,
             audio_duration: 0.0,
