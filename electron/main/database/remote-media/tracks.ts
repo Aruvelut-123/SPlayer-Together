@@ -14,7 +14,10 @@ interface TrackRow {
   data: string;
 }
 
-/** 批量写入远程歌曲 */
+/**
+ * 批量写入远程歌曲
+ * @param records - 远程歌曲记录
+ */
 export const upsertTracks = (records: RemoteTrackRecord[]): void => {
   if (records.length === 0) return;
   const statement = getDb().prepare(`
@@ -55,7 +58,11 @@ export const upsertTracks = (records: RemoteTrackRecord[]): void => {
   })();
 };
 
-/** 获取指定服务器的完整歌曲列表 */
+/**
+ * 获取指定服务器的完整歌曲列表
+ * @param serverId - 服务器 ID
+ * @returns 完整歌曲列表
+ */
 export const getTracks = (serverId: string): Track[] => {
   const rows = getDb()
     .prepare(
@@ -65,7 +72,12 @@ export const getTracks = (serverId: string): Track[] => {
   return rows.map((row) => JSON.parse(row.data) as Track);
 };
 
-/** 搜索指定服务器的歌曲 */
+/**
+ * 搜索指定服务器的歌曲
+ * @param serverId - 服务器 ID
+ * @param query - 搜索词
+ * @returns 匹配的歌曲列表
+ */
 export const searchTracks = (serverId: string, query: string): Track[] => {
   const escaped = query
     .trim()
@@ -83,14 +95,21 @@ export const searchTracks = (serverId: string, query: string): Track[] => {
   return rows.map((row) => JSON.parse(row.data) as Track);
 };
 
-/** 删除指定服务器的旧同步数据 */
+/**
+ * 删除指定服务器的旧同步数据
+ * @param serverId - 服务器 ID
+ * @param generation - 当前同步代次
+ */
 export const deleteStaleTracks = (serverId: string, generation: number): void => {
   getDb()
     .prepare("DELETE FROM remote_tracks WHERE server_id = ? AND generation <> ?")
     .run(serverId, generation);
 };
 
-/** 删除指定服务器的全部歌曲 */
+/**
+ * 删除指定服务器的全部歌曲
+ * @param serverId - 服务器 ID
+ */
 export const deleteTracksByServer = (serverId: string): void => {
   getDb().prepare("DELETE FROM remote_tracks WHERE server_id = ?").run(serverId);
 };

@@ -12,7 +12,10 @@ interface PlaylistRow {
   data: string;
 }
 
-/** 批量写入远程歌单 */
+/**
+ * 批量写入远程歌单
+ * @param records - 远程歌单记录
+ */
 export const upsertPlaylists = (records: RemotePlaylistRecord[]): void => {
   if (records.length === 0) return;
   const statement = getDb().prepare(`
@@ -39,7 +42,11 @@ export const upsertPlaylists = (records: RemotePlaylistRecord[]): void => {
   })();
 };
 
-/** 获取指定服务器的完整歌单列表 */
+/**
+ * 获取指定服务器的完整歌单列表
+ * @param serverId - 服务器 ID
+ * @returns 完整歌单列表
+ */
 export const getPlaylists = (serverId: string): Playlist[] => {
   const rows = getDb()
     .prepare(
@@ -49,74 +56,21 @@ export const getPlaylists = (serverId: string): Playlist[] => {
   return rows.map((row) => JSON.parse(row.data) as Playlist);
 };
 
-/** 覆盖一个远程歌单的歌曲顺序 */
-export const replacePlaylistTracks = (
-  serverId: string,
-  playlistId: string,
-  trackIds: string[],
-): void => {
-  const remove = getDb().prepare(
-    "DELETE FROM remote_playlist_tracks WHERE server_id = ? AND playlist_id = ?",
-  );
-  const insert = getDb().prepare(`
-    INSERT INTO remote_playlist_tracks (server_id, playlist_id, track_id, position)
-    VALUES (?, ?, ?, ?)
-  `);
-  getDb().transaction(() => {
-    remove.run(serverId, playlistId);
-    trackIds.forEach((trackId, position) => insert.run(serverId, playlistId, trackId, position));
-  })();
-};
-
-/** 获取远程歌单的歌曲 ID 列表 */
-export const getPlaylistTrackIds = (serverId: string, playlistId: string): string[] => {
-  const rows = getDb()
-    .prepare(
-      `SELECT track_id FROM remote_playlist_tracks
-       WHERE server_id = ? AND playlist_id = ?
-       ORDER BY position`,
-    )
-    .all(serverId, playlistId) as { track_id: string }[];
-  return rows.map((row) => row.track_id);
-};
-
-/** 删除指定服务器的旧同步歌单 */
+/**
+ * 删除指定服务器的旧同步歌单
+ * @param serverId - 服务器 ID
+ * @param generation - 当前同步代次
+ */
 export const deleteStalePlaylists = (serverId: string, generation: number): void => {
-  getDb().transaction(() => {
-    getDb()
-      .prepare("DELETE FROM remote_playlists WHERE server_id = ? AND generation <> ?")
-      .run(serverId, generation);
-    getDb()
-      .prepare(
-        `DELETE FROM remote_playlist_tracks
-         WHERE server_id = ? AND playlist_id NOT IN (
-           SELECT remote_id FROM remote_playlists WHERE server_id = ?
-         )`,
-      )
-      .run(serverId, serverId);
-  })();
-};
-
-/** 清理已经不存在的歌单或歌曲关系 */
-export const cleanPlaylistTracks = (serverId: string): void => {
   getDb()
-    .prepare(
-      `DELETE FROM remote_playlist_tracks
-       WHERE server_id = ? AND (
-         playlist_id NOT IN (
-           SELECT remote_id FROM remote_playlists WHERE server_id = ?
-         ) OR track_id NOT IN (
-           SELECT remote_id FROM remote_tracks WHERE server_id = ?
-         )
-       )`,
-    )
-    .run(serverId, serverId, serverId);
+    .prepare("DELETE FROM remote_playlists WHERE server_id = ? AND generation <> ?")
+    .run(serverId, generation);
 };
 
-/** 删除指定服务器的全部歌单 */
+/**
+ * 删除指定服务器的全部歌单
+ * @param serverId - 服务器 ID
+ */
 export const deletePlaylistsByServer = (serverId: string): void => {
-  getDb().transaction(() => {
-    getDb().prepare("DELETE FROM remote_playlist_tracks WHERE server_id = ?").run(serverId);
-    getDb().prepare("DELETE FROM remote_playlists WHERE server_id = ?").run(serverId);
-  })();
+  getDb().prepare("DELETE FROM remote_playlists WHERE server_id = ?").run(serverId);
 };

@@ -12,7 +12,10 @@ interface AlbumRow {
   data: string;
 }
 
-/** 批量写入远程专辑 */
+/**
+ * 批量写入远程专辑
+ * @param records - 远程专辑记录
+ */
 export const upsertAlbums = (records: RemoteAlbumRecord[]): void => {
   if (records.length === 0) return;
   const statement = getDb().prepare(`
@@ -39,7 +42,11 @@ export const upsertAlbums = (records: RemoteAlbumRecord[]): void => {
   })();
 };
 
-/** 获取指定服务器的完整专辑列表 */
+/**
+ * 获取指定服务器的完整专辑列表
+ * @param serverId - 服务器 ID
+ * @returns 完整专辑列表
+ */
 export const getAlbums = (serverId: string): Album[] => {
   const rows = getDb()
     .prepare(
@@ -49,14 +56,21 @@ export const getAlbums = (serverId: string): Album[] => {
   return rows.map((row) => JSON.parse(row.data) as Album);
 };
 
-/** 删除指定服务器的旧同步专辑 */
+/**
+ * 删除指定服务器的旧同步专辑
+ * @param serverId - 服务器 ID
+ * @param generation - 当前同步代次
+ */
 export const deleteStaleAlbums = (serverId: string, generation: number): void => {
   getDb()
     .prepare("DELETE FROM remote_albums WHERE server_id = ? AND generation <> ?")
     .run(serverId, generation);
 };
 
-/** 删除指定服务器的全部专辑 */
+/**
+ * 删除指定服务器的全部专辑
+ * @param serverId - 服务器 ID
+ */
 export const deleteAlbumsByServer = (serverId: string): void => {
   getDb().prepare("DELETE FROM remote_albums WHERE server_id = ?").run(serverId);
 };

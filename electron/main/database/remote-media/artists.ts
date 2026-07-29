@@ -12,7 +12,10 @@ interface ArtistRow {
   data: string;
 }
 
-/** 批量写入远程歌手 */
+/**
+ * 批量写入远程歌手
+ * @param records - 远程歌手记录
+ */
 export const upsertArtists = (records: RemoteArtistRecord[]): void => {
   if (records.length === 0) return;
   const statement = getDb().prepare(`
@@ -39,7 +42,11 @@ export const upsertArtists = (records: RemoteArtistRecord[]): void => {
   })();
 };
 
-/** 获取指定服务器的完整歌手列表 */
+/**
+ * 获取指定服务器的完整歌手列表
+ * @param serverId - 服务器 ID
+ * @returns 完整歌手列表
+ */
 export const getArtists = (serverId: string): Artist[] => {
   const rows = getDb()
     .prepare(
@@ -49,14 +56,21 @@ export const getArtists = (serverId: string): Artist[] => {
   return rows.map((row) => JSON.parse(row.data) as Artist);
 };
 
-/** 删除指定服务器的旧同步歌手 */
+/**
+ * 删除指定服务器的旧同步歌手
+ * @param serverId - 服务器 ID
+ * @param generation - 当前同步代次
+ */
 export const deleteStaleArtists = (serverId: string, generation: number): void => {
   getDb()
     .prepare("DELETE FROM remote_artists WHERE server_id = ? AND generation <> ?")
     .run(serverId, generation);
 };
 
-/** 删除指定服务器的全部歌手 */
+/**
+ * 删除指定服务器的全部歌手
+ * @param serverId - 服务器 ID
+ */
 export const deleteArtistsByServer = (serverId: string): void => {
   getDb().prepare("DELETE FROM remote_artists WHERE server_id = ?").run(serverId);
 };

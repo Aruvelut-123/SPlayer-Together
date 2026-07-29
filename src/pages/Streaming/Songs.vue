@@ -14,7 +14,7 @@ const searchQuery = ref("");
 
 const refresh = (force = false): void => {
   if (!isConnected.value) return;
-  streaming.fetchSongs(force);
+  streaming.refreshLibrary(force);
 };
 
 // 父组件按刷新按钮时触发

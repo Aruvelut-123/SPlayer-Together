@@ -198,28 +198,6 @@ export const initDatabase = (): void => {
     CREATE INDEX IF NOT EXISTS idx_remote_playlists_generation
       ON remote_playlists(server_id, generation);
 
-    CREATE TABLE IF NOT EXISTS remote_playlist_tracks (
-      server_id TEXT NOT NULL,
-      playlist_id TEXT NOT NULL,
-      track_id TEXT NOT NULL,
-      position INTEGER NOT NULL,
-      PRIMARY KEY (server_id, playlist_id, position)
-    );
-    CREATE INDEX IF NOT EXISTS idx_remote_playlist_tracks_track
-      ON remote_playlist_tracks(server_id, track_id);
-
-    CREATE TABLE IF NOT EXISTS remote_sync_state (
-      server_id TEXT PRIMARY KEY,
-      phase TEXT NOT NULL CHECK (phase IN ('idle', 'syncing', 'completed', 'partial', 'failed')),
-      generation INTEGER NOT NULL DEFAULT 0,
-      cursor TEXT,
-      discovered INTEGER NOT NULL DEFAULT 0,
-      completed INTEGER NOT NULL DEFAULT 0,
-      failed INTEGER NOT NULL DEFAULT 0,
-      started_at INTEGER,
-      completed_at INTEGER,
-      error TEXT
-    );
   `);
   migrate(db);
   libraryLog.info(`数据库已初始化: ${dbPath}`);

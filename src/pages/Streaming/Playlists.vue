@@ -13,7 +13,7 @@ const refreshKey = inject<{ value: number }>("streamingRefreshKey", { value: 0 }
 
 const refresh = (force = false): void => {
   if (!isConnected.value) return;
-  streaming.fetchPlaylists(force);
+  streaming.refreshLibrary(force);
 };
 
 watch(refreshKey, () => refresh(true));

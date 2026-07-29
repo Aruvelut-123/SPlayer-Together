@@ -73,7 +73,7 @@ const openEdit = (cfg: StreamingServerConfig): void => {
     type: cfg.type,
     url: cfg.url,
     username: cfg.username,
-    password: cfg.password,
+    password: "",
   };
   testResult.value = null;
   formError.value = null;
@@ -84,7 +84,10 @@ const validate = (): string | null => {
   if (!form.value.name.trim()) return t("streaming.server.errors.nameEmpty");
   if (!/^https?:\/\//i.test(form.value.url.trim())) return t("streaming.server.errors.urlInvalid");
   if (!form.value.username) return t("streaming.server.errors.usernameEmpty");
-  if (!form.value.password) return t("streaming.server.errors.passwordEmpty");
+  const editingServer = servers.value.find((server) => server.id === editingId.value);
+  if (!form.value.password && !editingServer?.hasPassword) {
+    return t("streaming.server.errors.passwordEmpty");
+  }
   return null;
 };
 
@@ -97,7 +100,7 @@ const handleTest = async (): Promise<void> => {
   formError.value = null;
   testing.value = true;
   try {
-    const res = await streaming.testConnection(form.value);
+    const res = await streaming.testConnection(form.value, editingId.value ?? undefined);
     testResult.value = res;
   } finally {
     testing.value = false;
@@ -114,14 +117,14 @@ const handleSubmit = async (): Promise<void> => {
   submitting.value = true;
   try {
     if (editingId.value) {
-      streaming.updateServer(editingId.value, form.value);
+      await streaming.updateServer(editingId.value, form.value);
       // 编辑后如果是当前激活服务器，重新连接刷新 token
       if (activeServerId.value === editingId.value) {
         await streaming.connectToServer(editingId.value);
       }
       toast.success(t("streaming.server.updated"));
     } else {
-      const cfg = streaming.addServer(form.value);
+      const cfg = await streaming.addServer(form.value);
       // 第一台服务器自动设为激活
       if (!activeServerId.value) await streaming.setActiveServer(cfg.id);
       toast.success(t("streaming.server.added"));
@@ -142,7 +145,7 @@ const handleConfirmRemove = (): void => {
   confirmOpen.value = false;
   pendingRemoveId.value = null;
   if (!id) return;
-  streaming.removeServer(id);
+  void streaming.removeServer(id);
   toast.success(t("streaming.server.removed"));
 };
 

@@ -22,12 +22,8 @@ export interface StreamingServerConfig {
   /** 服务器地址，规范化为不带尾斜杠 */
   url: string;
   username: string;
-  /** 明文密码 */
-  password: string;
-  /** Jellyfin/Emby 鉴权后回填 */
-  accessToken?: string;
-  /** Jellyfin/Emby 鉴权后回填的用户 ID */
-  userId?: string;
+  /** 主进程是否已经保存密码 */
+  hasPassword: boolean;
   /** 最后一次连接成功的时间戳（ms） */
   lastConnected?: number;
 }
@@ -55,11 +51,9 @@ export interface StreamingPingResult {
   code?: StreamingErrorCode;
 }
 
-/** Jellyfin/Emby 登录返回 */
-export interface StreamingAuthResult {
-  accessToken: string;
-  userId: string;
-}
+export type StreamingConnectResult =
+  | { ok: true; server: StreamingServerConfig }
+  | { ok: false; error: string; code: StreamingErrorCode };
 
 /** 列表请求通用参数 */
 export interface StreamingListParams {
@@ -74,28 +68,12 @@ export interface StreamingSearchResult {
   artists: Artist[];
 }
 
-export type RemoteSyncPhase = "idle" | "syncing" | "completed" | "partial" | "failed";
-
-export interface RemoteSyncState {
-  serverId: string;
-  phase: RemoteSyncPhase;
-  generation: number;
-  cursor?: string;
-  discovered: number;
-  completed: number;
-  failed: number;
-  startedAt?: number;
-  completedAt?: number;
-  error?: string;
-}
-
 /** 主进程 SQLite 中一个远程服务器的完整媒体快照 */
 export interface StreamingLibrarySnapshot {
   songs: Track[];
   albums: Album[];
   artists: Artist[];
   playlists: Playlist[];
-  syncState: RemoteSyncState;
 }
 
 export interface StreamingApi {
@@ -108,14 +86,49 @@ export interface StreamingApi {
     activeServerId: string | null;
   }>;
   /**
-   * 保存服务器配置和当前激活项
-   * @param payload - 服务器配置与激活服务器 ID
+   * 新增服务器
+   * @param input - 服务器表单
+   * @returns 新服务器视图
+   */
+  addServer: (input: StreamingServerInput) => Promise<StreamingServerConfig>;
+  /**
+   * 更新服务器
+   * @param serverId - 服务器 ID
+   * @param input - 服务器表单
+   * @returns 更新后的服务器视图
+   */
+  updateServer: (serverId: string, input: StreamingServerInput) => Promise<StreamingServerConfig>;
+  /**
+   * 删除服务器
+   * @param serverId - 服务器 ID
+   * @returns 删除完成
+   */
+  removeServer: (serverId: string) => Promise<void>;
+  /**
+   * 保存激活服务器
+   * @param serverId - 激活服务器 ID
    * @returns 保存完成
    */
-  saveServers: (payload: {
-    servers: StreamingServerConfig[];
-    activeServerId: string | null;
-  }) => Promise<void>;
+  setActiveServer: (serverId: string | null) => Promise<void>;
+  /**
+   * 测试服务器连接
+   * @param input - 服务器表单
+   * @param serverId - 编辑中的服务器 ID
+   * @returns 连通性结果
+   */
+  testConnection: (input: StreamingServerInput, serverId?: string) => Promise<StreamingPingResult>;
+  /**
+   * 连接服务器
+   * @param serverId - 服务器 ID
+   * @returns 连接结果
+   */
+  connect: (serverId: string) => Promise<StreamingConnectResult>;
+  /**
+   * 断开服务器会话
+   * @param serverId - 服务器 ID
+   * @returns 断开完成
+   */
+  disconnect: (serverId: string) => Promise<void>;
   /**
    * 读取主进程 SQLite 媒体库快照
    * @param serverId - 服务器 ID
@@ -123,18 +136,18 @@ export interface StreamingApi {
    */
   getSnapshot: (serverId: string) => Promise<StreamingLibrarySnapshot>;
   /**
-   * 读取后台同步状态
-   * @param serverId - 服务器 ID
-   * @returns 当前同步状态
-   */
-  getSyncState: (serverId: string) => Promise<RemoteSyncState>;
-  /**
    * 启动后台同步
    * @param serverId - 服务器 ID
    * @param force - 是否忽略本次应用运行内的成功同步记录
    * @returns 是否启动了新任务
    */
   sync: (serverId: string, force?: boolean) => Promise<boolean>;
+  /**
+   * 订阅媒体库更新
+   * @param callback - 收到更新的服务器 ID
+   * @returns 取消订阅函数
+   */
+  onLibraryUpdated: (callback: (serverId: string) => void) => () => void;
   /**
    * 搜索主进程 SQLite 中的远程媒体
    * @param serverId - 服务器 ID
@@ -170,4 +183,24 @@ export interface StreamingApi {
    * @returns 歌手歌曲
    */
   getArtistSongs: (serverId: string, artistId: string) => Promise<Track[]>;
+  /**
+   * 生成播放地址
+   * @param serverId - 服务器 ID
+   * @param trackId - 服务端歌曲 ID
+   * @param playSessionId - 播放会话 ID
+   * @returns 播放地址
+   */
+  getStreamUrl: (serverId: string, trackId: string, playSessionId?: string) => Promise<string>;
+  /**
+   * 读取流媒体歌词
+   * @param serverId - 服务器 ID
+   * @param trackId - 服务端歌曲 ID
+   * @param hint - 旧 Subsonic 歌词端点使用的歌曲信息
+   * @returns 原始歌词文本
+   */
+  getLyrics: (
+    serverId: string,
+    trackId: string,
+    hint?: { artist?: string; title?: string },
+  ) => Promise<string | null>;
 }
