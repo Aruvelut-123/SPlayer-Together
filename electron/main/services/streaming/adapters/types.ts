@@ -1,6 +1,6 @@
 import type { Album, Artist, Playlist, Track } from "@shared/types/player";
 import type { StreamingListParams, StreamingPingResult } from "@shared/types/streaming";
-import type { StreamingRuntimeConfig } from "../types";
+import type { StreamingRuntimeConfig } from "../config";
 
 /** 主进程流媒体协议适配器 */
 export interface StreamingAdapter {

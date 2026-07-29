@@ -12,7 +12,7 @@ import {
   getStreamingServer,
   markStreamingServerConnected,
 } from "./config";
-import type { StreamingRuntimeConfig } from "./types";
+import type { StreamingRuntimeConfig } from "./config";
 
 /**
  * 归类连接错误

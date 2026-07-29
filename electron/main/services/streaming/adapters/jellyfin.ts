@@ -1,7 +1,13 @@
 import type { Album, Artist, Playlist, Track } from "@shared/types/player";
 import type { StreamingPingResult } from "@shared/types/streaming";
-import type { StreamingAuthSession, StreamingRuntimeConfig } from "../types";
+import type { StreamingRuntimeConfig } from "../config";
 import type { StreamingAdapter } from "./types";
+
+/** Jellyfin/Emby 主进程登录会话 */
+export interface StreamingAuthSession {
+  accessToken: string;
+  userId: string;
+}
 
 const CLIENT_NAME = "SPlayer-Next";
 const CLIENT_VERSION = "1.0.0";

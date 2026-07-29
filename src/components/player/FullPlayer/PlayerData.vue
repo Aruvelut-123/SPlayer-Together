@@ -80,9 +80,6 @@ const sourceLabel = computed(() => {
   return source.toUpperCase();
 });
 
-/** 是否禁用歌词来源切换 */
-const lyricSwitchDisabled = computed(() => media.track?.source === "streaming");
-
 /** 音质等级标签 */
 const qualityLabel = computed(() => getQualityLabel(media.detail?.quality));
 
@@ -176,15 +173,13 @@ const alignItems = computed(() => {
       <SPopselect
         v-model="settings.lyric.lyricSourcePreference"
         :options="lyricSourceOptions"
-        :disabled="lyricSwitchDisabled"
         side="top"
         :side-offset="8"
         cover
       >
         <template #trigger>
           <span
-            class="inline-flex items-center justify-center leading-none px-1.5 py-1.2 rounded-md border border-solid border-cover/30 transition-colors"
-            :class="lyricSwitchDisabled ? 'cursor-default' : 'cursor-pointer hover:border-cover/60'"
+            class="inline-flex items-center justify-center leading-none px-1.5 py-1.2 rounded-md border border-solid border-cover/30 cursor-pointer transition-colors hover:border-cover/60"
           >
             {{ lyricLabel }}
           </span>

@@ -1,6 +1,6 @@
 import type { StreamingServerType } from "@shared/types/streaming";
-import type { StreamingAuthSession, StreamingRuntimeConfig } from "../types";
-import { authenticate, jellyfinAdapter } from "./jellyfin";
+import type { StreamingRuntimeConfig } from "../config";
+import { authenticate, jellyfinAdapter, type StreamingAuthSession } from "./jellyfin";
 import { subsonicAdapter } from "./subsonic";
 import type { StreamingAdapter } from "./types";
 

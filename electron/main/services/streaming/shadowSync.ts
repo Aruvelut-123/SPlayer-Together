@@ -1,4 +1,4 @@
-import type { StreamingRuntimeConfig } from "./types";
+import type { StreamingRuntimeConfig } from "./config";
 import { isDbOpen } from "@main/database";
 import { upsertTracks, deleteStaleTracks } from "@main/database/remote-media/tracks";
 import { upsertAlbums, deleteStaleAlbums } from "@main/database/remote-media/albums";

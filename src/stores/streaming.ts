@@ -283,25 +283,6 @@ export const useStreamingStore = defineStore("streaming", () => {
     return window.api.streaming.getStreamUrl(cfg.id, track.originalId!, sessionId);
   };
 
-  /**
-   * 取流媒体歌词
-   * @param track - source="streaming" 的 Track
-   * @returns 原始歌词文本
-   */
-  const getLyrics = async (track: Track): Promise<string | null> => {
-    try {
-      const cfg = servers.value.find((server) => server.id === track.serverId);
-      if (!cfg || !track.originalId) return null;
-      return await window.api.streaming.getLyrics(cfg.id, track.originalId!, {
-        artist: track.artists?.[0]?.name,
-        title: track.title,
-      });
-    } catch (err) {
-      console.warn("[streaming] getLyrics failed:", err);
-      return null;
-    }
-  };
-
   /** 初始化服务器配置和媒体库更新订阅 */
   const init = async (): Promise<void> => {
     if (initialized) return;
@@ -347,6 +328,5 @@ export const useStreamingStore = defineStore("streaming", () => {
     fetchArtistSongs,
     search,
     getStreamUrl,
-    getLyrics,
   };
 });

@@ -5,7 +5,13 @@ import { writeFileSync as atomicWriteSync } from "atomically";
 import { streamingLog } from "@main/utils/logger";
 import { configDir } from "@main/utils/paths";
 import type { StreamingServerConfig, StreamingServerInput } from "@shared/types/streaming";
-import type { StreamingRuntimeConfig } from "./types";
+
+/** 完整服务器配置 */
+export interface StreamingRuntimeConfig extends StreamingServerConfig {
+  password: string;
+  accessToken?: string;
+  userId?: string;
+}
 
 const STORAGE_FILE = path.join(configDir, "streaming.json");
 
