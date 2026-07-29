@@ -1,6 +1,6 @@
 import type { Album, Artist, Playlist, Track } from "@shared/types/player";
 import type { StreamingPingResult } from "@shared/types/streaming";
-import type { StreamingRuntimeConfig } from "../config";
+import type { StreamingRuntimeConfig } from "@shared/types/streaming";
 import type { StreamingAdapter } from "./types";
 
 /** Jellyfin/Emby 主进程登录会话 */

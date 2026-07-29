@@ -10,8 +10,8 @@ export type RepeatMode = "list" | "one";
 /** 随机模式 */
 export type ShuffleMode = "off" | "on";
 
-/** 歌曲来源：本地 / 流媒体 / 在线平台 */
-export type TrackSource = "local" | "streaming" | Platform;
+/** 歌曲来源：本地 / WebDAV / 流媒体 / 在线平台 */
+export type TrackSource = "local" | "webdav" | "streaming" | Platform;
 
 /** 歌手 */
 export interface Artist {

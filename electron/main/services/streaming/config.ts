@@ -4,14 +4,11 @@ import { safeStorage } from "electron";
 import { writeFileSync as atomicWriteSync } from "atomically";
 import { streamingLog } from "@main/utils/logger";
 import { configDir } from "@main/utils/paths";
-import type { StreamingServerConfig, StreamingServerInput } from "@shared/types/streaming";
-
-/** 完整服务器配置 */
-export interface StreamingRuntimeConfig extends StreamingServerConfig {
-  password: string;
-  accessToken?: string;
-  userId?: string;
-}
+import type {
+  StreamingServerConfig,
+  StreamingServerInput,
+  StreamingRuntimeConfig,
+} from "@shared/types/streaming";
 
 const STORAGE_FILE = path.join(configDir, "streaming.json");
 
@@ -23,6 +20,8 @@ interface PersistedServer {
   username: string;
   encryptedPassword: string;
   lastConnected?: number;
+  rootPath?: string;
+  scanDepth?: number;
 }
 
 interface PersistedState {
@@ -88,15 +87,28 @@ const decryptPassword = (encrypted: string): string => {
  * @param server - 持久化配置
  * @returns 不含凭据的配置
  */
-const toServerConfig = (server: PersistedServer): StreamingServerConfig => ({
-  id: server.id,
-  name: server.name,
-  type: server.type,
-  url: server.url,
-  username: server.username,
-  hasPassword: Boolean(server.encryptedPassword),
-  lastConnected: server.lastConnected,
-});
+const toServerConfig = (server: PersistedServer): StreamingServerConfig => {
+  const base = {
+    id: server.id,
+    name: server.name,
+    url: server.url,
+    username: server.username,
+    hasPassword: Boolean(server.encryptedPassword),
+    lastConnected: server.lastConnected,
+  };
+  if (server.type === "webdav") {
+    return {
+      ...base,
+      type: "webdav",
+      rootPath: server.rootPath ?? "/",
+      scanDepth: server.scanDepth ?? 0,
+    };
+  }
+  return {
+    ...base,
+    type: server.type,
+  };
+};
 
 /**
  * 转换为主进程运行时配置
@@ -145,6 +157,10 @@ export const addStreamingServer = (input: StreamingServerInput): StreamingServer
     username: input.username,
     encryptedPassword: encryptPassword(input.password),
   };
+  if (input.type === "webdav") {
+    server.rootPath = input.rootPath;
+    server.scanDepth = input.scanDepth;
+  }
   getState().servers.push(server);
   save();
   return toServerConfig(server);
@@ -166,6 +182,13 @@ export const updateStreamingServer = (
   server.type = input.type;
   server.url = input.url.trim().replace(/\/+$/, "");
   server.username = input.username;
+  if (input.type === "webdav") {
+    server.rootPath = input.rootPath;
+    server.scanDepth = input.scanDepth;
+  } else {
+    delete server.rootPath;
+    delete server.scanDepth;
+  }
   if (input.password) server.encryptedPassword = encryptPassword(input.password);
   server.lastConnected = undefined;
   save();
@@ -221,13 +244,27 @@ export const createTestStreamingServer = (
 ): StreamingRuntimeConfig => {
   const saved = serverId ? getState().servers.find((server) => server.id === serverId) : undefined;
   const password = input.password || (saved ? decryptPassword(saved.encryptedPassword) : "");
-  return {
+
+  const base = {
     id: `__test__:${crypto.randomUUID()}`,
     name: input.name.trim(),
-    type: input.type,
     url: input.url.trim().replace(/\/+$/, ""),
     username: input.username,
     password,
     hasPassword: Boolean(password),
+  };
+
+  if (input.type === "webdav") {
+    return {
+      ...base,
+      type: "webdav",
+      rootPath: input.rootPath,
+      scanDepth: input.scanDepth,
+    };
+  }
+
+  return {
+    ...base,
+    type: input.type,
   };
 };

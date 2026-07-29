@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import type { Album, Artist, Playlist, Track } from "@shared/types/player";
 import type { StreamingPingResult } from "@shared/types/streaming";
-import type { StreamingRuntimeConfig } from "../config";
+import type { StreamingRuntimeConfig } from "@shared/types/streaming";
 import type { StreamingAdapter } from "./types";
 
 const API_VERSION = "1.16.1";

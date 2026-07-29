@@ -2,8 +2,6 @@
 import { useStreamingStore } from "@/stores/streaming";
 import SongList from "@/components/list/SongList.vue";
 import * as player from "@/core/player";
-import IconLucidePlay from "~icons/lucide/play";
-import IconLucideSearch from "~icons/lucide/search";
 
 const { t } = useI18n();
 const streaming = useStreamingStore();
@@ -62,9 +60,12 @@ const handlePlayAll = (): void => {
     <div v-if="songs.length > 0" class="flex-1 min-h-0">
       <SongList :items="songs" :search-query="searchQuery" source="streaming" />
     </div>
-    <div v-else class="flex-1 flex items-center justify-center text-on-surface-variant/50">
-      <div class="text-sm">
-        {{ loading ? t("common.loading") : t("streaming.empty.noResults") }}
+    <div v-else class="flex-1 flex items-center justify-center">
+      <div class="text-center text-on-surface-variant/60">
+        <IconLucideMusic class="size-12 mx-auto mb-3 opacity-30" />
+        <div class="text-sm">
+          {{ loading ? t("common.loading") : t("streaming.empty.noResults") }}
+        </div>
       </div>
     </div>
   </div>

@@ -7,13 +7,6 @@ import type {
 } from "@shared/types/streaming";
 import { useStreamingStore } from "@/stores/streaming";
 import { toast } from "@/composables/useToast";
-import IconLucideServer from "~icons/lucide/server";
-import IconLucidePlus from "~icons/lucide/plus";
-import IconLucideEdit from "~icons/lucide/pencil";
-import IconLucideTrash from "~icons/lucide/trash-2";
-import IconLucideCheck from "~icons/lucide/check";
-import IconLucidePlugZap from "~icons/lucide/plug-zap";
-import IconLucideUnplug from "~icons/lucide/unplug";
 
 defineOptions({ inheritAttrs: false });
 
@@ -34,7 +27,9 @@ const TYPE_OPTIONS: { value: StreamingServerType; label: string }[] = [
 
 /** 表单 / 编辑状态 */
 const dialogOpen = ref(false);
+const webdavDialogOpen = ref(false);
 const editingId = ref<string | null>(null);
+
 const EMPTY_FORM: StreamingServerInput = {
   name: "",
   type: "navidrome",
@@ -43,6 +38,18 @@ const EMPTY_FORM: StreamingServerInput = {
   password: "",
 };
 const form = ref<StreamingServerInput>({ ...EMPTY_FORM });
+
+const WEBDAV_EMPTY_FORM: StreamingServerInput = {
+  name: "",
+  type: "webdav",
+  url: "",
+  username: "",
+  password: "",
+  rootPath: "/",
+  scanDepth: 5,
+};
+const webdavForm = ref<StreamingServerInput>({ ...WEBDAV_EMPTY_FORM });
+
 const submitting = ref(false);
 const testing = ref(false);
 const testResult = ref<StreamingPingResult | null>(null);
@@ -66,33 +73,67 @@ const openAdd = (): void => {
   dialogOpen.value = true;
 };
 
-const openEdit = (cfg: StreamingServerConfig): void => {
-  editingId.value = cfg.id;
-  form.value = {
-    name: cfg.name,
-    type: cfg.type,
-    url: cfg.url,
-    username: cfg.username,
-    password: "",
-  };
+const openWebDavAdd = (): void => {
+  editingId.value = null;
+  webdavForm.value = { ...WEBDAV_EMPTY_FORM };
   testResult.value = null;
   formError.value = null;
-  dialogOpen.value = true;
+  webdavDialogOpen.value = true;
 };
 
-const validate = (): string | null => {
-  if (!form.value.name.trim()) return t("streaming.server.errors.nameEmpty");
-  if (!/^https?:\/\//i.test(form.value.url.trim())) return t("streaming.server.errors.urlInvalid");
-  if (!form.value.username) return t("streaming.server.errors.usernameEmpty");
-  const editingServer = servers.value.find((server) => server.id === editingId.value);
-  if (!form.value.password && !editingServer?.hasPassword) {
-    return t("streaming.server.errors.passwordEmpty");
+const openEdit = (cfg: StreamingServerConfig): void => {
+  editingId.value = cfg.id;
+  testResult.value = null;
+  formError.value = null;
+
+  if (cfg.type === "webdav") {
+    webdavForm.value = {
+      name: cfg.name,
+      type: "webdav",
+      url: cfg.url,
+      username: cfg.username,
+      password: "",
+      rootPath: cfg.rootPath,
+      scanDepth: cfg.scanDepth,
+    };
+    webdavDialogOpen.value = true;
+  } else {
+    form.value = {
+      name: cfg.name,
+      type: cfg.type,
+      url: cfg.url,
+      username: cfg.username,
+      password: "",
+    };
+    dialogOpen.value = true;
+  }
+};
+
+/**
+ * 表单通用验证
+ * @param inputData - 填写的表单数据
+ * @returns 错误信息，若通过验证则返回 null
+ */
+const validate = (inputData: StreamingServerInput): string | null => {
+  if (!inputData.name.trim()) return t("streaming.server.errors.nameEmpty");
+  if (!/^https?:\/\//i.test(inputData.url.trim())) return t("streaming.server.errors.urlInvalid");
+
+  if (inputData.type !== "webdav") {
+    if (!inputData.username) return t("streaming.server.errors.usernameEmpty");
+    const editingServer = servers.value.find((server) => server.id === editingId.value);
+    if (!inputData.password && !editingServer?.hasPassword) {
+      return t("streaming.server.errors.passwordEmpty");
+    }
   }
   return null;
 };
 
-const handleTest = async (): Promise<void> => {
-  const invalid = validate();
+/**
+ * 测试服务器连通性
+ * @param inputData - 当前表单数据
+ */
+const handleTest = async (inputData: StreamingServerInput): Promise<void> => {
+  const invalid = validate(inputData);
   if (invalid) {
     formError.value = invalid;
     return;
@@ -100,15 +141,19 @@ const handleTest = async (): Promise<void> => {
   formError.value = null;
   testing.value = true;
   try {
-    const res = await streaming.testConnection(form.value, editingId.value ?? undefined);
+    const res = await streaming.testConnection(inputData, editingId.value ?? undefined);
     testResult.value = res;
   } finally {
     testing.value = false;
   }
 };
 
-const handleSubmit = async (): Promise<void> => {
-  const invalid = validate();
+/**
+ * 提交表单保存服务器配置
+ * @param inputData - 当前表单数据
+ */
+const handleSubmit = async (inputData: StreamingServerInput): Promise<void> => {
+  const invalid = validate(inputData);
   if (invalid) {
     formError.value = invalid;
     return;
@@ -117,19 +162,23 @@ const handleSubmit = async (): Promise<void> => {
   submitting.value = true;
   try {
     if (editingId.value) {
-      await streaming.updateServer(editingId.value, form.value);
+      await streaming.updateServer(editingId.value, inputData);
       // 编辑后如果是当前激活服务器，重新连接刷新 token
       if (activeServerId.value === editingId.value) {
         await streaming.connectToServer(editingId.value);
       }
       toast.success(t("streaming.server.updated"));
     } else {
-      const cfg = await streaming.addServer(form.value);
+      const cfg = await streaming.addServer(inputData);
       // 第一台服务器自动设为激活
       if (!activeServerId.value) await streaming.setActiveServer(cfg.id);
       toast.success(t("streaming.server.added"));
     }
-    dialogOpen.value = false;
+    if (inputData.type === "webdav") {
+      webdavDialogOpen.value = false;
+    } else {
+      dialogOpen.value = false;
+    }
   } finally {
     submitting.value = false;
   }
@@ -180,17 +229,25 @@ const formatTime = (t?: number): string => (t ? new Date(t).toLocaleString() : "
       class="flex items-center justify-between gap-4 rounded-xl bg-surface-panel border border-solid border-outline-variant/15 px-4 py-3"
     >
       <div class="min-w-0 flex-1">
-        <div class="text-sm text-on-surface">{{ t("streaming.hint") }}</div>
-        <div class="text-xs text-on-surface-variant/60 mt-0.5">
+        <div class="text-base text-on-surface">{{ t("streaming.hint") }}</div>
+        <div class="text-sm text-on-surface-variant/70 mt-0.5">
           {{ t("streaming.hintDetail") }}
         </div>
       </div>
-      <SButton variant="secondary" size="small" @click="openAdd">
-        <template #icon>
-          <IconLucidePlus class="size-4" />
-        </template>
-        {{ t("streaming.server.add") }}
-      </SButton>
+      <div class="flex items-center gap-2">
+        <SButton variant="secondary" size="small" @click="openAdd">
+          <template #icon>
+            <IconLucidePlus class="size-4" />
+          </template>
+          {{ t("streaming.server.server") }}
+        </SButton>
+        <SButton variant="secondary" size="small" @click="openWebDavAdd">
+          <template #icon>
+            <IconLucidePlus class="size-4" />
+          </template>
+          {{ t("streaming.server.webdav") }}
+        </SButton>
+      </div>
     </div>
 
     <!-- 空态 -->
@@ -268,7 +325,7 @@ const formatTime = (t?: number): string => (t ? new Date(t).toLocaleString() : "
               <template #icon>
                 <IconLucideEdit class="size-4" />
               </template>
-              {{ t("streaming.server.edit") }}
+              {{ t("common.edit") }}
             </SButton>
             <SButton
               variant="secondary"
@@ -303,10 +360,19 @@ const formatTime = (t?: number): string => (t ? new Date(t).toLocaleString() : "
           <SInput v-model="form.url" placeholder="https://music.example.com" spellcheck="false" />
         </SFormItem>
         <SFormItem :label="t('streaming.server.username')">
-          <SInput v-model="form.username" autocomplete="off" />
+          <SInput
+            v-model="form.username"
+            autocomplete="off"
+            :placeholder="t('streaming.server.optionalAccount')"
+          />
         </SFormItem>
         <SFormItem :label="t('streaming.server.password')">
-          <SInput v-model="form.password" type="password" autocomplete="new-password" />
+          <SInput
+            v-model="form.password"
+            type="password"
+            autocomplete="new-password"
+            :placeholder="t('streaming.server.optionalPassword')"
+          />
         </SFormItem>
 
         <!-- 测试结果展示 -->
@@ -326,7 +392,10 @@ const formatTime = (t?: number): string => (t ? new Date(t).toLocaleString() : "
             <span>
               {{ testResult.ok ? t("streaming.server.testOk") : t("streaming.server.testFail") }}
             </span>
-            <span v-if="testResult.version" class="opacity-70">v{{ testResult.version }}</span>
+            <span v-if="testResult.version" class="opacity-70">
+              <template v-if="/^[0-9]/.test(testResult.version)">v</template>
+              {{ testResult.version }}
+            </span>
           </div>
           <div v-if="testResult.error" class="mt-1 opacity-80">{{ testResult.error }}</div>
         </div>
@@ -335,7 +404,12 @@ const formatTime = (t?: number): string => (t ? new Date(t).toLocaleString() : "
         <SButton variant="secondary" :disabled="submitting || testing" @click="close">
           {{ t("common.cancel") }}
         </SButton>
-        <SButton variant="secondary" :loading="testing" :disabled="submitting" @click="handleTest">
+        <SButton
+          variant="secondary"
+          :loading="testing"
+          :disabled="submitting"
+          @click="handleTest(form)"
+        >
           {{ t("streaming.server.test") }}
         </SButton>
         <SButton
@@ -343,7 +417,110 @@ const formatTime = (t?: number): string => (t ? new Date(t).toLocaleString() : "
           type="primary"
           :loading="submitting"
           :disabled="testing"
-          @click="handleSubmit"
+          @click="handleSubmit(form)"
+        >
+          {{ t("common.save") }}
+        </SButton>
+      </template>
+    </SDialog>
+
+    <!-- WebDAV 添加 / 编辑弹窗 -->
+    <SDialog
+      v-model:open="webdavDialogOpen"
+      :title="editingId ? t('streaming.server.editWebDAV') : t('streaming.server.addWebDAV')"
+      width="520px"
+    >
+      <div class="flex flex-col gap-3">
+        <SFormItem :label="t('streaming.server.name')">
+          <SInput v-model="webdavForm.name" :placeholder="t('streaming.server.namePlaceholder')" />
+        </SFormItem>
+        <SFormItem :label="t('streaming.server.url')">
+          <SInput
+            v-model="webdavForm.url"
+            placeholder="https://music.example.com"
+            spellcheck="false"
+          />
+        </SFormItem>
+
+        <SFormItem :label="t('streaming.server.username')">
+          <SInput
+            v-model="webdavForm.username"
+            autocomplete="off"
+            :placeholder="t('streaming.server.optionalAccount')"
+          />
+        </SFormItem>
+        <SFormItem :label="t('streaming.server.password')">
+          <SInput
+            v-model="webdavForm.password"
+            type="password"
+            autocomplete="new-password"
+            :placeholder="t('streaming.server.optionalPassword')"
+          />
+        </SFormItem>
+
+        <div class="grid grid-cols-2 gap-3">
+          <SFormItem :label="t('streaming.server.rootPath')">
+            <SInput
+              v-if="'rootPath' in webdavForm"
+              v-model="webdavForm.rootPath"
+              placeholder="/"
+              spellcheck="false"
+            />
+          </SFormItem>
+          <SFormItem :label="t('streaming.server.scanDepth')">
+            <SNumberInput
+              v-if="'scanDepth' in webdavForm"
+              v-model="webdavForm.scanDepth"
+              :min="0"
+              :max="10"
+              :placeholder="t('streaming.server.scanDepthHint')"
+            />
+          </SFormItem>
+        </div>
+
+        <!-- 测试结果展示 -->
+        <div
+          v-if="formError"
+          class="rounded-md bg-red-500/10 px-3 py-2 text-xs text-red-500 break-all"
+        >
+          {{ formError }}
+        </div>
+        <div
+          v-if="testResult"
+          class="rounded-md px-3 py-2 text-xs break-all"
+          :class="testResult.ok ? 'bg-green-500/10 text-green-600' : 'bg-red-500/10 text-red-500'"
+        >
+          <div class="flex items-center gap-2">
+            <IconLucideCheck v-if="testResult.ok" class="size-3.5" />
+            <span>
+              {{ testResult.ok ? t("streaming.server.testOk") : t("streaming.server.testFail") }}
+            </span>
+            <span v-if="testResult.version" class="opacity-70">
+              <template v-if="/^[0-9]/.test(testResult.version)">v</template>
+              {{ testResult.version }}
+            </span>
+          </div>
+          <div v-if="testResult.error" class="mt-1 opacity-80">{{ testResult.error }}</div>
+        </div>
+      </div>
+      <template #footer="{ close }">
+        <SButton variant="secondary" :disabled="submitting || testing" @click="close">
+          {{ t("common.cancel") }}
+        </SButton>
+        <SButton
+          variant="secondary"
+          :loading="testing"
+          :disabled="submitting"
+          @click="handleTest(webdavForm)"
+        >
+          {{ t("streaming.server.test") }}
+        </SButton>
+        <SButton
+          variant="secondary"
+          type="primary"
+          :loading="submitting"
+          :disabled="testing"
+          @click="handleSubmit(webdavForm)"
         >
           {{ t("common.save") }}
         </SButton>

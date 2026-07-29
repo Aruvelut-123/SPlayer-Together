@@ -2,7 +2,6 @@
 import type { CoverItem } from "@/types/artist";
 import { useStreamingStore } from "@/stores/streaming";
 import { albumsToCoverItems } from "@/utils/format/coverItem";
-import CoverList from "@/components/list/CoverList.vue";
 
 const { t } = useI18n();
 const router = useRouter();
@@ -39,9 +38,12 @@ const handleClick = (item: CoverItem): void => {
       :padding-bottom="20"
       @click="handleClick"
     />
-    <div v-else class="h-full flex items-center justify-center text-on-surface-variant/50">
-      <div class="text-sm">
-        {{ loading ? t("common.loading") : t("streaming.empty.noResults") }}
+    <div v-else class="h-full flex items-center justify-center">
+      <div class="text-center text-on-surface-variant/60">
+        <IconLucideDisc3 class="size-12 mx-auto mb-3 opacity-30" />
+        <div class="text-sm">
+          {{ loading ? t("common.loading") : t("streaming.empty.noResults") }}
+        </div>
       </div>
     </div>
   </div>

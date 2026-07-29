@@ -1,7 +1,7 @@
 import type { Album, Artist, Playlist, Track } from "./player";
 
-/** 支持的流媒体服务器类型 */
-export type StreamingServerType =
+/** 现存的流媒体服务器类型 */
+export type CatalogServerType =
   | "subsonic"
   | "navidrome"
   | "opensubsonic"
@@ -11,16 +11,18 @@ export type StreamingServerType =
   | "jellyfin"
   | "emby";
 
-/**
- * 服务器配置
- */
-export interface StreamingServerConfig {
-  /** crypto.randomUUID() */
+/** 支持的流媒体服务器类型 */
+export type StreamingServerType = CatalogServerType | "webdav";
+
+/** 服务器配置基础字段 */
+interface BaseServerConfig {
+  /** 唯一标识符 */
   id: string;
+  /** 服务器显示名称 */
   name: string;
-  type: StreamingServerType;
-  /** 服务器地址，规范化为不带尾斜杠 */
+  /** 服务器地址 */
   url: string;
+  /** 账号用户名 */
   username: string;
   /** 主进程是否已经保存密码 */
   hasPassword: boolean;
@@ -28,54 +30,135 @@ export interface StreamingServerConfig {
   lastConnected?: number;
 }
 
-/** 添加/编辑表单提交时的 payload */
-export interface StreamingServerInput {
+/** 传统目录服务器配置 */
+export interface CatalogServerConfig extends BaseServerConfig {
+  /** 目录服务器类型 */
+  type: CatalogServerType;
+}
+
+/** WebDAV 服务器配置 */
+export interface WebDavServerConfig extends BaseServerConfig {
+  /** WebDAV 类型标识 */
+  type: "webdav";
+  /** 挂载的根路径 */
+  rootPath: string;
+  /** 扫描深度 */
+  scanDepth: number;
+}
+
+/** 服务器配置视图 */
+export type StreamingServerConfig = CatalogServerConfig | WebDavServerConfig;
+
+/** 主进程运行时完整服务器配置 */
+export interface StreamingRuntimeConfig {
+  /** 唯一标识符 */
+  id: string;
+  /** 服务器显示名称 */
   name: string;
+  /** 服务器类型 */
   type: StreamingServerType;
+  /** 服务器地址 */
   url: string;
+  /** 账号用户名 */
   username: string;
+  /** 明文密码 */
+  password: string;
+  /** 主进程是否已保存密码 */
+  hasPassword: boolean;
+  /** 最后一次连接成功时间戳 */
+  lastConnected?: number;
+  /** WebDAV 根路径 */
+  rootPath?: string;
+  /** WebDAV 扫描深度 */
+  scanDepth?: number;
+  /** 会话 Token */
+  accessToken?: string;
+  /** 用户 ID */
+  userId?: string;
+}
+
+/** 表单提交时的 payload 基础字段 */
+interface BaseServerInput {
+  /** 服务器显示名称 */
+  name: string;
+  /** 服务器地址 */
+  url: string;
+  /** 账号用户名 */
+  username: string;
+  /** 账号密码 */
   password: string;
 }
+
+/** 传统目录服务器表单输入 */
+export interface CatalogServerInput extends BaseServerInput {
+  /** 目录服务器类型 */
+  type: CatalogServerType;
+}
+
+/** WebDAV 服务器表单输入 */
+export interface WebDavServerInput extends BaseServerInput {
+  /** WebDAV 类型标识 */
+  type: "webdav";
+  /** 挂载的根路径 */
+  rootPath: string;
+  /** 扫描深度 */
+  scanDepth: number;
+}
+
+/** 服务器表单提交输入 */
+export type StreamingServerInput = CatalogServerInput | WebDavServerInput;
 
 /** 错误归类 */
 export type StreamingErrorCode = "auth" | "network" | "protocol" | "unknown";
 
 /** 连通性测试结果 */
 export interface StreamingPingResult {
+  /** 是否连通成功 */
   ok: boolean;
   /** 服务器版本号 */
   version?: string;
-  /** 失败描述 */
+  /** 失败描述信息 */
   error?: string;
-  /** 失败归类（仅 ok=false 时有意义） */
+  /** 失败错误码 */
   code?: StreamingErrorCode;
 }
 
+/** 连接操作结果 */
 export type StreamingConnectResult =
   | { ok: true; server: StreamingServerConfig }
   | { ok: false; error: string; code: StreamingErrorCode };
 
 /** 列表请求通用参数 */
 export interface StreamingListParams {
+  /** 分页偏移量 */
   offset?: number;
+  /** 单页限制条数 */
   limit?: number;
 }
 
 /** 搜索结果聚合 */
 export interface StreamingSearchResult {
+  /** 匹配的歌曲列表 */
   songs: Track[];
+  /** 匹配的专辑列表 */
   albums: Album[];
+  /** 匹配的歌手列表 */
   artists: Artist[];
 }
 
-/** 主进程 SQLite 中一个远程服务器的完整媒体快照 */
+/** 远程服务器媒体快照 */
 export interface StreamingLibrarySnapshot {
+  /** 全量歌曲列表 */
   songs: Track[];
+  /** 全量专辑列表 */
   albums: Album[];
+  /** 全量歌手列表 */
   artists: Artist[];
+  /** 全量歌单列表 */
   playlists: Playlist[];
 }
 
+/** 渲染进程通过 contextBridge 调用的流媒体 API */
 export interface StreamingApi {
   /**
    * 读取服务器配置和当前激活项
