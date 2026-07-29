@@ -15,6 +15,8 @@ import {
   getLibrarySyncState,
   searchLibrary,
 } from "@main/services/streaming/library";
+import { resolveStreamingAdapter } from "@main/services/streaming/adapters/resolve";
+import type { StreamingAdapter } from "@main/services/streaming/adapters/types";
 
 const STORAGE_FILE = path.join(configDir, "streaming.json");
 
@@ -93,6 +95,22 @@ const toRuntimeConfig = (server: PersistedServer): StreamingServerConfig => ({
   lastConnected: server.lastConnected,
 });
 
+/**
+ * 从加密配置加载服务器，并使用对应主进程适配器执行请求
+ * @param serverId - 服务器 ID
+ * @param request - 使用已鉴权配置和适配器执行的请求
+ * @returns 请求结果
+ */
+const withServerAdapter = async <T>(
+  serverId: string,
+  request: (config: StreamingServerConfig, adapter: StreamingAdapter) => Promise<T>,
+): Promise<T> => {
+  const server = readPersisted().servers.find((item) => item.id === serverId);
+  if (!server) throw new Error("找不到流媒体服务器");
+  const resolved = await resolveStreamingAdapter(toRuntimeConfig(server));
+  return request(resolved.config, resolved.adapter);
+};
+
 export const registerStreamingIpc = (): void => {
   ipcMain.handle("streaming:loadServers", () => {
     const persisted = readPersisted();
@@ -148,4 +166,20 @@ export const registerStreamingIpc = (): void => {
     if (!exists) throw new Error("找不到流媒体服务器");
     return searchLibrary(serverId, query.slice(0, 200));
   });
+
+  ipcMain.handle("streaming:getAlbumSongs", (_event, serverId: string, albumId: string) =>
+    withServerAdapter(serverId, (config, adapter) => adapter.getAlbumSongs(config, albumId)),
+  );
+
+  ipcMain.handle("streaming:getPlaylistSongs", (_event, serverId: string, playlistId: string) =>
+    withServerAdapter(serverId, (config, adapter) => adapter.getPlaylistSongs(config, playlistId)),
+  );
+
+  ipcMain.handle("streaming:getArtistAlbums", (_event, serverId: string, artistId: string) =>
+    withServerAdapter(serverId, (config, adapter) => adapter.getArtistAlbums(config, artistId)),
+  );
+
+  ipcMain.handle("streaming:getArtistSongs", (_event, serverId: string, artistId: string) =>
+    withServerAdapter(serverId, (config, adapter) => adapter.getArtistSongs(config, artistId)),
+  );
 };

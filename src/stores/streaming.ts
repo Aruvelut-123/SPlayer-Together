@@ -126,12 +126,6 @@ export const useStreamingStore = defineStore("streaming", () => {
 
   const normalizeUrl = (url: string): string => url.trim().replace(/\/+$/, "");
 
-  const requireActiveCfg = (): StreamingServerConfig => {
-    const cfg = activeServer.value;
-    if (!cfg) throw new Error("没有激活的流媒体服务器");
-    return cfg;
-  };
-
   /**
    * 把 patch 合并到指定 server 并落盘
    * @param id - 目标 server id
@@ -341,9 +335,6 @@ export const useStreamingStore = defineStore("streaming", () => {
     }
   };
 
-  const withActive = <T>(fn: (cfg: StreamingServerConfig) => Promise<T>): Promise<T> =>
-    withAutoReauthFor(requireActiveCfg(), fn);
-
   /** 防止服务器切换或新一轮刷新被旧轮询覆盖 */
   let snapshotFetchSeq = 0;
 
@@ -419,30 +410,42 @@ export const useStreamingStore = defineStore("streaming", () => {
   /**
    * 拉取指定专辑的歌曲
    * @param albumId - 专辑 originalId
+   * @returns 专辑歌曲
    */
   const fetchAlbumSongs = (albumId: string): Promise<Track[]> =>
-    withActive((cfg) => client.getAlbumSongs(cfg, albumId));
+    activeServerId.value
+      ? window.api.streaming.getAlbumSongs(activeServerId.value, albumId)
+      : Promise.reject(new Error("没有激活的流媒体服务器"));
 
   /**
    * 拉取指定歌单的歌曲
    * @param playlistId - 歌单 originalId
+   * @returns 歌单歌曲
    */
   const fetchPlaylistSongs = (playlistId: string): Promise<Track[]> =>
-    withActive((cfg) => client.getPlaylistSongs(cfg, playlistId));
+    activeServerId.value
+      ? window.api.streaming.getPlaylistSongs(activeServerId.value, playlistId)
+      : Promise.reject(new Error("没有激活的流媒体服务器"));
 
   /**
    * 拉取指定歌手名下的专辑
    * @param artistId - 歌手 originalId
+   * @returns 歌手专辑
    */
   const fetchArtistAlbums = (artistId: string): Promise<Album[]> =>
-    withActive((cfg) => client.getArtistAlbums(cfg, artistId));
+    activeServerId.value
+      ? window.api.streaming.getArtistAlbums(activeServerId.value, artistId)
+      : Promise.reject(new Error("没有激活的流媒体服务器"));
 
   /**
    * 拉取指定歌手名下的所有歌曲
    * @param artistId - 歌手 originalId
+   * @returns 歌手歌曲
    */
   const fetchArtistSongs = (artistId: string): Promise<Track[]> =>
-    withActive((cfg) => client.getArtistSongs(cfg, artistId));
+    activeServerId.value
+      ? window.api.streaming.getArtistSongs(activeServerId.value, artistId)
+      : Promise.reject(new Error("没有激活的流媒体服务器"));
 
   /**
    * 在激活服务器上搜索（歌曲/专辑/歌手聚合）

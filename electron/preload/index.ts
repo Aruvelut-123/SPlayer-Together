@@ -466,6 +466,14 @@ const api = {
       ipcRenderer.invoke("streaming:sync", serverId, force),
     search: (serverId: string, query: string) =>
       ipcRenderer.invoke("streaming:search", serverId, query),
+    getAlbumSongs: (serverId: string, albumId: string) =>
+      ipcRenderer.invoke("streaming:getAlbumSongs", serverId, albumId),
+    getPlaylistSongs: (serverId: string, playlistId: string) =>
+      ipcRenderer.invoke("streaming:getPlaylistSongs", serverId, playlistId),
+    getArtistAlbums: (serverId: string, artistId: string) =>
+      ipcRenderer.invoke("streaming:getArtistAlbums", serverId, artistId),
+    getArtistSongs: (serverId: string, artistId: string) =>
+      ipcRenderer.invoke("streaming:getArtistSongs", serverId, artistId),
   },
   lastfm: {
     // 发起授权

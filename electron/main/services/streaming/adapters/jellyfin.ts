@@ -204,4 +204,70 @@ export const jellyfinAdapter: StreamingAdapter = {
     });
     return items.map((item) => toPlaylist(config, item));
   },
+
+  /**
+   * 读取 Jellyfin/Emby 专辑歌曲
+   * @param config - 已鉴权的主进程服务器配置
+   * @param albumId - 服务端专辑 ID
+   * @returns 专辑歌曲
+   */
+  async getAlbumSongs(config, albumId) {
+    const items = await fetchUserItems(config, {
+      ParentId: albumId,
+      IncludeItemTypes: "Audio",
+      Fields: "MediaSources",
+      SortBy: "ParentIndexNumber,IndexNumber,SortName",
+    });
+    return items.map((item) => toTrack(config, item));
+  },
+
+  /**
+   * 读取 Jellyfin/Emby 歌单歌曲
+   * @param config - 已鉴权的主进程服务器配置
+   * @param playlistId - 服务端歌单 ID
+   * @returns 歌单歌曲
+   */
+  async getPlaylistSongs(config, playlistId) {
+    const userId = requireUserId(config);
+    const params = new URLSearchParams({ UserId: userId, Fields: "MediaSources" });
+    const result = await callApi<{ Items?: JellyItem[] }>(
+      config,
+      `Playlists/${playlistId}/Items?${params.toString()}`,
+    );
+    return (result.Items ?? []).map((item) => toTrack(config, item));
+  },
+
+  /**
+   * 读取 Jellyfin/Emby 歌手专辑
+   * @param config - 已鉴权的主进程服务器配置
+   * @param artistId - 服务端歌手 ID
+   * @returns 歌手专辑
+   */
+  async getArtistAlbums(config, artistId) {
+    const items = await fetchUserItems(config, {
+      AlbumArtistIds: artistId,
+      IncludeItemTypes: "MusicAlbum",
+      Recursive: "true",
+      SortBy: "ProductionYear,SortName",
+      SortOrder: "Descending",
+    });
+    return items.map((item) => toAlbum(config, item));
+  },
+
+  /**
+   * 读取 Jellyfin/Emby 歌手歌曲
+   * @param config - 已鉴权的主进程服务器配置
+   * @param artistId - 服务端歌手 ID
+   * @returns 歌手歌曲
+   */
+  async getArtistSongs(config, artistId) {
+    const items = await fetchUserItems(config, {
+      ArtistIds: artistId,
+      IncludeItemTypes: "Audio",
+      Recursive: "true",
+      Fields: "MediaSources",
+      SortBy: "Album,ParentIndexNumber,IndexNumber,SortName",
+    });
+    return items.map((item) => toTrack(config, item));
+  },
 };

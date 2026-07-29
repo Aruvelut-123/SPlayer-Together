@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import type { StreamingServerConfig, StreamingServerType } from "@shared/types/streaming";
+import type { StreamingServerConfig } from "@shared/types/streaming";
 import { isDbOpen } from "@main/database";
 import { upsertTracks, deleteStaleTracks } from "@main/database/remote-media/tracks";
 import { upsertAlbums, deleteStaleAlbums } from "@main/database/remote-media/albums";
@@ -13,22 +13,17 @@ import { setSyncState } from "@main/database/remote-media/sync";
 import { isDev } from "@main/utils/config";
 import { streamingLog } from "@main/utils/logger";
 import type { StreamingAdapter } from "./adapters/types";
-import { subsonicAdapter } from "./adapters/subsonic";
-import { authenticate, jellyfinAdapter } from "./adapters/jellyfin";
-
-const SUBSONIC_TYPES = new Set<StreamingServerType>([
-  "subsonic",
-  "navidrome",
-  "opensubsonic",
-  "airsonic",
-  "gonic",
-  "lms",
-]);
+import { resolveStreamingAdapter } from "./adapters/resolve";
 const FIRST_SONG_BATCH_SIZE = 100;
 const SONG_BATCH_SIZE = 500;
 const runningServers = new Set<string>();
 const syncedSignatures = new Map<string, string>();
 
+/**
+ * 生成不暴露凭据的同步配置签名
+ * @param config - 主进程服务器配置
+ * @returns 配置签名
+ */
 const getConfigSignature = (config: StreamingServerConfig): string =>
   createHash("sha256")
     .update([config.type, config.url, config.username, config.password].join("\0"))
@@ -135,17 +130,6 @@ const syncServer = async (
   }
 };
 
-const resolveAdapter = async (
-  config: StreamingServerConfig,
-): Promise<{ config: StreamingServerConfig; adapter: StreamingAdapter } | null> => {
-  if (SUBSONIC_TYPES.has(config.type)) return { config, adapter: subsonicAdapter };
-  if (config.type === "jellyfin" || config.type === "emby") {
-    const session = await authenticate(config);
-    return { config: { ...config, ...session }, adapter: jellyfinAdapter };
-  }
-  return null;
-};
-
 /**
  * 启动开发环境后台流媒体同步
  * @param config - 服务器配置
@@ -162,8 +146,8 @@ export const queueShadowSync = (config: StreamingServerConfig, force = false): b
     return false;
   }
   runningServers.add(config.id);
-  void resolveAdapter(config)
-    .then((resolved) => (resolved ? syncServer(resolved.config, resolved.adapter) : false))
+  void resolveStreamingAdapter(config)
+    .then((resolved) => syncServer(resolved.config, resolved.adapter))
     .then((success) => {
       if (success) syncedSignatures.set(config.id, signature);
       else syncedSignatures.delete(config.id);

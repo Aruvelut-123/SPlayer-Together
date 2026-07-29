@@ -34,6 +34,7 @@ interface SubsonicAlbum {
   songCount?: number;
   year?: number;
   displayArtist?: string;
+  song?: SubsonicSong[];
 }
 
 interface SubsonicArtist {
@@ -50,6 +51,7 @@ interface SubsonicPlaylist {
   songCount?: number;
   coverArt?: string;
   owner?: string;
+  entry?: SubsonicSong[];
 }
 
 const md5 = (value: string): string => createHash("md5").update(value).digest("hex");
@@ -223,5 +225,72 @@ export const subsonicAdapter: StreamingAdapter = {
     return (result.playlists?.playlist ?? []).map((playlist) =>
       toPlaylist(config, playlist, viewAuth),
     );
+  },
+
+  /**
+   * 读取 Subsonic 专辑歌曲
+   * @param config - 主进程服务器配置
+   * @param albumId - 服务端专辑 ID
+   * @returns 专辑歌曲
+   */
+  async getAlbumSongs(config, albumId) {
+    const result = await callApi<{ album?: SubsonicAlbum }>(config, "getAlbum", { id: albumId });
+    const viewAuth = buildAuth(config);
+    return (result.album?.song ?? []).map((song) => toTrack(config, song, viewAuth));
+  },
+
+  /**
+   * 读取 Subsonic 歌单歌曲
+   * @param config - 主进程服务器配置
+   * @param playlistId - 服务端歌单 ID
+   * @returns 歌单歌曲
+   */
+  async getPlaylistSongs(config, playlistId) {
+    const result = await callApi<{ playlist?: SubsonicPlaylist }>(config, "getPlaylist", {
+      id: playlistId,
+    });
+    const viewAuth = buildAuth(config);
+    return (result.playlist?.entry ?? []).map((song) => toTrack(config, song, viewAuth));
+  },
+
+  /**
+   * 读取 Subsonic 歌手专辑
+   * @param config - 主进程服务器配置
+   * @param artistId - 服务端歌手 ID
+   * @returns 歌手专辑
+   */
+  async getArtistAlbums(config, artistId) {
+    const result = await callApi<{ artist?: { album?: SubsonicAlbum[] } }>(config, "getArtist", {
+      id: artistId,
+    });
+    const viewAuth = buildAuth(config);
+    return (result.artist?.album ?? []).map((album) => toAlbum(config, album, viewAuth));
+  },
+
+  /**
+   * 逐张专辑读取 Subsonic 歌手歌曲
+   * @param config - 主进程服务器配置
+   * @param artistId - 服务端歌手 ID
+   * @returns 歌手歌曲
+   */
+  async getArtistSongs(config, artistId) {
+    const result = await callApi<{ artist?: { album?: SubsonicAlbum[] } }>(config, "getArtist", {
+      id: artistId,
+    });
+    const tracks: Track[] = [];
+    for (const album of result.artist?.album ?? []) {
+      try {
+        const albumResult = await callApi<{ album?: SubsonicAlbum }>(config, "getAlbum", {
+          id: album.id,
+        });
+        const viewAuth = buildAuth(config);
+        tracks.push(
+          ...(albumResult.album?.song ?? []).map((song) => toTrack(config, song, viewAuth)),
+        );
+      } catch {
+        // 单张专辑不可用时仍返回该歌手的其它歌曲
+      }
+    }
+    return tracks;
   },
 };

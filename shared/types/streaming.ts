@@ -99,20 +99,75 @@ export interface StreamingLibrarySnapshot {
 }
 
 export interface StreamingApi {
+  /**
+   * 读取服务器配置和当前激活项
+   * @returns 运行时服务器配置与激活服务器 ID
+   */
   loadServers: () => Promise<{
     servers: StreamingServerConfig[];
     activeServerId: string | null;
   }>;
+  /**
+   * 保存服务器配置和当前激活项
+   * @param payload - 服务器配置与激活服务器 ID
+   * @returns 保存完成
+   */
   saveServers: (payload: {
     servers: StreamingServerConfig[];
     activeServerId: string | null;
   }) => Promise<void>;
-  /** 读取主进程 SQLite 快照 */
+  /**
+   * 读取主进程 SQLite 媒体库快照
+   * @param serverId - 服务器 ID
+   * @returns 服务器的完整媒体库快照
+   */
   getSnapshot: (serverId: string) => Promise<StreamingLibrarySnapshot>;
-  /** 轻量读取后台同步状态 */
+  /**
+   * 读取后台同步状态
+   * @param serverId - 服务器 ID
+   * @returns 当前同步状态
+   */
   getSyncState: (serverId: string) => Promise<RemoteSyncState>;
-  /** 启动后台同步；force 仅供用户显式刷新 */
+  /**
+   * 启动后台同步
+   * @param serverId - 服务器 ID
+   * @param force - 是否忽略本次应用运行内的成功同步记录
+   * @returns 是否启动了新任务
+   */
   sync: (serverId: string, force?: boolean) => Promise<boolean>;
-  /** 搜索主进程 SQLite 中的远程媒体 */
+  /**
+   * 搜索主进程 SQLite 中的远程媒体
+   * @param serverId - 服务器 ID
+   * @param query - 搜索关键词
+   * @returns 歌曲、专辑和歌手搜索结果
+   */
   search: (serverId: string, query: string) => Promise<StreamingSearchResult>;
+  /**
+   * 读取专辑歌曲
+   * @param serverId - 服务器 ID
+   * @param albumId - 服务端专辑 ID
+   * @returns 专辑歌曲
+   */
+  getAlbumSongs: (serverId: string, albumId: string) => Promise<Track[]>;
+  /**
+   * 读取歌单歌曲
+   * @param serverId - 服务器 ID
+   * @param playlistId - 服务端歌单 ID
+   * @returns 歌单歌曲
+   */
+  getPlaylistSongs: (serverId: string, playlistId: string) => Promise<Track[]>;
+  /**
+   * 读取歌手专辑
+   * @param serverId - 服务器 ID
+   * @param artistId - 服务端歌手 ID
+   * @returns 歌手专辑
+   */
+  getArtistAlbums: (serverId: string, artistId: string) => Promise<Album[]>;
+  /**
+   * 读取歌手歌曲
+   * @param serverId - 服务器 ID
+   * @param artistId - 服务端歌手 ID
+   * @returns 歌手歌曲
+   */
+  getArtistSongs: (serverId: string, artistId: string) => Promise<Track[]>;
 }
