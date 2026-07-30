@@ -71,9 +71,6 @@ pnpm build         # 完整构建：清理 → 原生模块 → 类型检查 →
 pnpm build:win     # 打包 Windows
 pnpm build:mac     # 打包 macOS
 pnpm build:linux   # 打包 Linux（AppImage / deb / rpm / tar.gz / pacman）
-
-# 在 Arch / Manjaro / EndeavourOS 上安装
-sudo pacman -U dist/splayer-next-*-x64.pacman
 ```
 
 > 默认仅构建当前架构。如需指定架构，可追加参数，例如 `pnpm build:win --x64 --arm64`。
@@ -94,10 +91,8 @@ pnpm build:native     # 仅构建 Rust 原生模块（加 `--dev` 为 debug 构�
 从 Release 页面下载 `.pacman` 包，使用 `pacman` 安装：
 
 ```bash
-sudo pacman -U splayer-next-*-x64.pacman
+sudo pacman -U ./splayer-next-*.pacman
 ```
-
-> pacman 目标目前在 electron-builder 中标记为 beta。
 
 ## 致谢
 

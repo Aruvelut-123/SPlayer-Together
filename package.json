@@ -3,7 +3,7 @@
   "productName": "SPlayer-Next",
   "desktopName": "top.imsyy.splayer_next",
   "version": "1.0.0",
-  "description": "A modern cross-platform music player built with Electron, Vue 3, and TypeScript",
+  "description": "Cross-platform desktop music player with rich lyric support and wide audio format compatibility",
   "type": "module",
   "packageManager": "pnpm@11.5.2",
   "main": "./out/main/index.js",
