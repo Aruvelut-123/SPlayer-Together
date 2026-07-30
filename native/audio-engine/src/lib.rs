@@ -375,7 +375,7 @@ impl AudioPlayer {
             )
         };
 
-        // 用设备原生采样率创建 Shared，其 sample_rate 即解码侧播放重采样目标
+        // 用实际输出流采样率创建 Shared，其 sample_rate 即解码侧播放重采样目标
         let shared = Shared::new(output_sample_rate, decoder::TARGET_CHANNELS);
         shared.set_normalization_enabled(normalization_enabled);
         let shared_for_decoder = Arc::clone(&shared);
@@ -510,7 +510,7 @@ impl AudioPlayer {
             if !decoder_data.seek(position) {
                 return SeekOutcome::Fallback;
             }
-            // 沿用设备原生采样率，与复用的 DecoderData 重采样器目标一致
+            // 沿用实际输出流采样率，与复用的 DecoderData 重采样器目标一致
             let shared = Shared::new(output_sample_rate, decoder::TARGET_CHANNELS);
             shared.set_normalization_enabled(normalization_enabled);
             shared.set_normalization_gain(normalization_gain);

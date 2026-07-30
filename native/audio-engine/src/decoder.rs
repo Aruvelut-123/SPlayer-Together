@@ -72,9 +72,10 @@ pub fn start_decode(
     shared: Arc<Shared>,
     cover_cache_dir: Option<&str>,
 ) -> Result<(AudioMetadata, JoinHandle<DecoderData>)> {
-    // 播放重采样目标 = 输出设备原生采样率
+    // 播放重采样目标 = 实际输出流采样率
     let target_rate = shared.sample_rate();
-    let (reader, player_resampler, fft_resampler, interrupt) = open_source(source, target_rate, Some(&shared))?;
+    let (reader, player_resampler, fft_resampler, interrupt) =
+        open_source(source, target_rate, Some(&shared))?;
 
     let info = reader.source_info();
     let duration_secs = reader.duration().map(|d| d.as_secs_f64()).unwrap_or(0.0);
@@ -158,7 +159,7 @@ pub fn resume_decode(data: DecoderData, shared: Arc<Shared>) -> Result<JoinHandl
 
 /// 根据 source 协议打开音频：http(s) 走延迟 Range 源，其他走本地 File
 ///
-/// `target_rate` 为播放重采样目标采样率（输出设备原生采样率）
+/// `target_rate` 为实际输出流的播放重采样目标采样率
 fn open_source(
     source: &str,
     target_rate: u32,

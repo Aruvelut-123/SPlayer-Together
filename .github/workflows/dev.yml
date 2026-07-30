@@ -161,3 +161,10 @@ jobs:
         with:
           name: SPlayer-Next-Linux-tar-${{ matrix.arch }}
           path: dist/*.tar.gz
+
+      - name: Upload Linux Pacman
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v7
+        with:
+          name: SPlayer-Next-Linux-pacman-${{ matrix.arch }}
+          path: dist/*.pacman

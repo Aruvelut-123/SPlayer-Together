@@ -198,7 +198,7 @@ impl InnerPlayer {
             .ok_or_else(|| anyhow::anyhow!("ensure_output 后置条件违反"))
     }
 
-    /// 当前输出设备的原生采样率（播放重采样目标）
+    /// 当前实际输出流采样率（播放重采样目标）
     pub fn output_sample_rate(&self) -> u32 {
         self.output
             .as_ref()
