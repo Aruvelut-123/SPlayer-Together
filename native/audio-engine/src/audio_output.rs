@@ -37,7 +37,7 @@ use crate::priority;
 /// ```
 pub struct AudioOutput {
     handle: OutputStreamHandle,
-    /// 输出流采样率（设备支持的最高，封顶 192000）
+    /// 实际打开的输出流采样率
     sample_rate: u32,
     /// drop 这个 sender 会让 owner 线程的 recv 返回 Err，从而退出并释放 Stream
     /// 包成 Option 是为了 Drop 里能 take() 出来显式 drop，从而在 join 前先关闭 channel
@@ -130,14 +130,11 @@ impl Drop for AudioOutput {
     }
 }
 
-/// 采样率上限：避免设备报告极高值（如 384000）导致无谓的 CPU/内存开销
-const SAMPLE_RATE_CAP: u32 = 192_000;
-
 /// 构建 cpal/rodio 输出流；**仅在 `audio-output-owner` 线程内调用**，
 /// 保证 `OutputStream` 的创建、持有和 drop 都发生在同一线程上
 ///
-/// 返回的采样率为设备支持的最高采样率（封顶 192000），用作播放重采样目标。
-/// 避免 pipewire 等默认 44100 导致高采样率音频被降采样
+/// 返回的采样率来自实际用于打开流的默认配置，用作播放重采样目标。
+/// 共享模式下应遵循系统混音配置，设备能力上限并不代表当前输出格式。
 fn build_output_stream(
     device_name: Option<&str>,
 ) -> Result<(OutputStream, OutputStreamHandle, u32)> {
@@ -149,7 +146,7 @@ fn build_output_stream(
                 .context("Failed to enumerate output devices")?
                 .find(|d| d.name().map(|got| got == name).unwrap_or(false))
                 .with_context(|| format!("Output device '{}' not found", name))?;
-            open_device_with_best_rate(&device)
+            open_device_with_default_config(&device)
         }
         None => open_default_stream(&host),
     }
@@ -159,7 +156,7 @@ fn open_default_stream(host: &cpal::Host) -> Result<(OutputStream, OutputStreamH
     let default_device = host
         .default_output_device()
         .context("No default output device")?;
-    if let Ok(result) = open_device_with_best_rate(&default_device) {
+    if let Ok(result) = open_device_with_default_config(&default_device) {
         return Ok(result);
     }
 
@@ -168,60 +165,24 @@ fn open_default_stream(host: &cpal::Host) -> Result<(OutputStream, OutputStreamH
         .output_devices()
         .context("Failed to enumerate output devices")?;
     for device in devices {
-        if let Ok(result) = open_device_with_best_rate(&device) {
+        if let Ok(result) = open_device_with_default_config(&device) {
             return Ok(result);
         }
     }
     anyhow::bail!("No usable output device")
 }
 
-/// 用设备支持的最高采样率创建输出流
-fn open_device_with_best_rate(
+/// 使用设备默认配置创建输出流，确保记录的采样率与实际流配置一致
+fn open_device_with_default_config(
     device: &cpal::Device,
 ) -> Result<(OutputStream, OutputStreamHandle, u32)> {
-    let config = pick_best_config(device)?;
+    let config = device
+        .default_output_config()
+        .context("Failed to get default output config")?;
     let sample_rate = config.sample_rate().0;
     let (stream, handle) = OutputStream::try_from_device_config(device, config)
         .context("Failed to open output device")?;
     Ok((stream, handle, sample_rate))
-}
-
-/// 在设备支持的采样率范围内选取最高的，避免 pipewire 等默认 44100 导致高采样率音频被降采样
-///
-/// 从 `supported_output_configs` 中找与默认配置（声道/格式）匹配且 max_sample_rate 最高的范围，
-/// 用 `with_sample_rate` 构造具体配置。封顶 192000 避免极高值导致无谓开销。
-/// 查询失败或无更高速率时回退到默认配置
-fn pick_best_config(device: &cpal::Device) -> Result<cpal::SupportedStreamConfig> {
-    let default_config = device
-        .default_output_config()
-        .context("Failed to get default output config")?;
-    let default_rate = default_config.sample_rate().0;
-
-    let target_channels = default_config.channels();
-    let target_format = default_config.sample_format();
-
-    let ranges: Vec<_> = device
-        .supported_output_configs()
-        .context("Failed to enumerate supported output configs")?
-        .collect();
-
-    // 在匹配声道/格式的范围中找 max_sample_rate 最高的，用其上限（封顶）创建配置
-    let best = ranges
-        .into_iter()
-        .filter(|range| {
-            range.channels() == target_channels && range.sample_format() == target_format
-        })
-        .max_by_key(|range| range.max_sample_rate().0)
-        .filter(|range| range.max_sample_rate().0 > default_rate)
-        .map(|range| {
-            let rate = range.max_sample_rate().0.min(SAMPLE_RATE_CAP);
-            range.with_sample_rate(cpal::SampleRate(rate))
-        });
-
-    match best {
-        Some(config) => Ok(config),
-        None => Ok(default_config),
-    }
 }
 
 /// 枚举所有输出设备，返回 `(name, is_default)` 列表
