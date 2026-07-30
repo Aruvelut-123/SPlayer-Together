@@ -11,12 +11,14 @@ on:
       - "native/**"
       - "shared/**"
       - "public/**"
+      - "resources/**"
+      - "scripts/**"
       - "package.json"
       - "pnpm-lock.yaml"
       - "electron-builder.config.ts"
       - "electron.vite.config.ts"
       - "tsconfig*.json"
-      - ".github/**"
+      - ".github/workflows/dev.yml"
   workflow_dispatch:
 
 env:
