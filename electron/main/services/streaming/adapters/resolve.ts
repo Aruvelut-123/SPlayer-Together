@@ -2,7 +2,6 @@ import type { StreamingServerType } from "@shared/types/streaming";
 import type { StreamingRuntimeConfig } from "@shared/types/streaming";
 import { authenticate, jellyfinAdapter, type StreamingAuthSession } from "./jellyfin";
 import { subsonicAdapter } from "./subsonic";
-import { webdavAdapter } from "../webdav/client";
 import type { StreamingAdapter } from "./types";
 
 const SUBSONIC_TYPES = new Set<StreamingServerType>([
@@ -81,7 +80,6 @@ const getSession = async (config: StreamingRuntimeConfig): Promise<StreamingAuth
 export const resolveStreamingAdapter = async (
   config: StreamingRuntimeConfig,
 ): Promise<ResolvedStreamingAdapter> => {
-  if (config.type === "webdav") return { config, adapter: webdavAdapter };
   if (SUBSONIC_TYPES.has(config.type)) return { config, adapter: subsonicAdapter };
   if (config.type === "jellyfin" || config.type === "emby") {
     const session = await getSession(config);

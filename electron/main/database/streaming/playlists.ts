@@ -1,7 +1,7 @@
 import type { Playlist } from "@shared/types/player";
 import { getDb } from "@main/database";
 
-export interface RemotePlaylistRecord {
+export interface StreamingPlaylistRecord {
   serverId: string;
   remoteId: string;
   playlist: Playlist;
@@ -13,10 +13,10 @@ interface PlaylistRow {
 }
 
 /**
- * 批量写入远程歌单
- * @param records - 远程歌单记录
+ * 批量写入流媒体歌单
+ * @param records - 流媒体歌单记录
  */
-export const upsertPlaylists = (records: RemotePlaylistRecord[]): void => {
+export const upsertPlaylists = (records: StreamingPlaylistRecord[]): void => {
   if (records.length === 0) return;
   const statement = getDb().prepare(`
     INSERT INTO remote_playlists (server_id, remote_id, data, name, generation, updated_at)

@@ -1,13 +1,11 @@
 import type { Track } from "@shared/types/player";
 import { getDb } from "@main/database";
 
-export interface RemoteTrackRecord {
+export interface StreamingTrackRecord {
   serverId: string;
   remoteId: string;
   track: Track;
   generation: number;
-  relativePath?: string;
-  etag?: string;
 }
 
 interface TrackRow {
@@ -15,21 +13,19 @@ interface TrackRow {
 }
 
 /**
- * 批量写入远程歌曲
- * @param records - 远程歌曲记录
+ * 批量写入流媒体歌曲
+ * @param records - 流媒体歌曲记录
  */
-export const upsertTracks = (records: RemoteTrackRecord[]): void => {
+export const upsertTracks = (records: StreamingTrackRecord[]): void => {
   if (records.length === 0) return;
   const statement = getDb().prepare(`
     INSERT INTO remote_tracks
-      (server_id, remote_id, data, title, search_text, relative_path, etag, generation, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (server_id, remote_id, data, title, search_text, generation, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(server_id, remote_id) DO UPDATE SET
       data = excluded.data,
       title = excluded.title,
       search_text = excluded.search_text,
-      relative_path = excluded.relative_path,
-      etag = excluded.etag,
       generation = excluded.generation,
       updated_at = excluded.updated_at
   `);
@@ -49,8 +45,6 @@ export const upsertTracks = (records: RemoteTrackRecord[]): void => {
         JSON.stringify(record.track),
         record.track.title,
         searchText,
-        record.relativePath ?? null,
-        record.etag ?? null,
         record.generation,
         now,
       );

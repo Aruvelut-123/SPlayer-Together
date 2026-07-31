@@ -1,11 +1,11 @@
 import type { StreamingLibrarySnapshot, StreamingSearchResult } from "@shared/types/streaming";
-import { deleteTracksByServer, getTracks, searchTracks } from "@main/database/remote-media/tracks";
-import { deleteAlbumsByServer, getAlbums } from "@main/database/remote-media/albums";
-import { deleteArtistsByServer, getArtists } from "@main/database/remote-media/artists";
-import { deletePlaylistsByServer, getPlaylists } from "@main/database/remote-media/playlists";
+import { deleteTracksByServer, getTracks, searchTracks } from "@main/database/streaming/tracks";
+import { deleteAlbumsByServer, getAlbums } from "@main/database/streaming/albums";
+import { deleteArtistsByServer, getArtists } from "@main/database/streaming/artists";
+import { deletePlaylistsByServer, getPlaylists } from "@main/database/streaming/playlists";
 
 /**
- * 删除指定服务器的全部远程媒体数据
+ * 删除指定服务器的全部流媒体数据
  * @param serverId - 服务器 ID
  */
 export const deleteLibraryByServer = (serverId: string): void => {

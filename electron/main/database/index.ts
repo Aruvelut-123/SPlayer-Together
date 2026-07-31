@@ -143,8 +143,6 @@ export const initDatabase = (): void => {
       data TEXT NOT NULL,
       title TEXT NOT NULL,
       search_text TEXT NOT NULL,
-      relative_path TEXT,
-      etag TEXT,
       generation INTEGER NOT NULL,
       updated_at INTEGER NOT NULL,
       PRIMARY KEY (server_id, remote_id)
@@ -153,8 +151,6 @@ export const initDatabase = (): void => {
       ON remote_tracks(server_id, title);
     CREATE INDEX IF NOT EXISTS idx_remote_tracks_generation
       ON remote_tracks(server_id, generation);
-    CREATE INDEX IF NOT EXISTS idx_remote_tracks_path
-      ON remote_tracks(server_id, relative_path);
 
     CREATE TABLE IF NOT EXISTS remote_albums (
       server_id TEXT NOT NULL,

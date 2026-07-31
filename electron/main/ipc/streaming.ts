@@ -20,7 +20,7 @@ import {
 } from "@main/services/streaming/connection";
 import { registerStreamingCoverProtocol } from "@main/services/streaming/coverProtocol";
 import { invalidateStreamingSession } from "@main/services/streaming/adapters/resolve";
-import { cancelShadowSync, queueShadowSync } from "@main/services/streaming/shadowSync";
+import { cancelStreamingSync, queueStreamingSync } from "@main/services/streaming/sync";
 import type { StreamingServerInput } from "@shared/types/streaming";
 
 /** 注册流媒体 IPC 和封面协议 */
@@ -35,13 +35,13 @@ export const registerStreamingIpc = (): void => {
     "streaming:updateServer",
     (_event, serverId: string, input: StreamingServerInput) => {
       invalidateStreamingSession(serverId);
-      cancelShadowSync(serverId);
+      cancelStreamingSync(serverId);
       return updateStreamingServer(serverId, input);
     },
   );
   ipcMain.handle("streaming:removeServer", (_event, serverId: string) => {
     invalidateStreamingSession(serverId);
-    cancelShadowSync(serverId);
+    cancelStreamingSync(serverId);
     removeStreamingServer(serverId);
     if (isDbOpen()) deleteLibraryByServer(serverId);
   });
@@ -63,7 +63,7 @@ export const registerStreamingIpc = (): void => {
     getLibrarySnapshot(serverId),
   );
   ipcMain.handle("streaming:sync", (_event, serverId: string, force = false) =>
-    queueShadowSync(getStreamingServer(serverId), force),
+    queueStreamingSync(getStreamingServer(serverId), force),
   );
   ipcMain.handle("streaming:search", (_event, serverId: string, query: string) =>
     searchLibrary(serverId, query.slice(0, 200)),

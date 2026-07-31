@@ -1,9 +1,9 @@
 import type { StreamingRuntimeConfig } from "@shared/types/streaming";
 import { isDbOpen } from "@main/database";
-import { upsertTracks, deleteStaleTracks } from "@main/database/remote-media/tracks";
-import { upsertAlbums, deleteStaleAlbums } from "@main/database/remote-media/albums";
-import { upsertArtists, deleteStaleArtists } from "@main/database/remote-media/artists";
-import { deleteStalePlaylists, upsertPlaylists } from "@main/database/remote-media/playlists";
+import { upsertTracks, deleteStaleTracks } from "@main/database/streaming/tracks";
+import { upsertAlbums, deleteStaleAlbums } from "@main/database/streaming/albums";
+import { upsertArtists, deleteStaleArtists } from "@main/database/streaming/artists";
+import { deleteStalePlaylists, upsertPlaylists } from "@main/database/streaming/playlists";
 import { streamingLog } from "@main/utils/logger";
 import { sendToMain } from "@main/utils/broadcast";
 import type { StreamingAdapter } from "./adapters/types";
@@ -91,7 +91,7 @@ const syncServer = async (
     deleteStalePlaylists(config.id, generation);
     notifyLibraryUpdated(config.id);
     streamingLog.info(
-      `${config.type} 旁路同步完成 [${config.name}]: 歌曲 ${songCount}，专辑 ${albums.length}，歌手 ${artists.length}，歌单 ${playlists.length}`,
+      `${config.type} 媒体库同步完成 [${config.name}]: 歌曲 ${songCount}，专辑 ${albums.length}，歌手 ${artists.length}，歌单 ${playlists.length}`,
     );
     return true;
   } catch (error) {
@@ -99,7 +99,7 @@ const syncServer = async (
       invalidateStreamingSession(config.id);
     }
     notifyLibraryUpdated(config.id);
-    streamingLog.warn(`${config.type} 旁路同步失败 [${config.name}]:`, error);
+    streamingLog.warn(`${config.type} 媒体库同步失败 [${config.name}]:`, error);
     return false;
   }
 };
@@ -110,14 +110,14 @@ const syncServer = async (
  * @param force - 是否忽略本次应用运行内的成功同步记录
  * @returns 是否启动了新任务
  */
-export const queueShadowSync = (config: StreamingRuntimeConfig, force = false): boolean => {
+export const queueStreamingSync = (config: StreamingRuntimeConfig, force = false): boolean => {
   if (runningServers.has(config.id)) {
     if (cancelledServers.has(config.id)) pendingServers.set(config.id, config);
     return false;
   }
   if (!force && syncedServers.has(config.id)) return false;
   if (!isDbOpen()) {
-    streamingLog.warn(`数据库尚未初始化，跳过流媒体旁路同步 [${config.name}]`);
+    streamingLog.warn(`数据库尚未初始化，跳过流媒体同步 [${config.name}]`);
     return false;
   }
   cancelledServers.delete(config.id);
@@ -132,7 +132,7 @@ export const queueShadowSync = (config: StreamingRuntimeConfig, force = false): 
       syncedServers.delete(config.id);
       if (cancelledServers.has(config.id)) return;
       notifyLibraryUpdated(config.id);
-      streamingLog.warn(`${config.type} 旁路登录失败 [${config.name}]:`, error);
+      streamingLog.warn(`${config.type} 同步登录失败 [${config.name}]:`, error);
     })
     .finally(() => {
       runningServers.delete(config.id);
@@ -140,7 +140,7 @@ export const queueShadowSync = (config: StreamingRuntimeConfig, force = false): 
       const pending = pendingServers.get(config.id);
       if (pending) {
         pendingServers.delete(config.id);
-        queueShadowSync(pending, true);
+        queueStreamingSync(pending, true);
       }
     });
   return true;
@@ -150,7 +150,7 @@ export const queueShadowSync = (config: StreamingRuntimeConfig, force = false): 
  * 取消指定服务器的后台同步
  * @param serverId - 服务器 ID
  */
-export const cancelShadowSync = (serverId: string): void => {
+export const cancelStreamingSync = (serverId: string): void => {
   if (runningServers.has(serverId)) cancelledServers.add(serverId);
   syncedServers.delete(serverId);
   pendingServers.delete(serverId);

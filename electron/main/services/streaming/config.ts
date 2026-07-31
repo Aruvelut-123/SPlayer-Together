@@ -20,8 +20,6 @@ interface PersistedServer {
   username: string;
   encryptedPassword: string;
   lastConnected?: number;
-  rootPath?: string;
-  scanDepth?: number;
 }
 
 interface PersistedState {
@@ -87,28 +85,15 @@ const decryptPassword = (encrypted: string): string => {
  * @param server - 持久化配置
  * @returns 不含凭据的配置
  */
-const toServerConfig = (server: PersistedServer): StreamingServerConfig => {
-  const base = {
-    id: server.id,
-    name: server.name,
-    url: server.url,
-    username: server.username,
-    hasPassword: Boolean(server.encryptedPassword),
-    lastConnected: server.lastConnected,
-  };
-  if (server.type === "webdav") {
-    return {
-      ...base,
-      type: "webdav",
-      rootPath: server.rootPath ?? "/",
-      scanDepth: server.scanDepth ?? 0,
-    };
-  }
-  return {
-    ...base,
-    type: server.type,
-  };
-};
+const toServerConfig = (server: PersistedServer): StreamingServerConfig => ({
+  id: server.id,
+  name: server.name,
+  type: server.type,
+  url: server.url,
+  username: server.username,
+  hasPassword: Boolean(server.encryptedPassword),
+  lastConnected: server.lastConnected,
+});
 
 /**
  * 转换为主进程运行时配置
@@ -157,10 +142,6 @@ export const addStreamingServer = (input: StreamingServerInput): StreamingServer
     username: input.username,
     encryptedPassword: encryptPassword(input.password),
   };
-  if (input.type === "webdav") {
-    server.rootPath = input.rootPath;
-    server.scanDepth = input.scanDepth;
-  }
   getState().servers.push(server);
   save();
   return toServerConfig(server);
@@ -182,13 +163,6 @@ export const updateStreamingServer = (
   server.type = input.type;
   server.url = input.url.trim().replace(/\/+$/, "");
   server.username = input.username;
-  if (input.type === "webdav") {
-    server.rootPath = input.rootPath;
-    server.scanDepth = input.scanDepth;
-  } else {
-    delete server.rootPath;
-    delete server.scanDepth;
-  }
   if (input.password) server.encryptedPassword = encryptPassword(input.password);
   server.lastConnected = undefined;
   save();
@@ -253,15 +227,6 @@ export const createTestStreamingServer = (
     password,
     hasPassword: Boolean(password),
   };
-
-  if (input.type === "webdav") {
-    return {
-      ...base,
-      type: "webdav",
-      rootPath: input.rootPath,
-      scanDepth: input.scanDepth,
-    };
-  }
 
   return {
     ...base,

@@ -1,7 +1,7 @@
 import type { Album } from "@shared/types/player";
 import { getDb } from "@main/database";
 
-export interface RemoteAlbumRecord {
+export interface StreamingAlbumRecord {
   serverId: string;
   remoteId: string;
   album: Album;
@@ -13,10 +13,10 @@ interface AlbumRow {
 }
 
 /**
- * 批量写入远程专辑
- * @param records - 远程专辑记录
+ * 批量写入流媒体专辑
+ * @param records - 流媒体专辑记录
  */
-export const upsertAlbums = (records: RemoteAlbumRecord[]): void => {
+export const upsertAlbums = (records: StreamingAlbumRecord[]): void => {
   if (records.length === 0) return;
   const statement = getDb().prepare(`
     INSERT INTO remote_albums (server_id, remote_id, data, name, generation, updated_at)

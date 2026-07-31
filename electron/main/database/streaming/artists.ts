@@ -1,7 +1,7 @@
 import type { Artist } from "@shared/types/player";
 import { getDb } from "@main/database";
 
-export interface RemoteArtistRecord {
+export interface StreamingArtistRecord {
   serverId: string;
   remoteId: string;
   artist: Artist;
@@ -13,10 +13,10 @@ interface ArtistRow {
 }
 
 /**
- * 批量写入远程歌手
- * @param records - 远程歌手记录
+ * 批量写入流媒体歌手
+ * @param records - 流媒体歌手记录
  */
-export const upsertArtists = (records: RemoteArtistRecord[]): void => {
+export const upsertArtists = (records: StreamingArtistRecord[]): void => {
   if (records.length === 0) return;
   const statement = getDb().prepare(`
     INSERT INTO remote_artists (server_id, remote_id, data, name, generation, updated_at)
