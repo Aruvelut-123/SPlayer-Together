@@ -838,6 +838,10 @@
       "label": "频谱条宽度",
       "description": "数值越小柱条越细越密"
     },
+    "reverseSpectrum": {
+      "label": "频谱反向",
+      "description": "启用后频率从中间向两侧递减，否则递增"
+    },
     "lyricSourcePreference": {
       "label": "歌词来源偏好",
       "description": "匹配在线歌词时的平台优先级",

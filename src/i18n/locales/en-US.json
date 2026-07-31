@@ -850,6 +850,10 @@
       "label": "Bar Width",
       "description": "Smaller values give thinner, denser bars"
     },
+    "reverseSpectrum": {
+      "label": "Reverse Spectrum",
+      "description": "When enabled, the frequency of the bars decreases from the center toward the sides; otherwise it increases."
+    },
     "lyricSourcePreference": {
       "label": "Lyric Source Preference",
       "description": "Platform priority when matching online lyrics",
