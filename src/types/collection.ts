@@ -3,9 +3,6 @@ import type { Track, Artist, TrackSource } from "@shared/types/player";
 /** 合集类型 */
 export type CollectionType = "album" | "playlist" | "radio" | "cloud";
 
-/** 内容范畴：本地 / 在线 */
-export type ContentScope = "local" | "online";
-
 /** 合集信息 */
 export interface Collection {
   id: string;

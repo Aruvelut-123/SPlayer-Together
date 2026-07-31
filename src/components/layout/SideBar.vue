@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { SMenuItem } from "@/components/ui/SMenu.vue";
 import type { SSelectOption } from "@/components/ui/SSelect.vue";
-import type { ContentScope } from "@/types/collection";
+import type { PlaylistScope } from "@shared/types/content";
 import { useSettingsStore } from "@/stores/settings";
 import { useStatusStore } from "@/stores/status";
 import { usePlaylistStore } from "@/stores/playlist";
@@ -46,10 +46,11 @@ const toggleHeartMode = useThrottleFn((): void => {
 const sourceOptions = computed<SSelectOption[]>(() => [
   { value: "local", label: t("collection.localPlaylist") },
   { value: "online", label: t("collection.onlinePlaylist") },
+  { value: "remote", label: t("collection.remotePlaylist") },
 ]);
 
 const createDialogOpen = ref(false);
-const createMode = ref<ContentScope>("local");
+const createMode = ref<PlaylistScope>("local");
 
 const handleCreate = (): void => {
   createMode.value = status.myPlaylistSource;
@@ -57,7 +58,9 @@ const handleCreate = (): void => {
 };
 
 /** 新建成功后跳转到该歌单 */
-const handleCreated = (playlistId: string, scope: ContentScope): void => {
+const handleCreated = (playlistId: string, scope: PlaylistScope): void => {
+  status.myPlaylistSource = scope;
+  if (scope === "remote") return;
   router.push(`/collection/${scope === "local" ? "local" : "netease"}/playlist/${playlistId}`);
 };
 
@@ -71,7 +74,7 @@ const renderMyHeader = () =>
         options: sourceOptions.value,
         side: "bottom",
         align: "start",
-        "onUpdate:modelValue": (v) => (status.myPlaylistSource = v as ContentScope),
+        "onUpdate:modelValue": (v) => (status.myPlaylistSource = v as PlaylistScope),
       },
       {
         trigger: () =>
@@ -114,6 +117,15 @@ const myPlaylistItems = computed<SMenuItem[]>(() => {
       label: pl.title,
       icon: markRaw(IconLucideListMusic),
       cover: pl.cover ?? "",
+      showCover,
+    }));
+  }
+  if (status.myPlaylistSource === "remote") {
+    return playlistStore.remotePlaylists.map((playlist) => ({
+      key: `/collection/webdav/playlist/${playlist.id}`,
+      label: playlist.title,
+      icon: markRaw(IconLucideListMusic),
+      cover: playlist.cover ?? "",
       showCover,
     }));
   }

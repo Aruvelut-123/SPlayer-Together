@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Track } from "@shared/types/player";
-import type { ContentScope } from "@/types/collection";
+import type { ContentScope } from "@shared/types/content";
 import type { DropdownMenuItem } from "@/components/ui/SDropdownMenu.vue";
 import { useLibraryStore } from "@/stores/library";
 import { useUserStore } from "@/stores/user";

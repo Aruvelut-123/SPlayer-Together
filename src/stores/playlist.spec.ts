@@ -73,6 +73,7 @@ describe("playlist store", () => {
     expect(legacyStorage.clear).toHaveBeenCalledOnce();
     expect(store.playlists.map(({ type }) => type)).toEqual(["local", "webdav"]);
     expect(store.localPlaylists.map(({ id }) => id)).toEqual(["local"]);
+    expect(store.remotePlaylists.map(({ id }) => id)).toEqual(["dav"]);
   });
 
   it("只将本地类型转换为现有 Collection", async () => {

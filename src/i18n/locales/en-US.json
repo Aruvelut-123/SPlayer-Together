@@ -1946,7 +1946,10 @@
     "my": "My {type}s",
     "subscribed": "Subscribed {type}s",
     "localPlaylist": "Local Playlists",
+    "remotePlaylist": "Remote Playlist",
     "onlinePlaylist": "Online Playlists",
+    "remoteType": "Remote Type",
+    "playlistNamePlaceholder": "Enter a playlist name",
     "create": "New {type}",
     "name": "{type} Name",
     "description": "Description",
@@ -1961,6 +1964,14 @@
     "unsubscribe": "Unsubscribe",
     "privacy": {
       "private": "Make private"
+    },
+    "webdav": {
+      "url": "Server URL",
+      "username": "Username",
+      "password": "Password",
+      "mountPath": "Mount Directory",
+      "scanDepth": "Scan Depth",
+      "depthUnit": "levels"
     }
   },
   "artist": {

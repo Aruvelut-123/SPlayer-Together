@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Track } from "@shared/types/player";
-import type { ContentScope } from "@/types/collection";
+import type { ContentScope } from "@shared/types/content";
 import { usePlaylistStore } from "@/stores/playlist";
 import { useUserStore } from "@/stores/user";
 import { toast } from "@/composables/useToast";
@@ -128,5 +128,5 @@ const handlePick = async (playlistId: string): Promise<void> => {
       <SButton variant="tertiary" @click="close">{{ t("common.cancel") }}</SButton>
     </template>
   </SDialog>
-  <PlaylistCreateDialog v-model:open="createDialogOpen" :mode="mode" lock-type />
+  <PlaylistCreateDialog v-model:open="createDialogOpen" :mode="mode" />
 </template>

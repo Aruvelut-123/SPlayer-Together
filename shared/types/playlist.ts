@@ -25,6 +25,16 @@ export interface PlaylistCreateInput {
   type: PlaylistType;
   title: string;
   description?: string;
+  webdav?: WebDavPlaylistInput;
+}
+
+/** WebDAV 远程歌单配置 */
+export interface WebDavPlaylistInput {
+  url: string;
+  username: string;
+  password: string;
+  rootPath: string;
+  scanDepth: number;
 }
 
 /** 更新歌单参数 */
