@@ -17,6 +17,11 @@ import type { UpdateEvent } from "@shared/types/update";
 import type { CloudUploadProgress } from "@shared/types/cloudUpload";
 import type { MusicCommentQuery } from "@shared/types/comment";
 import type { AiModelSaveInput } from "@shared/types/ai";
+import type {
+  LegacyPlaylistRecord,
+  PlaylistCreateInput,
+  PlaylistUpdateInput,
+} from "@shared/types/playlist";
 
 /** 订阅主进程推送的事件 */
 const subscribe = <T>(channel: string, callback: (data: T) => void): (() => void) => {
@@ -195,6 +200,21 @@ const api = {
     // 订阅扫描进度事件
     onScanProgress: (callback: (progress: unknown) => void) =>
       subscribe("library:scanProgress", callback),
+  },
+  playlist: {
+    list: () => ipcRenderer.invoke("playlist:list"),
+    get: (id: string) => ipcRenderer.invoke("playlist:get", id),
+    create: (input: PlaylistCreateInput) => ipcRenderer.invoke("playlist:create", input),
+    update: (id: string, input: PlaylistUpdateInput) =>
+      ipcRenderer.invoke("playlist:update", id, input),
+    remove: (id: string) => ipcRenderer.invoke("playlist:remove", id),
+    addTracks: (id: string, trackIds: string[]) =>
+      ipcRenderer.invoke("playlist:addTracks", id, trackIds),
+    removeTracks: (id: string, trackIds: string[]) =>
+      ipcRenderer.invoke("playlist:removeTracks", id, trackIds),
+    importLegacy: (records: LegacyPlaylistRecord[]) =>
+      ipcRenderer.invoke("playlist:importLegacy", records),
+    clear: () => ipcRenderer.invoke("playlist:clear"),
   },
   window: {
     // 切换桌面歌词窗口

@@ -31,7 +31,7 @@ interface PickerEntry {
 /** 当前 mode 下的歌单 */
 const entries = computed<PickerEntry[]>(() => {
   if (props.mode === "local") {
-    return playlistStore.playlists.map((pl) => ({
+    return playlistStore.localPlaylists.map((pl) => ({
       id: pl.id,
       name: pl.title,
       cover: pl.cover,

@@ -109,7 +109,7 @@ const renderSubscribedHeader = () =>
 const myPlaylistItems = computed<SMenuItem[]>(() => {
   const showCover = appearance.sidebarPlaylistCover;
   if (status.myPlaylistSource === "local") {
-    return playlistStore.playlists.map((pl) => ({
+    return playlistStore.localPlaylists.map((pl) => ({
       key: `/collection/local/playlist/${pl.id}`,
       label: pl.title,
       icon: markRaw(IconLucideListMusic),

@@ -109,7 +109,8 @@ Declarative — defined in `src/settings/schema.ts`, types in `src/types/setting
 # All paths are defined centrally in electron/main/utils/paths.ts
 ```
 
-Renderer IndexedDB (localforage): `splayer/library`, `splayer/queue`, `splayer/playlists`.
+Renderer IndexedDB (localforage): `splayer/library`, `splayer/queue`. Local playlists are stored in
+SQLite through the main-process playlist service; the old `splayer/playlists` store is migration-only.
 
 ### Cover Image
 
