@@ -18,7 +18,7 @@ use std::thread::{self, JoinHandle};
 use anyhow::{Context, Result};
 use cpal::traits::{DeviceTrait, HostTrait};
 use rodio::{OutputStream, OutputStreamHandle};
-use tracing::{debug, warn};
+use tracing::{debug, info, warn};
 
 use crate::priority;
 
@@ -31,7 +31,7 @@ use crate::priority;
 ///
 /// ```ignore
 /// // 走系统默认设备
-/// let output = AudioOutput::new(None)?;
+/// let output = AudioOutput::new(None, 44_100)?;
 /// let sink = Sink::try_new(output.handle())?;
 /// // sink 可在任意线程上使用；output 持有的 cpal::Stream 始终在专用线程上
 /// ```
@@ -56,7 +56,7 @@ impl AudioOutput {
     /// - 找不到指定设备
     /// - 无可用音频设备
     /// - 专用线程 spawn 失败
-    pub fn new(device_name: Option<&str>) -> Result<Self> {
+    pub fn new(device_name: Option<&str>, requested_sample_rate: u32) -> Result<Self> {
         priority::configure_process_priority();
         let device_name = device_name.map(String::from);
 
@@ -70,7 +70,8 @@ impl AudioOutput {
             .spawn(move || {
                 priority::boost_current_audio_thread("audio-output-owner");
                 debug!(device = ?device_name, "audio-output-owner: starting");
-                let build_result = build_output_stream(device_name.as_deref());
+                let build_result =
+                    build_output_stream(device_name.as_deref(), requested_sample_rate);
                 match build_result {
                     Ok((stream, handle, sample_rate)) => {
                         if result_tx.send(Ok((handle, sample_rate))).is_err() {
@@ -133,10 +134,11 @@ impl Drop for AudioOutput {
 /// 构建 cpal/rodio 输出流；**仅在 `audio-output-owner` 线程内调用**，
 /// 保证 `OutputStream` 的创建、持有和 drop 都发生在同一线程上
 ///
-/// 返回的采样率来自实际用于打开流的默认配置，用作播放重采样目标。
-/// 共享模式下应遵循系统混音配置，设备能力上限并不代表当前输出格式。
+/// 优先按音源采样率打开流，设备不支持时才选择最近能力边界或默认配置。
+/// 返回值始终是实际打开的流采样率，供播放重采样器与 DSP 使用。
 fn build_output_stream(
     device_name: Option<&str>,
+    requested_sample_rate: u32,
 ) -> Result<(OutputStream, OutputStreamHandle, u32)> {
     let host = cpal::default_host();
     match device_name {
@@ -146,17 +148,20 @@ fn build_output_stream(
                 .context("Failed to enumerate output devices")?
                 .find(|d| d.name().map(|got| got == name).unwrap_or(false))
                 .with_context(|| format!("Output device '{}' not found", name))?;
-            open_device_with_default_config(&device)
+            open_device_for_sample_rate(&device, requested_sample_rate)
         }
-        None => open_default_stream(&host),
+        None => open_default_stream(&host, requested_sample_rate),
     }
 }
 
-fn open_default_stream(host: &cpal::Host) -> Result<(OutputStream, OutputStreamHandle, u32)> {
+fn open_default_stream(
+    host: &cpal::Host,
+    requested_sample_rate: u32,
+) -> Result<(OutputStream, OutputStreamHandle, u32)> {
     let default_device = host
         .default_output_device()
         .context("No default output device")?;
-    if let Ok(result) = open_device_with_default_config(&default_device) {
+    if let Ok(result) = open_device_for_sample_rate(&default_device, requested_sample_rate) {
         return Ok(result);
     }
 
@@ -165,24 +170,98 @@ fn open_default_stream(host: &cpal::Host) -> Result<(OutputStream, OutputStreamH
         .output_devices()
         .context("Failed to enumerate output devices")?;
     for device in devices {
-        if let Ok(result) = open_device_with_default_config(&device) {
+        if let Ok(result) = open_device_for_sample_rate(&device, requested_sample_rate) {
             return Ok(result);
         }
     }
     anyhow::bail!("No usable output device")
 }
 
-/// 使用设备默认配置创建输出流，确保记录的采样率与实际流配置一致
-fn open_device_with_default_config(
+/// 使用最接近音源采样率的设备配置创建输出流
+fn open_device_for_sample_rate(
     device: &cpal::Device,
+    requested_sample_rate: u32,
 ) -> Result<(OutputStream, OutputStreamHandle, u32)> {
-    let config = device
+    let default_config = device
         .default_output_config()
         .context("Failed to get default output config")?;
+    let config = pick_config(device, default_config.clone(), requested_sample_rate);
     let sample_rate = config.sample_rate().0;
-    let (stream, handle) = OutputStream::try_from_device_config(device, config)
-        .context("Failed to open output device")?;
-    Ok((stream, handle, sample_rate))
+    info!(requested_sample_rate, sample_rate, "已选择音频输出流采样率");
+    match OutputStream::try_from_device_config(device, config) {
+        Ok((stream, handle)) => Ok((stream, handle, sample_rate)),
+        Err(error) if sample_rate != default_config.sample_rate().0 => {
+            warn!(
+                requested_sample_rate,
+                sample_rate,
+                default_sample_rate = default_config.sample_rate().0,
+                error = %error,
+                "设备拒绝协商采样率，回退到默认输出配置"
+            );
+            let fallback_rate = default_config.sample_rate().0;
+            let (stream, handle) = OutputStream::try_from_device_config(device, default_config)
+                .context("Failed to open output device with fallback config")?;
+            Ok((stream, handle, fallback_rate))
+        }
+        Err(error) => Err(error).context("Failed to open output device"),
+    }
+}
+
+fn pick_config(
+    device: &cpal::Device,
+    default_config: cpal::SupportedStreamConfig,
+    requested_sample_rate: u32,
+) -> cpal::SupportedStreamConfig {
+    let requested_sample_rate = if requested_sample_rate == 0 {
+        default_config.sample_rate().0
+    } else {
+        requested_sample_rate
+    };
+    let Ok(ranges) = device.supported_output_configs() else {
+        return default_config;
+    };
+    let matching: Vec<_> = ranges
+        .filter(|range| {
+            range.channels() == default_config.channels()
+                && range.sample_format() == default_config.sample_format()
+        })
+        .collect();
+    let Some((index, sample_rate)) = select_sample_rate(
+        requested_sample_rate,
+        default_config.sample_rate().0,
+        &matching
+            .iter()
+            .map(|range| (range.min_sample_rate().0, range.max_sample_rate().0))
+            .collect::<Vec<_>>(),
+    ) else {
+        return default_config;
+    };
+    matching[index].with_sample_rate(cpal::SampleRate(sample_rate))
+}
+
+/// 在设备能力范围内选择最接近音源的采样率
+fn select_sample_rate(
+    requested: u32,
+    default_rate: u32,
+    ranges: &[(u32, u32)],
+) -> Option<(usize, u32)> {
+    if ranges.is_empty() {
+        return None;
+    }
+    let requested = if requested == 0 {
+        default_rate
+    } else {
+        requested
+    };
+    ranges
+        .iter()
+        .enumerate()
+        .map(|(index, &(min, max))| {
+            let rate = requested.clamp(min, max);
+            (index, rate, rate.abs_diff(requested), max - min)
+        })
+        .min_by_key(|&(_, _, distance, width)| (distance, width))
+        .map(|(index, rate, _, _)| (index, rate))
 }
 
 /// 枚举所有输出设备，返回 `(name, is_default)` 列表
@@ -208,4 +287,42 @@ pub fn default_device_name() -> Option<String> {
     cpal::default_host()
         .default_output_device()
         .and_then(|d| d.name().ok())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::select_sample_rate;
+
+    #[test]
+    fn selects_exact_source_rate_inside_device_range() {
+        let ranges = [(44_100, 192_000)];
+        for rate in [44_100, 48_000, 96_000, 192_000] {
+            assert_eq!(select_sample_rate(rate, 48_000, &ranges), Some((0, rate)));
+        }
+    }
+
+    #[test]
+    fn selects_nearest_supported_boundary() {
+        let ranges = [(44_100, 48_000), (88_200, 192_000)];
+        assert_eq!(
+            select_sample_rate(96_000, 48_000, &ranges),
+            Some((1, 96_000))
+        );
+        assert_eq!(
+            select_sample_rate(50_000, 48_000, &ranges),
+            Some((0, 48_000))
+        );
+        assert_eq!(
+            select_sample_rate(384_000, 48_000, &ranges),
+            Some((1, 192_000))
+        );
+    }
+
+    #[test]
+    fn uses_default_rate_when_source_rate_is_unknown() {
+        assert_eq!(
+            select_sample_rate(0, 48_000, &[(44_100, 192_000)]),
+            Some((0, 48_000))
+        );
+    }
 }
