@@ -1,5 +1,8 @@
 import type { Track, Artist, TrackSource } from "@shared/types/player";
 
+/** 本地与在线内容范围 */
+export type ContentScope = "local" | "online";
+
 /** 合集类型 */
 export type CollectionType = "album" | "playlist" | "radio" | "cloud";
 

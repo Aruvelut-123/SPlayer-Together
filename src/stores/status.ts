@@ -6,7 +6,7 @@ import type {
   Track,
 } from "@shared/types/player";
 import type { Platform } from "@shared/types/platform";
-import type { ContentScope } from "@shared/types/content";
+import type { ContentScope } from "@/types/collection";
 import type { SortField, SortOrder } from "@/types/list";
 export type { RepeatMode, ShuffleMode } from "@shared/types/player";
 export type { SortField, SortOrder } from "@/types/list";

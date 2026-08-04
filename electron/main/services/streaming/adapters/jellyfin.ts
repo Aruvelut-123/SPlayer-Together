@@ -159,7 +159,7 @@ const toTrack = (config: StreamingRuntimeConfig, item: JellyItem): Track => {
       [],
     album: item.Album ? { id: item.AlbumId, name: item.Album } : undefined,
     duration: item.RunTimeTicks ? Math.floor(item.RunTimeTicks / 10_000) : 0,
-    cover: imageTag ? imageUrl(config, item.Id, imageTag, 500) : undefined,
+    cover: imageTag ? imageUrl(config, item.Id, imageTag, 300) : undefined,
     coverOriginal: imageTag ? imageUrl(config, item.Id, imageTag, 1500) : undefined,
     fileSize: mediaSource?.Size,
     quality: {

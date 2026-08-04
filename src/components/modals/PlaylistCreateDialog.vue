@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ContentScope } from "@shared/types/content";
+import type { ContentScope } from "@/types/collection";
 import { usePlaylistStore } from "@/stores/playlist";
 import { useUserStore } from "@/stores/user";
 import { toast } from "@/composables/useToast";

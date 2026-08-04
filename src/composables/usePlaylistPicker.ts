@@ -1,5 +1,5 @@
 import type { Track } from "@shared/types/player";
-import type { ContentScope } from "@shared/types/content";
+import type { ContentScope } from "@/types/collection";
 import { useUserStore } from "@/stores/user";
 import { toast } from "@/composables/useToast";
 

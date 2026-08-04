@@ -718,8 +718,8 @@
       "streaming": "媒体源配置",
       "mediaServerManagement": "媒体源管理",
       "songCache": "歌曲缓存",
-      "cache": "缓存",
-      "database": "数据库",
+      "cache": "缓存管理",
+      "database": "数据库管理",
       "downloadLocation": "下载配置",
       "downloadGeneral": "下载选项",
       "downloadTags": "写入内容",
@@ -1836,6 +1836,10 @@
     "enableSongCache": {
       "label": "歌曲缓存",
       "description": "播放在线歌曲时缓存至本地，提升加载速度"
+    },
+    "cacheStreaming": {
+      "label": "缓存流媒体",
+      "description": "播放个人流媒体服务器歌曲时缓存至本地"
     },
     "songCacheSizeLimit": {
       "label": "缓存上限",

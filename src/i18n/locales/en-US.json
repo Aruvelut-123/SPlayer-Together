@@ -733,8 +733,8 @@
       "downloadLocation": "Download Settings",
       "downloadGeneral": "Download Options",
       "downloadTags": "What to Write",
-      "cache": "Caches",
-      "database": "Database",
+      "cache": "Cache Management",
+      "database": "Database Management",
       "backupReset": "Backup & Reset",
       "debug": "Debug",
       "preset": "OCD Settings"
@@ -1848,6 +1848,10 @@
     "enableSongCache": {
       "label": "Song Cache",
       "description": "Cache online tracks locally to improve loading speed"
+    },
+    "cacheStreaming": {
+      "label": "Cache Streaming Tracks",
+      "description": "Cache tracks from personal media servers locally during playback"
     },
     "songCacheSizeLimit": {
       "label": "Size Limit",

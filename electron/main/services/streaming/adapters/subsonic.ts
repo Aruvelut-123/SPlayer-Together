@@ -155,7 +155,7 @@ const toTrack = (config: StreamingRuntimeConfig, song: SubsonicSong): Track => {
     artists,
     album: song.album ? { id: song.albumId, name: song.album } : undefined,
     duration: Math.round((song.duration ?? 0) * 1000),
-    cover: coverUrl(config, song.coverArt, 500),
+    cover: coverUrl(config, song.coverArt, 300),
     coverOriginal: coverUrl(config, song.coverArt, 1500),
     fileSize: song.size,
     quality: {

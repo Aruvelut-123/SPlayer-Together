@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { SMenuItem } from "@/components/ui/SMenu.vue";
 import type { SSelectOption } from "@/components/ui/SSelect.vue";
-import type { ContentScope } from "@shared/types/content";
+import type { ContentScope } from "@/types/collection";
 import { useSettingsStore } from "@/stores/settings";
 import { useStatusStore } from "@/stores/status";
 import { usePlaylistStore } from "@/stores/playlist";
