@@ -18,9 +18,9 @@ vi.mock("localforage", () => ({
 
 import { usePlaylistStore } from "./playlist";
 
-const summary = (id: string, type: "local" | "webdav"): PlaylistSummary => ({
+const summary = (id: string): PlaylistSummary => ({
   id,
-  type,
+  type: "local",
   title: id,
   trackCount: 0,
   createTime: 1,
@@ -51,7 +51,7 @@ describe("playlist store", () => {
     });
   });
 
-  it("加载时导入旧歌单并返回多类型列表", async () => {
+  it("加载时导入旧歌单并返回本地列表", async () => {
     legacyStorage.records = [
       {
         id: "legacy",
@@ -62,7 +62,7 @@ describe("playlist store", () => {
       },
     ];
     playlistApi.importLegacy.mockResolvedValue(undefined);
-    playlistApi.list.mockResolvedValue([summary("local", "local"), summary("dav", "webdav")]);
+    playlistApi.list.mockResolvedValue([summary("local")]);
 
     const store = usePlaylistStore();
     await store.load();
@@ -71,15 +71,12 @@ describe("playlist store", () => {
       expect.objectContaining({ id: "legacy", trackIds: ["track-1"] }),
     ]);
     expect(legacyStorage.clear).toHaveBeenCalledOnce();
-    expect(store.playlists.map(({ type }) => type)).toEqual(["local", "webdav"]);
+    expect(store.playlists.map(({ type }) => type)).toEqual(["local"]);
     expect(store.localPlaylists.map(({ id }) => id)).toEqual(["local"]);
-    expect(store.remotePlaylists.map(({ id }) => id)).toEqual(["dav"]);
   });
 
-  it("只将本地类型转换为现有 Collection", async () => {
-    playlistApi.get
-      .mockResolvedValueOnce({ ...summary("local", "local"), tracks: [] })
-      .mockResolvedValueOnce({ ...summary("dav", "webdav"), tracks: [] });
+  it("将本地歌单转换为现有 Collection", async () => {
+    playlistApi.get.mockResolvedValueOnce({ ...summary("local"), tracks: [] });
 
     const store = usePlaylistStore();
     await expect(store.get("local")).resolves.toMatchObject({
@@ -87,6 +84,5 @@ describe("playlist store", () => {
       type: "playlist",
       source: "local",
     });
-    await expect(store.get("dav")).resolves.toBeNull();
   });
 });

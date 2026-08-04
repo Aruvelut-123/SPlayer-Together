@@ -1,20 +1,14 @@
 import localforage from "localforage";
 import type { Track } from "@shared/types/player";
-import type {
-  LegacyPlaylistRecord,
-  PlaylistSummary,
-  WebDavPlaylistInput,
-} from "@shared/types/playlist";
+import type { LegacyPlaylistRecord, PlaylistSummary } from "@shared/types/playlist";
 import type { Collection } from "@/types/collection";
 
 const legacyDb = localforage.createInstance({ name: "splayer", storeName: "playlists" });
 
 export const usePlaylistStore = defineStore("playlist", () => {
-  /** 包含本地和远程来源的统一歌单列表 */
+  /** 本地歌单列表 */
   const playlists = shallowRef<PlaylistSummary[]>([]);
   const initialized = ref(false);
-  const localPlaylists = computed(() => playlists.value.filter(({ type }) => type === "local"));
-  const remotePlaylists = computed(() => playlists.value.filter(({ type }) => type === "webdav"));
 
   /** 将旧版 IndexedDB 本地歌单一次性导入主进程 */
   const migrateLegacy = async (): Promise<void> => {
@@ -82,16 +76,6 @@ export const usePlaylistStore = defineStore("playlist", () => {
     };
   };
 
-  /** 创建 WebDAV 远程歌单 */
-  const createRemote = async (
-    title: string,
-    webdav: WebDavPlaylistInput,
-  ): Promise<PlaylistSummary> => {
-    const created = await window.api.playlist.create({ type: "webdav", title, webdav });
-    playlists.value = [created, ...playlists.value];
-    return created;
-  };
-
   /** 更新歌单信息 */
   const update = async (
     id: string,
@@ -155,13 +139,11 @@ export const usePlaylistStore = defineStore("playlist", () => {
 
   return {
     playlists,
-    localPlaylists,
-    remotePlaylists,
+    localPlaylists: playlists,
     initialized,
     load,
     get,
     create,
-    createRemote,
     update,
     remove,
     addTracks,

@@ -139,7 +139,7 @@ export const initDatabase = (): void => {
 
     CREATE TABLE IF NOT EXISTS playlists (
       id TEXT PRIMARY KEY,
-      type TEXT NOT NULL CHECK(type IN ('local', 'webdav')),
+      type TEXT NOT NULL CHECK(type = 'local'),
       title TEXT NOT NULL,
       description TEXT,
       cover TEXT,

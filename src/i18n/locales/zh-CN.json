@@ -1934,9 +1934,7 @@
     "my": "我的{type}",
     "subscribed": "收藏的{type}",
     "localPlaylist": "本地歌单",
-    "remotePlaylist": "远程歌单",
     "onlinePlaylist": "在线歌单",
-    "remoteType": "远程类型",
     "playlistNamePlaceholder": "输入歌单名称",
     "create": "新建{type}",
     "name": "{type}名称",
@@ -1952,14 +1950,6 @@
     "unsubscribe": "取消收藏",
     "privacy": {
       "private": "设为私密"
-    },
-    "webdav": {
-      "url": "服务地址",
-      "username": "用户名",
-      "password": "密码",
-      "mountPath": "挂载目录",
-      "scanDepth": "扫描深度",
-      "depthUnit": "层"
     }
   },
   "artist": {

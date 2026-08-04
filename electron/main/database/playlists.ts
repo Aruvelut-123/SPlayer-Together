@@ -53,7 +53,9 @@ const SELECT_PLAYLIST = `
 /** 获取全部歌单列表 */
 export const getPlaylists = (): PlaylistSummary[] => {
   const rows = getDb()
-    .prepare(`${SELECT_PLAYLIST} GROUP BY p.id ORDER BY p.updated_at DESC, p.id`)
+    .prepare(
+      `${SELECT_PLAYLIST} WHERE p.type = 'local' GROUP BY p.id ORDER BY p.updated_at DESC, p.id`,
+    )
     .all() as PlaylistRow[];
   return rows.map(toSummary);
 };
@@ -64,11 +66,10 @@ export const getPlaylists = (): PlaylistSummary[] => {
  * @returns 歌单及有序歌曲
  */
 export const getPlaylist = (id: string): PlaylistDetail | null => {
-  const row = getDb().prepare(`${SELECT_PLAYLIST} WHERE p.id = ? GROUP BY p.id`).get(id) as
-    | PlaylistRow
-    | undefined;
+  const row = getDb()
+    .prepare(`${SELECT_PLAYLIST} WHERE p.id = ? AND p.type = 'local' GROUP BY p.id`)
+    .get(id) as PlaylistRow | undefined;
   if (!row) return null;
-  if (row.type !== "local") return { ...toSummary(row), tracks: [] };
   const trackIds = getDb()
     .prepare(
       `SELECT pt.track_id
@@ -97,7 +98,7 @@ export const getPlaylist = (id: string): PlaylistDetail | null => {
 export const createPlaylist = (input: PlaylistCreateInput): PlaylistSummary => {
   const title = input.title.trim();
   if (!title) throw new Error("歌单名称不能为空");
-  if (input.type !== "local" && input.type !== "webdav") throw new Error("歌单类型无效");
+  if (input.type !== "local") throw new Error("歌单类型无效");
   const now = Date.now();
   const id = `pl_${crypto.randomUUID()}`;
   getDb()
