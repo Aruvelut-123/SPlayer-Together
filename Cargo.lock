@@ -1019,9 +1019,9 @@ dependencies = [
 
 [[package]]
 name = "ffmpeg_audio"
-version = "0.3.0"
+version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c2b343b6e94aad6611c16d577247cba08db6d36a586a3bed69a5aeec9a89a47a"
+checksum = "9f175232b560631dbf7023b1ccdcf65339594c84a6a62335039aaa7388ff31e8"
 dependencies = [
  "ffmpeg_audio_sys",
  "futures-util",
