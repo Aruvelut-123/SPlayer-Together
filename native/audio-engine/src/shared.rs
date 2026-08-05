@@ -43,7 +43,7 @@ pub struct Shared {
     normalization_gain: AtomicU32,
     /// 音量归一化开关
     normalization_enabled: AtomicBool,
-    /// 关联的网络中断句柄（由 decoder::start_decode 在打开输入前注入）
+    /// 关联的网络中断句柄（由 decoder 在启动解码前注入）
     /// stop() 触发时中断读取和重试等待，seek 前可重置
     interrupt: Mutex<Option<HttpInterrupt>>,
 }

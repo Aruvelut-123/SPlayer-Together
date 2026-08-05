@@ -64,11 +64,13 @@ jobs:
           node-version: 22.19.0
           cache: pnpm
 
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: native-windows
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Test Rust workspace
         run: pnpm test:native
-
-      - name: Build native modules
-        run: pnpm build:native --dev
