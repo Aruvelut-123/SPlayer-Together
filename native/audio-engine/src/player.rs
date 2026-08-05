@@ -646,9 +646,6 @@ impl InnerPlayer {
     ) -> Result<bool> {
         // 抢占检查：与 commit_loaded 同款，不一致则丢弃本次 seek 结果
         if token != self.load_token.load(Ordering::Acquire) {
-            if let Some(h) = self.pending_load_handle.take() {
-                h.cancel();
-            }
             shared.stop();
             // 解码线程读到 stop 信号后自行退出，故意不 join 避免阻塞主线程持锁阶段
             drop(handle);
