@@ -6,7 +6,6 @@ mod decoder;
 mod equalizer;
 mod error;
 mod fft;
-mod http_source;
 mod logger;
 mod loudness;
 mod metadata;
@@ -22,6 +21,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Once};
 use std::thread::{self, JoinHandle};
 
+use ffmpeg_audio::HttpCancelHandle;
 use napi::bindgen_prelude::*;
 use napi::threadsafe_function::ThreadsafeFunctionCallMode;
 use napi_derive::napi;
@@ -362,7 +362,7 @@ impl AudioPlayer {
         let auto_play = auto_play.unwrap_or(true);
         info!(source = %source, auto_play, "加载音频源");
 
-        let interrupt = crate::http_source::HttpInterrupt::new();
+        let handle = HttpCancelHandle::new();
         let (
             old_threads,
             old_output,
@@ -373,7 +373,7 @@ impl AudioPlayer {
             device_name,
         ) = {
             let mut player = self.inner.lock();
-            let (old_threads, old_output, token) = player.take_for_async_load(interrupt.clone());
+            let (old_threads, old_output, token) = player.take_for_async_load(handle.clone());
             (
                 old_threads,
                 old_output,
@@ -393,7 +393,7 @@ impl AudioPlayer {
             }
             drop(old_output);
             let prepared =
-                decoder::prepare_decode(&source_for_decoder, cover_dir.as_deref(), interrupt)?;
+                decoder::prepare_decode(&source_for_decoder, cover_dir.as_deref(), handle)?;
             if load_token.load(std::sync::atomic::Ordering::Acquire) != token {
                 anyhow::bail!(LOAD_SUPERSEDED_REASON);
             }
