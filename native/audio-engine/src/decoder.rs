@@ -135,7 +135,11 @@ pub fn prepare_decode(
 pub fn start_prepared_decode(
     prepared: PreparedDecoder,
     shared: Arc<Shared>,
-) -> Result<(AudioMetadata, JoinHandle<DecoderData>)> {
+) -> Result<(
+    AudioMetadata,
+    JoinHandle<DecoderData>,
+    Option<HttpCancelHandle>,
+)> {
     let PreparedDecoder {
         reader,
         mut metadata,
@@ -157,7 +161,7 @@ pub fn start_prepared_decode(
         reader,
         player_resampler,
         fft_resampler,
-        cancel_handle,
+        cancel_handle: cancel_handle.clone(),
     };
 
     let handle = thread::Builder::new()
@@ -174,7 +178,7 @@ pub fn start_prepared_decode(
         })
         .context("启动解码线程失败")?;
 
-    Ok((metadata, handle))
+    Ok((metadata, handle, cancel_handle))
 }
 
 /// 用已有的 DecoderData 继续解码（seek 后复用）

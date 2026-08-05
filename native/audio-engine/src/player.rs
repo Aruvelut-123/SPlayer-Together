@@ -175,6 +175,7 @@ pub struct LoadedPlayback {
     pub decode_handle: JoinHandle<decoder::DecoderData>,
     pub shared: Arc<Shared>,
     pub output: AudioOutput,
+    pub cancel: Option<HttpCancelHandle>,
 }
 
 /// 编译期保证 `InnerPlayer: Send`：cpal::Stream（!Send）已通过 AudioOutput 隔离到专用线程，
@@ -645,6 +646,9 @@ impl InnerPlayer {
     ) -> Result<bool> {
         // 抢占检查：与 commit_loaded 同款，不一致则丢弃本次 seek 结果
         if token != self.load_token.load(Ordering::Acquire) {
+            if let Some(h) = self.pending_load_handle.take() {
+                h.cancel();
+            }
             shared.stop();
             // 解码线程读到 stop 信号后自行退出，故意不 join 避免阻塞主线程持锁阶段
             drop(handle);
@@ -717,9 +721,13 @@ impl InnerPlayer {
             decode_handle,
             shared,
             output,
+            cancel,
         } = loaded;
         // 抢占检查：比对最新 token，不等说明已有更新的 load 在路上 / 已 commit
         if token != self.load_token.load(Ordering::Acquire) {
+            if let Some(h) = cancel {
+                h.cancel();
+            }
             // 停止新解码线程（它会写入 shared 但没人消费），让 join 能尽快返回
             shared.stop();
             // shared / sink / decode_handle 在此函数返回时 drop；解码线程读到 stop 信号后退出
@@ -728,7 +736,7 @@ impl InnerPlayer {
             return Ok(None);
         }
 
-        self.pending_load_handle = None;
+        self.pending_load_handle = cancel;
         self.output = Some(output);
 
         let sink = {

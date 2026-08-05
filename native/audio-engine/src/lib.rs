@@ -401,14 +401,14 @@ impl AudioPlayer {
             let output = audio_output::AudioOutput::new(device_name.as_deref(), requested_rate)?;
             let shared = Shared::new(output.sample_rate(), decoder::TARGET_CHANNELS);
             shared.set_normalization_enabled(normalization_enabled);
-            let (metadata, decode_handle) =
+            let (metadata, decode_handle, cancel) =
                 decoder::start_prepared_decode(prepared, Arc::clone(&shared))?;
-            Ok::<_, anyhow::Error>((metadata, decode_handle, shared, output))
+            Ok::<_, anyhow::Error>((metadata, decode_handle, shared, output, cancel))
         })
         .await
         .map_err(|e| Error::from_reason(format!("load task join error: {e}")))?;
 
-        let (metadata, decode_handle, shared, output) = match result {
+        let (metadata, decode_handle, shared, output, cancel) = match result {
             Ok(result) => result,
             Err(error) => {
                 let mut player = self.inner.lock();
@@ -432,6 +432,7 @@ impl AudioPlayer {
                         decode_handle,
                         shared,
                         output,
+                        cancel,
                     },
                 )
                 .into_napi()?
