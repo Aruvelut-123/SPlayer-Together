@@ -230,9 +230,11 @@ export const useSettingsStore = defineStore(
      */
     const setSystem = async (keyPath: string, value: unknown): Promise<void> => {
       setByPath(system, keyPath, value);
-      window.api.config.set(keyPath, value).catch((err) => {
+      try {
+        await window.api.config.set(keyPath, value);
+      } catch (err) {
         console.error("[settings] config.set failed", keyPath, err);
-      });
+      }
       if (keyPath === "player.fadeEnabled" || keyPath === "player.fadeDuration") {
         await window.api.player.setFadeDuration(
           system.player.fadeEnabled ? system.player.fadeDuration : 0,

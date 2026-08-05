@@ -6,6 +6,7 @@
     "downloading": "Downloading",
     "installNow": "Restart & Install",
     "goDownload": "Go to Download",
+    "goStore": "Update in Store",
     "upToDate": "You're on the latest version",
     "readyToast": "Update ready — restart to install",
     "failed": "Update failed, please try again later"
@@ -87,9 +88,10 @@
     }
   },
   "agreementUpdate": {
-    "title": "User Agreement Updated",
+    "title": "User Agreement & Disclaimer Updated",
     "subtitle": "The agreement has changed. Please re-read and accept to continue",
-    "accept": "I've read and agree, continue"
+    "accept": "I've read and agree, continue",
+    "reject": "Decline & Exit"
   },
   "common": {
     "confirm": "Confirm",
@@ -748,6 +750,7 @@
       "showMore": "More Contributors",
       "collapse": "Collapse"
     },
+    "storeVersion": "Store",
     "language": {
       "label": "Language",
       "description": "Switch the display language"
