@@ -146,6 +146,7 @@ declare module 'vue' {
     IconLucideUnplug: typeof import('~icons/lucide/unplug')['default']
     IconLucideUpload: typeof import('~icons/lucide/upload')['default']
     IconLucideUser: typeof import('~icons/lucide/user')['default']
+    IconLucideUserRound: typeof import('~icons/lucide/user-round')['default']
     IconLucideVolume1: typeof import('~icons/lucide/volume1')['default']
     IconLucideVolume2: typeof import('~icons/lucide/volume2')['default']
     IconLucideVolumeX: typeof import('~icons/lucide/volume-x')['default']
