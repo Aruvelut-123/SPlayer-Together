@@ -963,7 +963,8 @@
         "openPlayer": "Open player view",
         "closePlayer": "Close player view",
         "togglePlaylist": "Show / hide playlist",
-        "openSearch": "Open search"
+        "openSearch": "Open search",
+        "searchInPage": "Search in page"
       }
     },
     "engine": {
