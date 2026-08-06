@@ -64,6 +64,7 @@ export const useSettingsStore = defineStore(
       pauseOnDeviceSwitch: false,
       enableSpectrum: false,
       spectrumBarWidth: 4,
+      reverseSpectrum: false,
       songLevel: "hq",
       allowTrialPlay: false,
       timeFormat: "current-total",
