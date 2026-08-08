@@ -180,7 +180,7 @@ const moreMenuItems = computed<DropdownMenuItem[]>(() => {
           key: "copyUrl",
           label: t(`collection.context.${type}.copyUrl`),
           icon: markRaw(IconCopy),
-          show: isOnline,
+          show: isOnline && type !== "cloud",
         },
       ],
     },
@@ -206,7 +206,6 @@ const handleMoreMenu = (key: string) => {
       copy(collection.value?.id);
       break;
     case "copyUrl":
-      console.log(`Type: ${type}; Source: ${source}`);
       copy(getCollectionShareUrl(collection.value));
       break;
   }
