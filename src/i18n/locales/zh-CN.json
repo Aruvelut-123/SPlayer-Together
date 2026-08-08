@@ -1965,6 +1965,29 @@
     "unsubscribe": "取消收藏",
     "privacy": {
       "private": "设为私密"
+    },
+    "context": {
+      "more": "更多操作",
+      "album": {
+        "copyTitle": "复制专辑名称",
+        "copyId": "复制专辑 ID",
+        "copyUrl": "分享专辑链接"
+      },
+      "playlist": {
+        "copyTitle": "复制歌单名称",
+        "copyId": "复制歌单 ID",
+        "copyUrl": "分享歌单链接"
+      },
+      "radio": {
+        "copyTitle": "复制电台名称",
+        "copyId": "复制电台 ID",
+        "copyUrl": "分享电台链接"
+      },
+      "cloud": {
+        "copyTitle": "复制云盘名称",
+        "copyId": "复制云盘 ID",
+        "copyUrl": "分享云盘链接"
+      }
     }
   },
   "artist": {

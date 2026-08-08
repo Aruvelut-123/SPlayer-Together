@@ -10,7 +10,7 @@ import { useStatusStore } from "@/stores/status";
 import { useCopyText } from "@/composables/useCopyText";
 import { toast } from "@/composables/useToast";
 import { buildDownloadQualityItems } from "@/composables/useDownload";
-import { getShareUrl } from "@/utils/format/shareUrl";
+import { getTrackShareUrl } from "@/utils/format/shareUrl";
 import { openExternal } from "@/utils/url";
 import IconPlay from "~icons/lucide/play";
 import IconListEnd from "~icons/lucide/list-end";
@@ -266,7 +266,7 @@ export const useTrackMenu = (
         await copy(current.id);
         break;
       case "copyUrl":
-        await copy(getShareUrl(current));
+        await copy(getTrackShareUrl(current));
         break;
     }
   };
