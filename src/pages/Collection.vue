@@ -3,6 +3,8 @@ import type { PlaybackContext, TrackSource } from "@shared/types/player";
 import type { Collection, CollectionType } from "@/types/collection";
 import type { DropdownMenuItem } from "@/components/ui/SDropdownMenu.vue";
 import { loadCollection as loadCollectionService } from "@/services/collection";
+import { getCollectionShareUrl } from "@/utils/format/shareUrl";
+import { useCopyText } from "@/composables/useCopyText";
 import { useCollectionSubscribe } from "@/composables/collection/useCollectionSubscribe";
 import { usePlaylistManage } from "@/composables/collection/usePlaylistManage";
 import SongList from "@/components/list/SongList.vue";
@@ -17,10 +19,13 @@ import IconLucideCalendar from "~icons/lucide/calendar";
 import IconLucideUser from "~icons/lucide/user";
 import IconMaterialSymbolsFavoriteRounded from "~icons/material-symbols/favorite-rounded";
 import IconMaterialSymbolsFavoriteOutlineRounded from "~icons/material-symbols/favorite-outline-rounded";
+import IconMoreHorizontal from "~icons/lucide/more-horizontal";
+import IconCopy from "~icons/lucide/copy";
 
 const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
+const { copy } = useCopyText();
 
 const source = route.params.source as TrackSource;
 const type = route.params.type as CollectionType;
@@ -160,18 +165,43 @@ const manage = usePlaylistManage(collection, {
 const editLabel = computed(() => t("collection.edit", { type: typeLabel.value }));
 
 const moreMenuItems = computed<DropdownMenuItem[]>(() => {
+  const isOnline = source !== "local" && source !== "streaming";
+  const isLocal = source === "local";
   const list: DropdownMenuItem[] = [
     { key: "batchManage", label: t("songList.batch.manage"), icon: IconLucideListChecks },
-  ];
-  if (manage.canManage.value) {
-    list.push({ key: "edit", label: editLabel.value, icon: IconLucidePencil });
-    list.push({
+    { key: "edit", label: editLabel.value, icon: IconLucidePencil, show: manage.canManage.value },
+    {
       key: "delete",
       label: t("collection.delete", { type: typeLabel.value }),
       icon: IconLucideTrash2,
       separator: true,
-    });
-  }
+      show: manage.canManage.value,
+    },
+    {
+      key: "more",
+      label: t("collection.context.more"),
+      icon: markRaw(IconMoreHorizontal),
+      children: [
+        {
+          key: "copyTitle",
+          label: t(`collection.context.${type}.copyTitle`),
+          icon: markRaw(IconCopy),
+        },
+        {
+          key: "copyId",
+          label: t(`collection.context.${type}.copyId`),
+          icon: markRaw(IconCopy),
+          show: !isLocal,
+        },
+        {
+          key: "copyUrl",
+          label: t(`collection.context.${type}.copyUrl`),
+          icon: markRaw(IconCopy),
+          show: isOnline && type !== "cloud",
+        },
+      ],
+    },
+  ];
   return list;
 });
 
@@ -185,6 +215,15 @@ const handleMoreMenu = (key: string) => {
       break;
     case "delete":
       manage.openDelete();
+      break;
+    case "copyTitle":
+      copy(collection.value?.title);
+      break;
+    case "copyId":
+      copy(collection.value?.id);
+      break;
+    case "copyUrl":
+      copy(getCollectionShareUrl(collection.value));
       break;
   }
 };

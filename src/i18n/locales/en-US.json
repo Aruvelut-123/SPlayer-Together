@@ -1992,6 +1992,29 @@
     "unsubscribe": "Unsubscribe",
     "privacy": {
       "private": "Make private"
+    },
+    "context": {
+      "more": "More",
+      "album": {
+        "copyTitle": "Copy Album Title",
+        "copyId": "Copy Album ID",
+        "copyUrl": "Share Album Link"
+      },
+      "playlist": {
+        "copyTitle": "Copy Playlist Title",
+        "copyId": "Copy Playlist ID",
+        "copyUrl": "Share Playlist Link"
+      },
+      "radio": {
+        "copyTitle": "Copy Radio Title",
+        "copyId": "Copy Radio ID",
+        "copyUrl": "Share Radio Link"
+      },
+      "cloud": {
+        "copyTitle": "Copy Cloud Title",
+        "copyId": "Copy Cloud ID",
+        "copyUrl": "Share Cloud Link"
+      }
     }
   },
   "artist": {
