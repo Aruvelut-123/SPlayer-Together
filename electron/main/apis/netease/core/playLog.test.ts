@@ -1,9 +1,15 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { buildPld, buildPlv, createPlaybackLogContext, toNcblSourceType } from "./playLog";
+import {
+  buildPld,
+  buildPlv,
+  createPlaybackLogContext,
+  toNcblSourceType,
+  type PlaybackLogResource,
+} from "./playLog";
 
 const context = createPlaybackLogContext({});
-const song = {
+const song: PlaybackLogResource = {
   id: 123,
   type: "song" as const,
   name: "测试歌曲",
@@ -51,6 +57,16 @@ describe("网易云 NCBL 播放日志", () => {
     );
     assert.equal("_addrefer" in plv, false);
     assert.equal("_multirefers" in pld, false);
+  });
+
+  it("PLV 与 PLD 保留网易云原始 fee", () => {
+    for (const fee of [0, 1, 4, 8] as const) {
+      const resource = { ...song, fee };
+      const source = { id: "456", type: "list", name: "list" };
+
+      assert.equal(buildPlv(context, resource, source).fee, fee);
+      assert.equal(buildPld(context, resource, source, 60).fee, fee);
+    }
   });
 
   it("声音以节目 ID 和 dj 类型写入日志", () => {

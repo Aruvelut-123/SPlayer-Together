@@ -70,12 +70,13 @@ export interface AudioQuality {
 }
 
 /**
- * 付费等级
+ * 付费标记，遵循网易云 fee 规范
  * - 0: 免费
  * - 1: VIP
- * - 2: 需购买（数字专辑等）
+ * - 4: 需购买（数字专辑等）
+ * - 8: 受限音质
  */
-export type TrackFee = 0 | 1 | 2;
+export type TrackFee = 0 | 1 | 4 | 8;
 
 /** 歌曲信息 */
 export interface Track {
@@ -125,7 +126,7 @@ export interface Track {
   ctime?: number;
   /** 音质信息 */
   quality?: AudioQuality;
-  /** 付费等级 */
+  /** 付费标记 */
   fee?: TrackFee;
   /** 云盘歌曲 */
   cloud?: boolean;

@@ -1,4 +1,4 @@
-import type { NeteasePlaybackSourceType, Track } from "../types/player";
+import type { NeteasePlaybackSourceType, Track, TrackFee } from "../types/player";
 
 export interface NeteaseScrobbleTrack {
   id: string;
@@ -10,7 +10,7 @@ export interface NeteaseScrobbleTrack {
   artist: string;
   bitrate: number;
   level: string;
-  fee: number;
+  fee: TrackFee;
   durationSec: number;
 }
 

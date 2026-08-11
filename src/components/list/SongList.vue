@@ -619,7 +619,7 @@ defineExpose({
                       VIP
                     </span>
                     <span
-                      v-else-if="item.fee === 2 && !settings.preset.hideVipTag"
+                      v-else-if="item.fee === 4 && !settings.preset.hideVipTag"
                       class="shrink-0 px-1 rounded text-[10px] leading-[18px] font-bold border border-solid text-red-400 border-red-400/40"
                     >
                       EP

@@ -586,7 +586,7 @@ export const playFrom = async (
         track.source === "netease"
           ? {
               ...track,
-              playbackSource: { ...track.playbackSource, ...playbackSource },
+              playbackSource: { ...playbackSource },
             }
           : track,
       )
@@ -943,7 +943,7 @@ export const playNow = async (
     playbackSource && item.source === "netease"
       ? {
           ...item,
-          playbackSource: { ...item.playbackSource, ...playbackSource },
+          playbackSource: { ...playbackSource },
         }
       : item;
   // 同一首歌且已成功加载

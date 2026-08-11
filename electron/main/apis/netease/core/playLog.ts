@@ -1,3 +1,5 @@
+import type { TrackFee } from "@shared/types/player";
+
 interface PlaybackLogContext {
   app: {
     channel: string;
@@ -17,7 +19,7 @@ export interface PlaybackLogResource {
   artist: string;
   bitrate: number;
   level: string;
-  fee: number;
+  fee: TrackFee;
   time: number;
 }
 
