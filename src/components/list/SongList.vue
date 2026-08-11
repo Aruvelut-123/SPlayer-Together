@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Artist, NeteasePlaybackSource, Track, TrackSource } from "@shared/types/player";
+import type { Artist, PlaybackContext, Track, TrackSource } from "@shared/types/player";
 import type { CollectionType } from "@/types/collection";
 import type { SortField } from "@/types/list";
 import { useMediaStore } from "@/stores/media";
@@ -53,8 +53,8 @@ const props = withDefaults(
     collectionType?: CollectionType;
     /** 集合 ID */
     collectionId?: string;
-    /** 网易云播放来源上下文 */
-    playbackSource?: NeteasePlaybackSource;
+    /** 播放来源上下文 */
+    playbackContext?: PlaybackContext;
     /** 是否有权从集合移除曲目 */
     canRemove?: boolean;
     /** 是否还能继续触底加载 */
@@ -72,7 +72,7 @@ const props = withDefaults(
     source: "local",
     collectionType: undefined,
     collectionId: undefined,
-    playbackSource: undefined,
+    playbackContext: undefined,
     canRemove: true,
     hasMore: false,
     loadingMore: false,
@@ -226,6 +226,7 @@ const batch = useMultiSelect(sortedItems, {
   collectionType: computed(() => props.collectionType),
   collectionId: computed(() => props.collectionId),
   canRemove: computed(() => props.canRemove),
+  playbackContext: computed(() => props.playbackContext),
   onChanged: (removedIds) => emit("change", removedIds),
 });
 const { deleteConfirmOpen, deleteDialogTitle, deleteDialogContent } = batch;
@@ -250,6 +251,7 @@ const contextTrack = shallowRef<Track | undefined>();
 const { items: contextMenuItems, handleSelect: onContextMenu } = useTrackMenu(contextTrack, {
   collectionType: props.collectionType,
   canRemove: props.canRemove,
+  playbackContext: computed(() => props.playbackContext),
   onAddToPlaylist: (track) => openPicker([track]),
   onRemove: (track) => batch.requestDelete([track], "remove"),
   onDeleteFile: (track) => batch.requestDelete([track], "file"),
@@ -515,7 +517,7 @@ defineExpose({
               @dblclick="
                 batch.active.value
                   ? undefined
-                  : player.playFrom(sortedItems, index, props.playbackSource)
+                  : player.playFrom(sortedItems, index, props.playbackContext)
               "
               @contextmenu="contextTrack = item"
             >
@@ -535,7 +537,7 @@ defineExpose({
                     ? batch.toggle(item.id)
                     : playingId === item.id
                       ? player.togglePlay()
-                      : player.playNow(item, props.playbackSource)
+                      : player.playNow(item, props.playbackContext)
                 "
               >
                 <!-- 多选模式 -->

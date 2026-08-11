@@ -25,12 +25,11 @@ describe("网易云听歌打卡元数据", () => {
   });
 
   it("没有播放上下文时以歌曲自身作为来源", () => {
-    assert.deepEqual(toNeteaseScrobbleTrack(track, 180000), {
+    assert.deepEqual(toNeteaseScrobbleTrack(track, undefined, 180000), {
       id: "123",
       sourceId: "123",
       sourceType: "song",
       resourceType: "song",
-      categoryId: undefined,
       title: "测试歌曲",
       artist: "歌手",
       bitrate: 320,
@@ -41,15 +40,16 @@ describe("网易云听歌打卡元数据", () => {
   });
 
   const sourceCases = [
-    ["list", "456"],
-    ["album", "999"],
-    ["artist", "789"],
+    ["playlist", "list", "456"],
+    ["album", "album", "999"],
+    ["artist", "artist", "789"],
   ] as const;
 
-  for (const [sourceType, sourceId] of sourceCases) {
-    it(`保留 ${sourceType} 播放来源`, () => {
+  for (const [originType, sourceType, sourceId] of sourceCases) {
+    it(`将通用 ${originType} 来源映射为 ${sourceType}`, () => {
       const value = toNeteaseScrobbleTrack(
-        { ...track, playbackSource: { id: sourceId, type: sourceType } },
+        track,
+        { provider: "netease", originId: sourceId, originType },
         180000,
       );
       assert.ok(value);
@@ -71,8 +71,8 @@ describe("网易云听歌打卡元数据", () => {
         id: "2725832901",
         extId: "3081133072",
         album: { id: "9988", name: "测试播客" },
-        playbackSource: { id: "9988", type: "radio", categoryId: 7 },
       },
+      { provider: "netease", originId: "9988", originType: "radio" },
       180000,
     );
     assert.ok(value);
@@ -82,14 +82,12 @@ describe("网易云听歌打卡元数据", () => {
         sourceId: value.sourceId,
         sourceType: value.sourceType,
         resourceType: value.resourceType,
-        categoryId: value.categoryId,
       },
       {
         id: "3081133072",
         sourceId: "9988",
         sourceType: "radio",
         resourceType: "dj",
-        categoryId: 7,
       },
     );
   });
@@ -101,8 +99,8 @@ describe("网易云听歌打卡元数据", () => {
         id: "2725832901",
         extId: "3081133072",
         album: { id: "9988", name: "测试播客" },
-        playbackSource: undefined,
       },
+      undefined,
       180000,
     );
     assert.ok(value);
@@ -120,5 +118,27 @@ describe("网易云听歌打卡元数据", () => {
         resourceType: "dj",
       },
     );
+  });
+
+  it("忽略其他平台的播放上下文", () => {
+    const value = toNeteaseScrobbleTrack(
+      track,
+      { provider: "qqmusic", originId: "456", originType: "playlist" },
+      180000,
+    );
+
+    assert.equal(value?.sourceId, "123");
+    assert.equal(value?.sourceType, "song");
+  });
+
+  it("应用页面来源不改变网易云打卡来源", () => {
+    const value = toNeteaseScrobbleTrack(
+      track,
+      { originId: "cloud", originType: "page", originName: "我的云盘" },
+      180000,
+    );
+
+    assert.equal(value?.sourceId, "123");
+    assert.equal(value?.sourceType, "song");
   });
 });

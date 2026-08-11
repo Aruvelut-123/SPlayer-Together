@@ -15,7 +15,7 @@ minimumReleaseAgeExclude:
   - electron-builder@26.15.3
   - electron-publish@26.15.3
   - esbuild@0.28.2
-  - '@esbuild/*'
+  - "@esbuild/*"
   - baseline-browser-mapping@2.11.13
   - browserslist@4.28.8
   - electron-to-chromium@1.5.403

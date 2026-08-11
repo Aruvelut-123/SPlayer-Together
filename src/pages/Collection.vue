@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { NeteasePlaybackSource, TrackSource } from "@shared/types/player";
+import type { PlaybackContext, TrackSource } from "@shared/types/player";
 import type { Collection, CollectionType } from "@/types/collection";
 import type { DropdownMenuItem } from "@/components/ui/SDropdownMenu.vue";
 import { loadCollection as loadCollectionService } from "@/services/collection";
@@ -123,18 +123,20 @@ const updateTimeText = computed(() => {
   return new Date(collection.value.updateTime).toLocaleDateString();
 });
 
-const playbackSource = computed<NeteasePlaybackSource | undefined>(() => {
+const playbackContext = computed<PlaybackContext | undefined>(() => {
   const current = collection.value;
-  if (!current || current.source !== "netease") return undefined;
-  const sourceType =
-    current.type === "playlist" ? "list" : current.type === "radio" ? "radio" : current.type;
-  if (sourceType !== "list" && sourceType !== "album" && sourceType !== "radio") return undefined;
-  return { id: current.id, type: sourceType };
+  if (!current || current.type === "cloud") return undefined;
+  return {
+    provider: current.source,
+    originId: current.id,
+    originType: current.type,
+    originName: current.title,
+  };
 });
 
 const handlePlayAll = () => {
   if (!collection.value?.tracks.length) return;
-  player.playFrom(collection.value.tracks, 0, playbackSource.value);
+  player.playFrom(collection.value.tracks, 0, playbackContext.value);
 };
 
 const searchQuery = ref("");
@@ -375,7 +377,7 @@ onBeforeUnmount(() => {
           :source="source"
           :collection-type="type"
           :collection-id="id"
-          :playback-source="playbackSource"
+          :playback-context="playbackContext"
           :can-remove="manage.canManage.value"
           enable-sort
           @scroll="handleListScroll"
