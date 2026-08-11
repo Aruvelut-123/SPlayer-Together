@@ -1948,9 +1948,15 @@
     "unknownAlbum": "未知专辑",
     "empty": "暂无歌曲",
     "noDescription": "还没有描述哦~",
+    "introduction": "{type}简介",
+    "viewIntroduction": "查看完整简介",
     "album": "专辑",
     "playlist": "歌单",
     "radio": "电台",
+    "scope": {
+      "local": "本地",
+      "online": "在线"
+    },
     "my": "我的{type}",
     "subscribed": "收藏的{type}",
     "localPlaylist": "本地歌单",

@@ -1960,9 +1960,15 @@
     "unknownAlbum": "Unknown Album",
     "empty": "No songs",
     "noDescription": "No description yet~",
+    "introduction": "{type} Description",
+    "viewIntroduction": "View full description",
     "album": "Album",
     "playlist": "Playlist",
     "radio": "Radio",
+    "scope": {
+      "local": "Local",
+      "online": "Online"
+    },
     "my": "My {type}s",
     "subscribed": "Subscribed {type}s",
     "localPlaylist": "Local Playlists",

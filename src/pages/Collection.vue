@@ -34,6 +34,8 @@ let loadAbort: AbortController | null = null;
 
 /** 折叠状态 */
 const collapsed = ref(false);
+/** 简介弹窗 */
+const descriptionOpen = ref(false);
 
 /** 滚动超过阈值折叠 */
 const handleListScroll = (event: Event) => {
@@ -92,6 +94,11 @@ const typeLabel = computed(() => {
   return map[type] ?? "";
 });
 
+/** 合集所属范围 */
+const scopeLabel = computed(() =>
+  t(source === "local" ? "collection.scope.local" : "collection.scope.online"),
+);
+
 /** 总时长 */
 const totalDuration = computed(() => {
   if (!collection.value) return "";
@@ -105,10 +112,9 @@ const artistText = computed(() => {
   return collection.value.artists.map((a) => a.name).join(" / ");
 });
 
-/** 创建者（歌单作者） */
+/** 歌手或创建者 */
 const creatorText = computed(() => {
-  if (collection.value?.artists?.length) return "";
-  return collection.value?.creator ?? "";
+  return artistText.value || collection.value?.creator || "";
 });
 
 /** 更新时间文本 */
@@ -211,24 +217,60 @@ onBeforeUnmount(() => {
             class="flex flex-col transition-[gap] duration-300"
             :class="collapsed ? 'gap-0.5' : 'gap-2'"
           >
-            <h1
-              class="font-bold text-on-surface truncate lh-normal transition-[font-size,line-height] duration-300"
-              :class="collapsed ? 'text-xl' : 'text-3xl'"
-            >
-              {{ collection.title }}
-            </h1>
+            <div class="flex min-w-0 items-center gap-3">
+              <h1
+                class="min-w-0 flex-1 font-bold text-on-surface truncate lh-normal transition-[font-size,line-height] duration-300"
+                :class="collapsed ? 'text-xl' : 'text-3xl'"
+              >
+                {{ collection.title }}
+              </h1>
+              <div
+                class="flex shrink-0 items-center gap-1 text-primary"
+                :aria-label="`${scopeLabel} · ${typeLabel}`"
+              >
+                <STooltip :content="scopeLabel">
+                  <span class="inline-flex size-6 cursor-default items-center justify-center">
+                    <IconLucideHardDrive v-if="source === 'local'" class="size-4" />
+                    <IconLucideGlobe2 v-else class="size-4" />
+                  </span>
+                </STooltip>
+                <SDivider vertical />
+                <STooltip :content="typeLabel">
+                  <span
+                    class="inline-flex size-6 cursor-default items-center justify-center text-primary/65"
+                  >
+                    <IconLucideDisc3 v-if="type === 'album'" class="size-4" />
+                    <IconLucideListMusic v-else-if="type === 'playlist'" class="size-4" />
+                    <IconLucideRadio v-else-if="type === 'radio'" class="size-4" />
+                    <IconLucideCloud v-else class="size-4" />
+                  </span>
+                </STooltip>
+              </div>
+            </div>
             <div
               class="grid transition-[grid-template-rows,opacity] duration-300"
               :class="collapsed ? 'grid-rows-[0fr] opacity-0' : 'grid-rows-[1fr] opacity-100'"
             >
               <div class="overflow-hidden flex flex-col gap-2">
-                <!-- 歌手 -->
-                <div v-if="artistText" class="text-sm text-on-surface-variant/70 truncate">
-                  {{ artistText }}
-                </div>
-                <!-- 描述 -->
-                <p v-if="type !== 'album'" class="text-sm text-on-surface-variant/70 truncate">
-                  {{ collection.description || t("collection.noDescription") }}
+                <!-- 简介 -->
+                <SButton
+                  v-if="collection.description"
+                  variant="text"
+                  size="auto"
+                  block
+                  static
+                  class="group max-w-full overflow-hidden text-left text-sm"
+                  :aria-label="t('collection.viewIntroduction')"
+                  @click="descriptionOpen = true"
+                >
+                  <span
+                    class="min-w-0 truncate text-on-surface-variant/70 transition-colors duration-200 group-hover:text-on-surface-variant group-focus-visible:text-on-surface-variant"
+                  >
+                    {{ collection.description }}
+                  </span>
+                </SButton>
+                <p v-else class="text-sm text-on-surface-variant/70 truncate">
+                  {{ t("collection.noDescription") }}
                 </p>
                 <div
                   class="flex items-center gap-3 text-sm leading-none text-on-surface-variant/50"
@@ -355,6 +397,16 @@ onBeforeUnmount(() => {
         </div>
       </div>
     </Transition>
+    <!-- 简介全文 -->
+    <SDialog
+      v-model:open="descriptionOpen"
+      :title="t('collection.introduction', { type: typeLabel })"
+      width="min(520px, calc(100vw - 40px))"
+    >
+      <p class="whitespace-pre-wrap break-words leading-6 text-on-surface-variant">
+        {{ collection?.description }}
+      </p>
+    </SDialog>
     <!-- 编辑弹窗 -->
     <SDialog v-model:open="manage.editOpen.value" :title="editLabel" width="400px">
       <div class="flex flex-col gap-4">
