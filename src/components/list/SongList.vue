@@ -10,7 +10,7 @@ import { useMultiSelect } from "@/composables/useMultiSelect";
 import { useDownload } from "@/composables/useDownload";
 import { useFavorite } from "@/composables/useFavorite";
 import { usePlaylistPicker } from "@/composables/usePlaylistPicker";
-import { PLAYER_BAR_GAP } from "@/composables/useFloatingPlayerBar";
+import { useFloatingPlayerBar } from "@/composables/useFloatingPlayerBar";
 import { formatTime } from "@/utils/time";
 import { formatFileSize } from "@/utils/format";
 import { isLosslessQuality, getQualityLabel } from "@/utils/quality";
@@ -85,10 +85,7 @@ const status = useStatusStore();
 const settings = useSettingsStore();
 const fav = useFavorite();
 
-/** 悬浮布局且播放栏可见时 */
-const isFloatingPlayerBar = computed(
-  () => settings.appearance.layoutMode === "floating" && !!media.track,
-);
+const { isFloatingBar: isFloatingPlayerBar, PLAYER_BAR_GAP } = useFloatingPlayerBar();
 
 /** 排序器 默认使用 base 敏感度，忽略大小写 */
 const textCollator = new Intl.Collator(undefined, {

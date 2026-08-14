@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { CoverItem } from "@/types/artist";
 import type { SVirtualListExposed } from "@/components/ui/SVirtualList.vue";
-import { useFloatingPlayerBar, PLAYER_BAR_GAP } from "@/composables/useFloatingPlayerBar";
+import { useFloatingPlayerBar } from "@/composables/useFloatingPlayerBar";
 
 export interface CoverListProps {
   /** 列表数据 */
@@ -45,7 +45,7 @@ const props = withDefaults(defineProps<CoverListProps>(), {
 
 const { t } = useI18n();
 
-const { isFloatingBar } = useFloatingPlayerBar();
+const { isFloatingBar, PLAYER_BAR_GAP } = useFloatingPlayerBar();
 
 /** 虚拟模式底部 padding：悬浮播放栏下留白避免遮挡 */
 const virtualPaddingBottom = computed(() =>
