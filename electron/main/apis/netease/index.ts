@@ -1,8 +1,8 @@
 /**
  * Netease API 主进程服务
  *
- * 直接在 Node 侧实现加解密 + HTTP 调用，不依赖任何网易云服务端 npm 包。
- * 加密算法等核心逻辑见 core/crypto.ts。
+ * 直接在 Node 侧实现加解密 + HTTP 调用，不依赖任何网易云服务端 npm 包
+ * 加密算法等核心逻辑见 core/crypto.ts
  *
  * 统一入口 `callNetease(name, params)`：
  *   1) 从 sessions 表加载 cookies 注入（内存缓存，不重复读 SQLite）
@@ -38,6 +38,7 @@ const SESSION_MUTATING: ReadonlySet<string> = new Set([
 
 /** 不采用缓存的实时接口 */
 const NON_CACHEABLE: ReadonlySet<string> = new Set([
+  "audio_match",
   "captcha_sent",
   "captcha_verify",
   "login",
@@ -78,6 +79,9 @@ const NON_CACHEABLE: ReadonlySet<string> = new Set([
   "fm_trash",
   "recommend_songs",
 ]);
+
+/** 无需初始化网易云匿名登录态的公开接口 */
+const SESSIONLESS: ReadonlySet<string> = new Set(["audio_match"]);
 
 /** 国内 IP 前缀池 */
 const CN_IP_PREFIXES = [
@@ -212,7 +216,7 @@ export const callNetease = async (
     name.startsWith("captcha") ||
     name === "logout" ||
     name === "register_anonimous";
-  if (!isSessionEndpoint && params.cookie === undefined) {
+  if (!isSessionEndpoint && !SESSIONLESS.has(name) && params.cookie === undefined) {
     await ensureNeteaseAnonymousSession();
   }
   const session = loadSession();

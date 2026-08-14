@@ -11,6 +11,10 @@ const modules: NativeModule[] = [
     name: "audio-engine",
   },
   {
+    name: "audio-capture",
+    enabled: process.platform === "win32",
+  },
+  {
     name: "media-ctrl",
   },
   {

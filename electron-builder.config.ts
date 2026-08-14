@@ -54,6 +54,16 @@ const config: Configuration = {
       filter: ["*.node"],
     },
     {
+      from: "native/audio-capture",
+      to: "native",
+      filter: ["*.node"],
+    },
+    {
+      from: "resources/afp",
+      to: "afp",
+      filter: ["afp.mjs", "afp.wasm.mjs"],
+    },
+    {
       from: "native/media-ctrl",
       to: "native",
       filter: ["*.node"],

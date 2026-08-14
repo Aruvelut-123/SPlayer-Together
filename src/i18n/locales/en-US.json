@@ -94,6 +94,7 @@
     "reject": "Decline & Exit"
   },
   "common": {
+    "back": "Back",
     "confirm": "Confirm",
     "cancel": "Cancel",
     "close": "Close",
@@ -222,6 +223,42 @@
       "album": "Go to album [{id}]",
       "artist": "Go to artist [{id}]",
       "playlist": "Go to playlist [{id}]"
+    }
+  },
+  "recognition": {
+    "title": "Music Recognition",
+    "entry": "Recognize",
+    "description": "Identify the music currently playing",
+    "start": "Start Recognition",
+    "sourceLabel": "Audio source",
+    "hint": {
+      "system": "Play music in another app and a short system-audio sample will be identified",
+      "microphone": "Move closer to the source and keep the room quiet for better results"
+    },
+    "source": {
+      "system": "System Audio",
+      "microphone": "Microphone"
+    },
+    "phase": {
+      "capturing": "Listening…",
+      "fingerprinting": "Generating fingerprint…",
+      "matching": "Matching library…"
+    },
+    "empty": "No song identified, move closer to the sound source and retry",
+    "retry": "Try Again",
+    "cancel": "Cancel",
+    "play": "Play",
+    "unavailable": "Music recognition is not supported on this device",
+    "searching": "Search this song",
+    "error": {
+      "unsupported": "System audio capture is not supported on this platform",
+      "no-device": "No audio input device found",
+      "permission-denied": "Microphone permission denied, please grant access in system settings",
+      "capture-failed": "Audio capture failed",
+      "silent-input": "No sound detected, please check audio output",
+      "network": "Matching service unavailable, please try again later",
+      "afp-unavailable": "Audio fingerprint library unavailable",
+      "unknown": "Recognition failed, please try again"
     }
   },
   "home": {
