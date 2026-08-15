@@ -232,7 +232,7 @@
     "start": "Start Recognition",
     "sourceLabel": "Audio source",
     "hint": {
-      "system": "Play music in another app and a short system-audio sample will be identified",
+      "system": "We will capture a short audio sample from your system to identify the music",
       "microphone": "Move closer to the source and keep the room quiet for better results"
     },
     "source": {

@@ -72,6 +72,29 @@ const rms = (pcm: Float32Array): number => {
   return Math.sqrt(energy / Math.max(1, pcm.length));
 };
 
+/** 指纹输入的期望 RMS：低音量回采经增益补偿后接近该值 */
+const TARGET_RMS = 0.1;
+/** 增益上限，避免把近静音放大成噪声指纹 */
+const MAX_GAIN = 50;
+
+/**
+ * 音量归一化：系统音量过低时回采信号很弱，AFP 峰值拾取几乎找不到特征，
+ * 导致识别率低。仅在信号偏弱时放大到目标 RMS，过强时保持原样
+ * @param pcm - 8 kHz 单声道样本
+ * @returns 归一化后的样本
+ */
+const normalizeLevel = (pcm: Float32Array): Float32Array => {
+  const current = rms(pcm);
+  if (current <= 0) return pcm;
+  const gain = Math.min(MAX_GAIN, TARGET_RMS / current);
+  if (gain <= 1) return pcm;
+  const out = new Float32Array(pcm.length);
+  for (let i = 0; i < pcm.length; i++) {
+    out[i] = pcm[i] * gain;
+  }
+  return out;
+};
+
 /** 结束会话并恢复播放 */
 const finishSession = (): void => {
   activeSession = null;
@@ -110,13 +133,9 @@ export const startRecognition = (config: RecognitionConfig): void => {
     return;
   }
 
-  // 采集系统声音前暂停自身播放，结束后恢复
-  if (config.source === "system") {
-    wasPlaying = getPlayer().getStatus().state === "playing";
-    if (wasPlaying) {
-      getPlayer().pause();
-    }
-  }
+  // 采集前暂停自身播放，结束后恢复
+  wasPlaying = getPlayer().getStatus().state === "playing";
+  if (wasPlaying) getPlayer().pause();
 
   activeSession = inst;
   sessionToken++;
@@ -160,17 +179,18 @@ const handleCaptureEvent = async (event: JsCaptureEvent): Promise<void> => {
  */
 const recognizePcm = async (pcm: Float32Array): Promise<void> => {
   const token = sessionToken;
-  if (rms(pcm) < SILENCE_RMS_THRESHOLD) {
+  const normalized = normalizeLevel(pcm);
+  if (rms(normalized) < SILENCE_RMS_THRESHOLD) {
     emitError("silent-input", "没有采集到声音，请检查音频输出");
     return;
   }
   emit({ phase: "fingerprinting" });
   const windows: Array<{ start: number; pcm: Float32Array }> = [];
-  for (let start = 0; start + WINDOW_SAMPLES <= pcm.length; start += STEP_SAMPLES) {
-    windows.push({ start, pcm: pcm.subarray(start, start + WINDOW_SAMPLES) });
+  for (let start = 0; start + WINDOW_SAMPLES <= normalized.length; start += STEP_SAMPLES) {
+    windows.push({ start, pcm: normalized.subarray(start, start + WINDOW_SAMPLES) });
   }
   if (windows.length === 0) {
-    windows.push({ start: 0, pcm });
+    windows.push({ start: 0, pcm: normalized });
   }
   let candidates: RecognitionCandidate[] = [];
   for (const window of windows) {

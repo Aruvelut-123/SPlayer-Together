@@ -38,9 +38,6 @@ watch(phase, (value) => {
     session.reset();
     return;
   }
-  if (value === "done") {
-    void player.pause().catch(() => {});
-  }
 });
 
 watch(
@@ -53,9 +50,11 @@ watch(
 
 const bars = computed(() => {
   const count = 14;
+  // 保证弱信号也有明显波动
+  const boosted = Math.min(1, Math.pow(level.value, 0.35) * 1.6);
   return Array.from({ length: count }, (_, index) => {
     const distance = Math.abs(index - (count - 1) / 2) / (count / 2);
-    return Math.max(0.14, Math.min(1, level.value * 5 * (1 - distance * 0.55)));
+    return Math.max(0.14, Math.min(1, boosted * (1 - distance * 0.55)));
   });
 });
 
@@ -110,48 +109,53 @@ const start = (): void => {
     <div class="flex h-full min-h-0 flex-col">
       <div
         v-if="phase === 'idle' || isBusy"
-        class="flex flex-1 flex-col items-center justify-center text-center"
+        class="flex min-h-0 flex-1 flex-col text-center"
         aria-live="polite"
       >
-        <div class="relative mb-3 size-20 shrink-0" aria-hidden="true">
-          <div
-            class="absolute inset-0 flex items-center justify-center rounded-full bg-primary/10 text-primary transition-[opacity,scale,filter] duration-240 ease-[cubic-bezier(0.2,0,0,1)]"
-            :class="
-              isBusy
-                ? 'pointer-events-none scale-25 opacity-0 blur-1'
-                : 'scale-100 opacity-100 blur-0'
-            "
-          >
-            <IconLucideAudioWaveform class="size-9" />
+        <div class="flex flex-1 flex-col items-center justify-center">
+          <div class="relative mb-3 size-20 shrink-0" aria-hidden="true">
+            <div
+              class="absolute inset-0 flex items-center justify-center rounded-full bg-primary/10 text-primary transition-[opacity,scale,filter] duration-240 ease-[cubic-bezier(0.2,0,0,1)]"
+              :class="
+                isBusy
+                  ? 'pointer-events-none scale-25 opacity-0 blur-1'
+                  : 'scale-100 opacity-100 blur-0'
+              "
+            >
+              <IconLucideAudioWaveform class="size-9" />
+            </div>
+            <div
+              class="absolute inset-0 flex items-center justify-center gap-1 transition-[opacity,scale,filter] duration-240 ease-[cubic-bezier(0.2,0,0,1)]"
+              :class="
+                isBusy
+                  ? 'scale-100 opacity-100 blur-0'
+                  : 'pointer-events-none scale-25 opacity-0 blur-1'
+              "
+            >
+              <span
+                v-for="(height, index) in bars"
+                :key="index"
+                class="h-10 w-1 origin-center rounded-full bg-primary transition-transform duration-150"
+                :style="{ transform: `scaleY(${height})` }"
+              />
+            </div>
           </div>
-          <div
-            class="absolute inset-0 flex items-center justify-center gap-1 transition-[opacity,scale,filter] duration-240 ease-[cubic-bezier(0.2,0,0,1)]"
-            :class="
-              isBusy
-                ? 'scale-100 opacity-100 blur-0'
-                : 'pointer-events-none scale-25 opacity-0 blur-1'
-            "
-          >
-            <span
-              v-for="(height, index) in bars"
-              :key="index"
-              class="h-10 w-1 origin-center rounded-full bg-primary transition-transform duration-150"
-              :style="{ transform: `scaleY(${height})` }"
-            />
+
+          <div class="flex h-12 shrink-0 flex-col items-center">
+            <p class="text-sm font-medium text-on-surface">
+              {{ isBusy ? t(`recognition.phase.${phase}`) : t("recognition.description") }}
+            </p>
+            <p class="mt-1 max-w-80 text-xs leading-5 text-on-surface-variant/60 text-pretty">
+              {{ isBusy ? t(`recognition.source.${source}`) : t(`recognition.hint.${source}`) }}
+            </p>
           </div>
         </div>
 
-        <div class="flex h-12 shrink-0 flex-col items-center">
-          <p class="text-sm font-medium text-on-surface">
-            {{ isBusy ? t(`recognition.phase.${phase}`) : t("recognition.description") }}
-          </p>
-          <p class="mt-1 max-w-80 text-xs leading-5 text-on-surface-variant/60 text-pretty">
-            {{ isBusy ? t(`recognition.source.${source}`) : t(`recognition.hint.${source}`) }}
-          </p>
-        </div>
-
-        <div class="mt-3 flex h-8 shrink-0 items-center justify-center">
-          <div v-if="phase === 'idle' && supported" class="flex items-center gap-5">
+        <div
+          v-if="phase === 'idle' && supported"
+          class="mt-auto flex h-8 shrink-0 items-center justify-center"
+        >
+          <div class="flex items-center gap-5">
             <span class="text-xs text-on-surface-variant/60">
               {{ t("recognition.sourceLabel") }}
             </span>
@@ -167,7 +171,7 @@ const start = (): void => {
         <div
           v-for="candidate in candidates"
           :key="candidate.songId"
-          class="flex min-h-16 items-center gap-3 rounded-lg bg-on-surface/4 p-2"
+          class="flex min-h-16 items-center gap-3 rounded-lg bg-on-surface/4 p-2 pr-3"
         >
           <SImg
             :src="withPicSize(candidate.cover, 300)"
@@ -181,23 +185,13 @@ const start = (): void => {
               {{ candidate.artists.join(" / ") }}
             </p>
           </div>
-          <SButton
-            variant="ghost"
-            circle
-            :size="40"
-            :icon-size="17"
-            :title="t('recognition.searching')"
-            @click="searchCandidate(candidate)"
-          >
+          <SButton variant="ghost" circle @click="searchCandidate(candidate)">
             <template #icon><IconLucideSearch /></template>
           </SButton>
           <SButton
             type="primary"
             variant="tertiary"
             circle
-            :size="40"
-            :icon-size="17"
-            :title="t('recognition.play')"
             :loading="playingId === candidate.songId"
             @click="playCandidate(candidate)"
           >

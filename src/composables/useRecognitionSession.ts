@@ -16,6 +16,8 @@ import {
   waitCapture,
   type MicrophoneCaptureHandle,
 } from "@/services/recognition/microphoneCapture";
+import * as player from "@/core/player";
+import { useStatusStore } from "@/stores/status";
 
 /** 默认采集时长 */
 const DEFAULT_DURATION_MS = 8000;
@@ -54,6 +56,16 @@ export const useRecognitionSession = () => {
   let abort = new AbortController();
   let captureHandle: MicrophoneCaptureHandle | null = null;
   let resetAfterAbort = true;
+  /** 渲染进程麦克风会话暂停后是否仍需恢复播放 */
+  let shouldResume = false;
+
+  /** 若仍挂着恢复标记则恢复播放并清除 */
+  const resumePlayback = (): void => {
+    if (shouldResume) {
+      shouldResume = false;
+      void player.play();
+    }
+  };
 
   /** 清空结果状态并回到 idle */
   const reset = (): void => {
@@ -70,12 +82,21 @@ export const useRecognitionSession = () => {
     if (event.candidates) candidates.value = event.candidates;
     if (event.error) error.value = event.error;
     if (event.phase !== "capturing") level.value = 0;
+    // 识别结束恢复播放
+    if (event.phase === "error" || event.phase === "done") {
+      resumePlayback();
+    }
   };
 
   /** 渲染进程麦克风路径（macOS/Linux） */
   const captureInRenderer = async (): Promise<void> => {
     abort = new AbortController();
     const signal = abort.signal;
+    shouldResume = false;
+    if (useStatusStore().isPlaying) {
+      void player.pause();
+      shouldResume = true;
+    }
     try {
       const handle = await captureMicrophone((lvl) => {
         level.value = lvl;
@@ -85,16 +106,21 @@ export const useRecognitionSession = () => {
       const pcm = await handle.stop();
       handle.close();
       captureHandle = null;
-      if (signal.aborted) return;
+      if (signal.aborted) {
+        resumePlayback();
+        return;
+      }
       await window.api.recognition.submitPcm(pcm);
     } catch (err) {
       captureHandle = null;
       if (signal.aborted) {
         if (resetAfterAbort) reset();
+        resumePlayback();
         return;
       }
       error.value = { code: mapMicError(err), message: String(err) };
       phase.value = "error";
+      resumePlayback();
     }
   };
 
@@ -131,6 +157,7 @@ export const useRecognitionSession = () => {
       captureHandle.close();
       captureHandle = null;
     }
+    resumePlayback();
     if (resetState) reset();
   };
 
