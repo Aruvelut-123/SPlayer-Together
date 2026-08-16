@@ -1,4 +1,4 @@
-//! 非 Windows 平台的采集后端：当前暂不支持
+//! 非 Windows / Linux 平台的采集后端：当前暂不支持
 //! （macOS 系统采集待实现，麦克风走渲染进程 getUserMedia）
 
 use std::sync::{
@@ -12,12 +12,16 @@ pub fn platform_supported() -> bool {
     false
 }
 
-/// 非 Windows 平台无 COM，返回空守卫
+/// 非 Windows / Linux 平台无 COM，返回空守卫
 pub fn init_com() -> Result<NoopComGuard, BackendError> {
     Ok(NoopComGuard)
 }
 
 pub struct NoopComGuard;
+
+impl Drop for NoopComGuard {
+    fn drop(&mut self) {}
+}
 
 pub fn open_backend(
     _config: &CaptureConfig,

@@ -22,6 +22,9 @@ windows = { version = "0.62", features = [
   "Win32_System_Variant",
 ] }
 
+[target.'cfg(target_os = "linux")'.dependencies]
+libpulse-binding = "2"
+
 [build-dependencies]
 napi-build = "2.4.1"
 

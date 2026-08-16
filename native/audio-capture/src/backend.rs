@@ -127,8 +127,7 @@ impl CaptureSink {
     pub fn set_sample_rate(&mut self, sample_rate: u32) {
         self.sample_rate = sample_rate;
         self.target_samples = (sample_rate as u64 * self.duration_ms as u64 / 1000) as usize;
-        self.level_interval =
-            (sample_rate as u64 * LEVEL_INTERVAL_MS as u64 / 1000) as usize;
+        self.level_interval = (sample_rate as u64 * LEVEL_INTERVAL_MS as u64 / 1000) as usize;
     }
 
     /// 累计一段单声道样本，并在达到推送间隔时发送音量事件
@@ -193,10 +192,7 @@ impl CaptureSink {
         } else {
             let mono_8k = downsample_mono(&self.mono, self.sample_rate, TARGET_SAMPLE_RATE);
             info!(samples = mono_8k.len(), "采集结束，输出 8kHz PCM");
-            let bytes: Vec<u8> = mono_8k
-                .into_iter()
-                .flat_map(|v| v.to_le_bytes())
-                .collect();
+            let bytes: Vec<u8> = mono_8k.into_iter().flat_map(|v| v.to_le_bytes()).collect();
             Some(Buffer::from(bytes))
         };
         (self.emitter)(JsCaptureEvent {

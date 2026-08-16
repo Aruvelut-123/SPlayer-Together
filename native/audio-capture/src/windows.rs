@@ -168,8 +168,11 @@ impl WindowsBackend {
             let mut data: *mut u8 = std::ptr::null_mut();
             let mut frames: u32 = 0;
             let mut flags: u32 = 0;
-            unsafe { self.capture_client.GetBuffer(&mut data, &mut frames, &mut flags, None, None) }
-                .map_err(|e| BackendError::CaptureFailed(e.to_string()))?;
+            unsafe {
+                self.capture_client
+                    .GetBuffer(&mut data, &mut frames, &mut flags, None, None)
+            }
+            .map_err(|e| BackendError::CaptureFailed(e.to_string()))?;
             if flags & (AUDCLNT_BUFFERFLAGS_SILENT.0 as u32) != 0 {
                 sink.push_silence(frames as usize);
             } else {
@@ -218,7 +221,9 @@ fn desired_format() -> WAVEFORMATEXTENSIBLE {
             wBitsPerSample: 32,
             cbSize: 22,
         },
-        Samples: WAVEFORMATEXTENSIBLE_0 { wValidBitsPerSample: 32 },
+        Samples: WAVEFORMATEXTENSIBLE_0 {
+            wValidBitsPerSample: 32,
+        },
         dwChannelMask: SPEAKER_FRONT_CENTER,
         SubFormat: KSDATAFORMAT_SUBTYPE_IEEE_FLOAT,
     }
@@ -227,7 +232,9 @@ fn desired_format() -> WAVEFORMATEXTENSIBLE {
 /// 解析混音格式（WAVEFORMATEX / WAVEFORMATEXTENSIBLE）
 fn parse_mix_format(raw: *mut WAVEFORMATEX) -> Result<CaptureFormat, BackendError> {
     if raw.is_null() {
-        return Err(BackendError::CaptureFailed("GetMixFormat 返回空格式".into()));
+        return Err(BackendError::CaptureFailed(
+            "GetMixFormat 返回空格式".into(),
+        ));
     }
     let wfx = unsafe { &*raw };
     let channels = wfx.nChannels as usize;
@@ -307,7 +314,8 @@ pub fn open_backend(
     };
 
     let wfx = desired_format();
-    let client: IAudioClient = unsafe { device.Activate(CLSCTX_ALL, None) }.map_err(map_init_error)?;
+    let client: IAudioClient =
+        unsafe { device.Activate(CLSCTX_ALL, None) }.map_err(map_init_error)?;
     let init_result = unsafe {
         client.Initialize(
             AUDCLNT_SHAREMODE_SHARED,
@@ -333,7 +341,8 @@ pub fn open_backend(
             let mix = unsafe { client.GetMixFormat() }
                 .map_err(|e| BackendError::CaptureFailed(format!("获取混音格式失败: {e}")))?;
             let fmt = parse_mix_format(mix)?;
-            let fresh: IAudioClient = unsafe { device.Activate(CLSCTX_ALL, None) }.map_err(map_init_error)?;
+            let fresh: IAudioClient =
+                unsafe { device.Activate(CLSCTX_ALL, None) }.map_err(map_init_error)?;
             let init = unsafe {
                 fresh.Initialize(
                     AUDCLNT_SHAREMODE_SHARED,
@@ -354,14 +363,10 @@ pub fn open_backend(
 
     let capture_client: IAudioCaptureClient = unsafe { client.GetService() }
         .map_err(|e| BackendError::CaptureFailed(format!("获取采集接口失败: {e}")))?;
-    let audio_event =
-        unsafe { CreateEventW(None, false, false, PCWSTR::null()) }.map_err(|e| {
-            BackendError::CaptureFailed(format!("创建事件句柄失败: {e}"))
-        })?;
-    let cancel_event =
-        unsafe { CreateEventW(None, false, false, PCWSTR::null()) }.map_err(|e| {
-            BackendError::CaptureFailed(format!("创建事件句柄失败: {e}"))
-        })?;
+    let audio_event = unsafe { CreateEventW(None, false, false, PCWSTR::null()) }
+        .map_err(|e| BackendError::CaptureFailed(format!("创建事件句柄失败: {e}")))?;
+    let cancel_event = unsafe { CreateEventW(None, false, false, PCWSTR::null()) }
+        .map_err(|e| BackendError::CaptureFailed(format!("创建事件句柄失败: {e}")))?;
     unsafe { client.SetEventHandle(audio_event) }
         .map_err(|e| BackendError::CaptureFailed(format!("设置事件句柄失败: {e}")))?;
 

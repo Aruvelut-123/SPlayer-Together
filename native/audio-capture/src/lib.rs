@@ -13,10 +13,12 @@ use napi::Result;
 use napi_derive::napi;
 
 mod backend;
+#[cfg(target_os = "linux")]
+mod linux;
+#[cfg(not(any(target_os = "windows", target_os = "linux")))]
+mod unsupported;
 #[cfg(target_os = "windows")]
 mod windows;
-#[cfg(not(target_os = "windows"))]
-mod unsupported;
 
 use backend::{CaptureBackend, CaptureConfig, CaptureSink, CaptureSource};
 
@@ -82,9 +84,7 @@ impl AudioCaptureSession {
         let source = match config.source.as_str() {
             "system" => CaptureSource::System,
             "microphone" => CaptureSource::Microphone,
-            other => {
-                return Err(napi::Error::from_reason(format!("未知采集来源: {other}")))
-            }
+            other => return Err(napi::Error::from_reason(format!("未知采集来源: {other}"))),
         };
         if !platform_supported() {
             return Err(napi::Error::from_reason("当前平台不支持本机采集"));
@@ -142,7 +142,11 @@ fn platform_supported() -> bool {
     {
         windows::platform_supported()
     }
-    #[cfg(not(target_os = "windows"))]
+    #[cfg(target_os = "linux")]
+    {
+        linux::platform_supported()
+    }
+    #[cfg(not(any(target_os = "windows", target_os = "linux")))]
     {
         unsupported::platform_supported()
     }
@@ -154,7 +158,11 @@ fn init_com() -> std::result::Result<impl Drop, backend::BackendError> {
     {
         windows::init_com()
     }
-    #[cfg(not(target_os = "windows"))]
+    #[cfg(target_os = "linux")]
+    {
+        linux::init_com()
+    }
+    #[cfg(not(any(target_os = "windows", target_os = "linux")))]
     {
         unsupported::init_com()
     }
@@ -168,7 +176,11 @@ fn open_backend(
     {
         windows::open_backend(config, cancelled)
     }
-    #[cfg(not(target_os = "windows"))]
+    #[cfg(target_os = "linux")]
+    {
+        linux::open_backend(config, cancelled)
+    }
+    #[cfg(not(any(target_os = "windows", target_os = "linux")))]
     {
         unsupported::open_backend(config, cancelled)
     }
