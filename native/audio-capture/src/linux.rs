@@ -11,7 +11,7 @@ use std::sync::{
 };
 use std::time::{Duration, Instant};
 
-use libpulse_binding::context::introspect::ListResult;
+use libpulse_binding::callbacks::ListResult;
 use libpulse_binding::context::{Context, FlagSet as ContextFlagSet, State as ContextState};
 use libpulse_binding::def::BufferAttr;
 use libpulse_binding::mainloop::standard::Mainloop;
@@ -116,17 +116,17 @@ impl CaptureBackend for LinuxBackend {
                         let mono = pcm_f32(data);
                         stream
                             .discard()
-                            .map_err(|e| BackendError::CaptureFailed(e.to_string()))?;
+                            .map_err(|e| BackendError::CaptureFailed(format!("{e}")))?;
                         sink.push_mono(&mono);
                         pushed = true;
                     }
                     Ok(PeekResult::Hole(_)) => {
                         stream
                             .discard()
-                            .map_err(|e| BackendError::CaptureFailed(e.to_string()))?;
+                            .map_err(|e| BackendError::CaptureFailed(format!("{e}")))?;
                     }
                     Ok(PeekResult::Empty) => break,
-                    Err(e) => return Err(BackendError::CaptureFailed(e.to_string())),
+                    Err(e) => return Err(BackendError::CaptureFailed(format!("{e}"))),
                 }
             }
         }
