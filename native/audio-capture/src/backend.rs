@@ -37,7 +37,8 @@ pub enum BackendError {
     Unsupported,
     /// 未找到可用设备 / 设备失效
     NoDevice,
-    /// 缺少权限
+    /// 缺少权限（仅 Windows WASAPI 使用，其他平台编译时允许未使用）
+    #[allow(dead_code)]
     PermissionDenied,
     /// 采集失败（具体原因）
     CaptureFailed(String),
@@ -130,26 +131,30 @@ impl CaptureSink {
         self.level_interval = (sample_rate as u64 * LEVEL_INTERVAL_MS as u64 / 1000) as usize;
     }
 
-    /// 累计一段单声道样本，并在达到推送间隔时发送音量事件
+    /// 累计一段单声道样本，并在达到推送间隔时发送音量事件。
+    /// 逐样本检查：PulseAudio 可能一次送来覆盖多个间隔的大数据块，
+    /// 只按块触发一次会丢失频谱事件，因此按间隔多次推送
     pub fn push_mono(&mut self, samples: &[f32]) {
         for &s in samples {
             self.level_energy += (s as f64) * (s as f64);
             self.level_count += 1;
+            self.level_pending += 1;
+            if self.level_pending >= self.level_interval {
+                self.emit_level();
+            }
         }
         self.mono.extend_from_slice(samples);
-        self.level_pending += samples.len();
-        if self.level_pending >= self.level_interval {
-            self.emit_level();
-        }
     }
 
     /// 静音帧：保持计数前进，音量归零
     pub fn push_silence(&mut self, frames: usize) {
-        self.mono.extend(std::iter::repeat_n(0.0f32, frames));
-        self.level_pending += frames;
-        if self.level_pending >= self.level_interval {
-            self.emit_level();
+        for _ in 0..frames {
+            self.level_pending += 1;
+            if self.level_pending >= self.level_interval {
+                self.emit_level();
+            }
         }
+        self.mono.extend(std::iter::repeat_n(0.0f32, frames));
     }
 
     /// 是否已采集够目标时长

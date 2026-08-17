@@ -83,8 +83,11 @@ impl CaptureBackend for LinuxBackend {
         let mut stream = Stream::new(&mut context, "splayer-recognition", &spec, None)
             .ok_or_else(|| BackendError::CaptureFailed("创建采集流失败".into()))?;
         let attr = BufferAttr {
+            maxlength: u32::MAX,
             fragsize: FRAG_SIZE_BYTES,
-            ..BufferAttr::default()
+            tlength: u32::MAX,
+            prebuf: u32::MAX,
+            minreq: u32::MAX,
         };
         stream
             .connect_record(device.as_deref(), Some(&attr), StreamFlagSet::NOFLAGS)
