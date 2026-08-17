@@ -82,6 +82,7 @@
     "reject": "不同意并退出"
   },
   "common": {
+    "back": "返回",
     "confirm": "确认",
     "cancel": "取消",
     "close": "关闭",
@@ -210,6 +211,42 @@
       "album": "前往专辑「{id}」",
       "artist": "前往歌手「{id}」",
       "playlist": "前往歌单「{id}」"
+    }
+  },
+  "recognition": {
+    "title": "听歌识曲",
+    "entry": "听歌识曲",
+    "description": "识别正在播放的音乐",
+    "start": "开始识别",
+    "sourceLabel": "音频来源",
+    "hint": {
+      "system": "我们会采集系统中的一小段声音进行识别",
+      "microphone": "靠近声源并保持环境安静，识别效果会更好"
+    },
+    "source": {
+      "system": "系统声音",
+      "microphone": "麦克风"
+    },
+    "phase": {
+      "capturing": "正在收听…",
+      "fingerprinting": "正在生成指纹…",
+      "matching": "正在匹配曲库…"
+    },
+    "empty": "没有识别到歌曲，请靠近声源重试",
+    "retry": "再试一次",
+    "cancel": "取消",
+    "play": "播放",
+    "unavailable": "当前设备不支持听歌识曲",
+    "searching": "搜索此歌曲",
+    "error": {
+      "unsupported": "当前平台不支持本机采集",
+      "no-device": "未找到可用的音频设备",
+      "permission-denied": "缺少麦克风权限，请在系统设置中授权",
+      "capture-failed": "音频采集失败",
+      "silent-input": "没有采集到声音，请检查音频输出",
+      "network": "匹配服务不可用，请稍后重试",
+      "afp-unavailable": "音频指纹库不可用",
+      "unknown": "识别失败，请重试"
     }
   },
   "home": {

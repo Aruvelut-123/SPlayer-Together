@@ -22,6 +22,7 @@ import {
 } from "@shared/types/window";
 import { HotkeyApi } from "@shared/types/hotkey";
 import { StreamingApi } from "@shared/types/streaming";
+import { RecognitionApi } from "@shared/types/recognition";
 import { LastfmApi } from "@shared/types/lastfm";
 import { IpcResponse } from "@shared/types/player";
 import { StatsApi } from "@shared/types/stats";
@@ -102,6 +103,7 @@ declare global {
       stats: StatsApi;
       hotkey: HotkeyApi;
       streaming: StreamingApi;
+      recognition: RecognitionApi;
       lastfm: LastfmApi;
       externalApi: {
         restart: () => Promise<ExternalApiStatus>;

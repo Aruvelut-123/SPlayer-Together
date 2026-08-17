@@ -21,6 +21,7 @@ import { registerCloudIpc } from "./cloud";
 import { registerCommentsIpc } from "./comments";
 import { registerAiModelIpc } from "./aiModel";
 import { registerPlaylistIpc } from "./playlist";
+import { registerRecognitionIpc } from "./recognition";
 
 /** 注册所有 IPC 处理 */
 export const registerIpcHandlers = (): void => {
@@ -39,6 +40,7 @@ export const registerIpcHandlers = (): void => {
   registerThemeIpc();
   registerStreamingIpc();
   registerPlaylistIpc();
+  registerRecognitionIpc();
   registerLastfmIpc();
   registerCacheIpc();
   registerDownloadIpc();

@@ -12,6 +12,7 @@ import type {
 import type { HotkeyActionId, HotkeyBinding, HotkeyConflict } from "@shared/types/hotkey";
 import type { LoadOptions, TrackSource } from "@shared/types/player";
 import type { StreamingServerInput } from "@shared/types/streaming";
+import type { RecognitionConfig, RecognitionEvent } from "@shared/types/recognition";
 import type { PlayEventInput, FavoriteEventInput } from "@shared/types/stats";
 import type { TagEditRequest } from "@shared/types/tagEditor";
 import type { UpdateEvent } from "@shared/types/update";
@@ -584,6 +585,31 @@ const api = {
      */
     getLyrics: (serverId: string, trackId: string, hint?: { artist?: string; title?: string }) =>
       ipcRenderer.invoke("streaming:getLyrics", serverId, trackId, hint),
+  },
+  recognition: {
+    /** 当前平台是否支持听歌识曲 */
+    isSupported: () => ipcRenderer.invoke("recognition:isSupported"),
+    /**
+     * 启动一次识别
+     * @param config - 采集来源与时长
+     */
+    start: (config: RecognitionConfig) => ipcRenderer.invoke("recognition:start", config),
+    /** 取消当前识别 */
+    cancel: () => ipcRenderer.invoke("recognition:cancel"),
+    /**
+     * 提交渲染进程采集的麦克风 PCM（macOS/Linux 路径）
+     * @param pcm - 8 kHz 单声道样本
+     */
+    submitPcm: (pcm: Float32Array) => ipcRenderer.invoke("recognition:submitPcm", pcm),
+    /**
+     * 订阅识别进度事件
+     * @param callback - 进度 / 结果 / 错误
+     * @returns 取消订阅函数
+     */
+    onEvent: (callback: (event: RecognitionEvent) => void) => {
+      ipcRenderer.removeAllListeners("recognition:event");
+      return subscribe<RecognitionEvent>("recognition:event", callback);
+    },
   },
   lastfm: {
     // 发起授权

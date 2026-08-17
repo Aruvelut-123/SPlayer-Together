@@ -15,6 +15,7 @@
       "@main/*": ["./electron/main/*"],
       "@shared/*": ["./shared/*"],
       "@splayer/audio-engine": ["./native/audio-engine"],
+      "@splayer/audio-capture": ["./native/audio-capture"],
       "@splayer/media-ctrl": ["./native/media-ctrl"],
       "@splayer/taskbar-lyric": ["./native/taskbar-lyric"],
       "@splayer/taskbar-thumbnail": ["./native/taskbar-thumbnail"]
