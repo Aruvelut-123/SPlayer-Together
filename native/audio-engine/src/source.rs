@@ -7,9 +7,10 @@ use crate::fft::FftAnalyzer;
 use crate::shared::{PopResult, Shared};
 const UNDERRUN_SILENCE_MS: u32 = 20;
 
-/// rodio 音频源，从共享缓冲区拉取样本。
+/// 平台无关的解码样本读取器。
 /// DSP 已在后台线程完成；这里不获取 DSP 锁、不扩容，欠载时返回短静音垫片。
-pub struct DecoderSource {
+/// Linux CPAL callback 和非 Linux Rodio 包装共用此读取器。
+pub struct DecoderSampleReader {
     shared: Arc<Shared>,
     fft: Arc<FftAnalyzer>,
     /// DSP 后样本缓冲，直接接管 chunk 的 Vec，不复制也不扩容
@@ -17,11 +18,11 @@ pub struct DecoderSource {
     local_index: usize,
     /// 解码暂时跟不上时输出的短静音垫片，避免阻塞实时输出链路
     underrun_silence_remaining: usize,
-    sample_rate: SampleRate,
-    channels: ChannelCount,
+    sample_rate: u32,
+    channels: u16,
 }
 
-impl DecoderSource {
+impl DecoderSampleReader {
     pub fn new(
         shared: Arc<Shared>,
         fft: Arc<FftAnalyzer>,
@@ -34,13 +35,13 @@ impl DecoderSource {
             local_buffer: Vec::new(),
             local_index: 0,
             underrun_silence_remaining: 0,
-            sample_rate: SampleRate::new(sample_rate).expect("采样率必须大于零"),
-            channels: ChannelCount::new(channels).expect("声道数必须大于零"),
+            sample_rate,
+            channels,
         }
     }
 }
 
-impl Iterator for DecoderSource {
+impl Iterator for DecoderSampleReader {
     type Item = f32;
 
     fn next(&mut self) -> Option<f32> {
@@ -78,8 +79,8 @@ impl Iterator for DecoderSource {
                     self.shared.recycle_player_buffer(chunk.player_samples);
                 }
                 PopResult::Pending => {
-                    let silence_samples = (u64::from(self.sample_rate.get())
-                        * u64::from(self.channels.get())
+                    let silence_samples = (u64::from(self.sample_rate)
+                        * u64::from(self.channels)
                         * u64::from(UNDERRUN_SILENCE_MS)
                         / 1000) as usize;
                     self.underrun_silence_remaining = silence_samples.saturating_sub(1);
@@ -95,24 +96,28 @@ impl Iterator for DecoderSource {
     }
 }
 
-impl Drop for DecoderSource {
+impl Drop for DecoderSampleReader {
     fn drop(&mut self) {
         self.shared
             .recycle_player_buffer(std::mem::take(&mut self.local_buffer));
     }
 }
 
-impl Source for DecoderSource {
+/// 当前 Rodio 输出路径的薄包装别名。
+/// Linux 切换到 CPAL callback 后将不再使用该 trait 实现。
+pub type DecoderSource = DecoderSampleReader;
+
+impl Source for DecoderSampleReader {
     fn current_span_len(&self) -> Option<usize> {
         None
     }
 
     fn channels(&self) -> ChannelCount {
-        self.channels
+        ChannelCount::new(self.channels).expect("声道数必须大于零")
     }
 
     fn sample_rate(&self) -> SampleRate {
-        self.sample_rate
+        SampleRate::new(self.sample_rate).expect("采样率必须大于零")
     }
 
     fn total_duration(&self) -> Option<Duration> {
