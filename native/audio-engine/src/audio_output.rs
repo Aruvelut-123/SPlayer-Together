@@ -23,15 +23,9 @@ use tracing::{debug, info, warn};
 use crate::error::{AudioErrorKind, AudioResultExt};
 use crate::priority;
 
-/// 输出失败事件，由实时错误回调产生
-#[derive(Clone, Debug)]
-pub struct OutputFailure {
-    pub message: String,
-}
-
 /// 输出失败回调：实时错误线程调用，只允许发送轻量事件。
 /// 禁止获取 `InnerPlayer` 锁、join 线程、枚举设备、创建新流或调用 NAPI async 方法。
-pub type OutputFailureCallback = std::sync::Arc<dyn Fn(OutputFailure) + Send + Sync + 'static>;
+pub type OutputFailureCallback = std::sync::Arc<dyn Fn() + Send + Sync + 'static>;
 
 /// 持有音频输出的跨线程句柄。`Send`，可放进 `InnerPlayer` 而不需 `unsafe impl Send`。
 ///
@@ -48,6 +42,8 @@ pub type OutputFailureCallback = std::sync::Arc<dyn Fn(OutputFailure) + Send + S
 /// ```
 pub struct AudioOutput {
     mixer: Mixer,
+    /// 该输出流的单调代次，用于诊断和过滤销毁后迟到的流错误
+    generation: u64,
     /// 实际打开的输出流采样率
     sample_rate: u32,
     /// drop 这个 sender 会让 owner 线程的 recv 返回 Err，从而退出并释放 Stream
@@ -73,6 +69,7 @@ impl AudioOutput {
     pub fn new(
         device_name: Option<&str>,
         requested_sample_rate: Option<u32>,
+        generation: u64,
         on_failure: OutputFailureCallback,
     ) -> Result<Self> {
         let device_name = device_name.map(String::from);
@@ -122,6 +119,7 @@ impl AudioOutput {
 
         Ok(Self {
             mixer,
+            generation,
             sample_rate,
             shutdown: Some(shutdown_tx),
             thread: Some(thread),
@@ -137,6 +135,7 @@ impl AudioOutput {
     pub fn sample_rate(&self) -> u32 {
         self.sample_rate
     }
+
 }
 
 impl Drop for AudioOutput {
@@ -145,6 +144,7 @@ impl Drop for AudioOutput {
     /// 这样 `set_output_device` 等场景里新旧 stream 不会重叠占用设备，
     /// 在 macOS / Linux 上避免 "device busy" 风险
     fn drop(&mut self) {
+        debug!(generation = self.generation, "释放音频输出");
         // 先 drop sender 让 owner 线程的 shutdown_rx.recv() 返回 Err 退出
         drop(self.shutdown.take());
         if let Some(thread) = self.thread.take() {
@@ -187,10 +187,8 @@ fn error_callback(
     on_failure: &OutputFailureCallback,
 ) -> impl FnMut(cpal::StreamError) + Clone + Send + 'static {
     let on_failure = std::sync::Arc::clone(on_failure);
-    move |error| {
-        on_failure(OutputFailure {
-            message: error.to_string(),
-        });
+    move |_error| {
+        on_failure();
     }
 }
 

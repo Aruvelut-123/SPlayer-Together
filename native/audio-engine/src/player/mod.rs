@@ -6,9 +6,9 @@ use anyhow::Result;
 use ffmpeg_audio::HttpCancelHandle;
 use parking_lot::Mutex;
 use rodio::Player as RodioPlayer;
-use tracing::{debug, info, warn};
+use tracing::{debug, info};
 
-use crate::audio_output::{AudioOutput, OutputFailure, OutputFailureCallback};
+use crate::audio_output::{AudioOutput, OutputFailureCallback};
 use crate::decoder;
 use crate::equalizer::{Equalizer, EQ_BAND_COUNT};
 use crate::fft::FftAnalyzer;
@@ -80,6 +80,8 @@ pub struct InnerPlayer {
     /// commit_loaded 比对 token 与最新值，不一致则该次加载已被新加载取代，需丢弃
     /// 用于防止快速切歌时旧 IO 完成后覆盖新音频的竞态
     load_token: Arc<AtomicU64>,
+    /// 当前输出流代次。错误回调仅允许上报与此值一致的输出，避免旧流销毁后的迟到事件重建新流。
+    output_generation: Arc<AtomicU64>,
     /// 正在打开的网络音源中断句柄，确保切歌和 stop 能取消元数据探测
     pending_load_handle: Option<HttpCancelHandle>,
 }
@@ -96,10 +98,12 @@ impl InnerPlayer {
     /// 设备失效时的重建由 `reinit_output` 显式处理，不在此函数内自动恢复
     fn ensure_output(&mut self, requested_sample_rate: Option<u32>) -> Result<&AudioOutput> {
         if self.output.is_none() {
-            let on_failure = self.make_failure_callback();
+            let generation = self.reserve_output_generation();
+            let on_failure = self.make_failure_callback(generation);
             self.output = Some(AudioOutput::new(
                 self.selected_device_name.as_deref(),
                 requested_sample_rate,
+                generation,
                 on_failure,
             )?);
         }
@@ -110,14 +114,21 @@ impl InnerPlayer {
 
     /// 构造输出失败回调：只发送轻量 `PlayerEvent::OutputFailed`，
     /// 禁止在实时错误线程做任何阻塞操作
-    pub fn make_failure_callback(&self) -> OutputFailureCallback {
+    pub fn make_failure_callback(&self, generation: u64) -> OutputFailureCallback {
         let Some(cb) = self.event_callback.as_ref().map(Arc::clone) else {
-            return std::sync::Arc::new(|_| {});
+            return std::sync::Arc::new(|| {});
         };
-        std::sync::Arc::new(move |failure: OutputFailure| {
-            warn!(message = %failure.message, "音频输出流错误");
-            cb(PlayerEvent::OutputFailed);
+        let active_generation = Arc::clone(&self.output_generation);
+        std::sync::Arc::new(move || {
+            if active_generation.load(Ordering::Acquire) == generation {
+                cb(PlayerEvent::OutputFailed);
+            }
         })
+    }
+
+    /// 预留下一代输出流，并立即使旧输出的回调失效。
+    pub fn reserve_output_generation(&self) -> u64 {
+        self.output_generation.fetch_add(1, Ordering::AcqRel) + 1
     }
 
     /// 当前实际输出流采样率（播放重采样目标）
@@ -166,6 +177,7 @@ impl InnerPlayer {
                 initial_rate,
             ))),
             load_token: Arc::new(AtomicU64::new(0)),
+            output_generation: Arc::new(AtomicU64::new(0)),
             pending_load_handle: None,
         })
     }
@@ -480,6 +492,7 @@ impl InnerPlayer {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::atomic::{AtomicUsize, Ordering};
 
     #[test]
     fn decode_failure_mid_stream_emits_source_error() {
@@ -512,5 +525,26 @@ mod tests {
             playback_completion_event(&shared, 0.0, 30.0),
             PlayerEvent::SourceError
         ));
+    }
+
+    #[test]
+    fn stale_output_failure_callback_is_ignored() {
+        let mut player = InnerPlayer::new().unwrap();
+        let calls = Arc::new(AtomicUsize::new(0));
+        let calls_for_event = Arc::clone(&calls);
+        player.set_event_callback(Arc::new(move |event| {
+            if matches!(event, PlayerEvent::OutputFailed) {
+                calls_for_event.fetch_add(1, Ordering::Relaxed);
+            }
+        }));
+
+        let generation = player.reserve_output_generation();
+        let callback = player.make_failure_callback(generation);
+        callback();
+        assert_eq!(calls.load(Ordering::Relaxed), 1);
+
+        player.reserve_output_generation();
+        callback();
+        assert_eq!(calls.load(Ordering::Relaxed), 1);
     }
 }

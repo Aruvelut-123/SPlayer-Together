@@ -47,6 +47,11 @@ enum ReinitOutcome {
 /// 主进程 IPC 按此文案识别并映射为 LOAD_SUPERSEDED（正常竞态，前端静默），改动需同步
 const LOAD_SUPERSEDED_REASON: &str = "load 已被更新的 load 取代";
 
+/// NAPI 错误由 `IntoNapiResult` 以稳定类别前缀编码，恢复路径据此避免把设备失败误报为音源失效。
+fn is_device_napi_error(error: &Error) -> bool {
+    error.reason.starts_with("[Device]")
+}
+
 /// 一条外部歌词，返回给 JS 侧（仅格式和路径，内容按需加载）
 #[napi(object)]
 pub struct JsExternalLyric {
@@ -182,8 +187,16 @@ impl AudioPlayer {
             };
             let old_output = player.take_output();
             let device_name = player.selected_device_name().map(String::from);
-            let on_failure = player.make_failure_callback();
-            (seek_take, old_output, device_name, position, on_failure)
+            let output_generation = player.reserve_output_generation();
+            let on_failure = player.make_failure_callback(output_generation);
+            (
+                seek_take,
+                old_output,
+                device_name,
+                position,
+                output_generation,
+                on_failure,
+            )
         };
         let (
             SeekTake {
@@ -200,6 +213,7 @@ impl AudioPlayer {
             old_output,
             device_name,
             position,
+            output_generation,
             on_failure,
         ) = take;
 
@@ -210,8 +224,12 @@ impl AudioPlayer {
 
             // 以原输出采样率重建：DecoderData 的重采样器目标与之一致
             let output =
-                match audio_output::AudioOutput::new(device_name.as_deref(), Some(output_sample_rate), on_failure)
-                {
+                match audio_output::AudioOutput::new(
+                    device_name.as_deref(),
+                    Some(output_sample_rate),
+                    output_generation,
+                    on_failure,
+                ) {
                     Ok(output) => output,
                     Err(error) => return ReinitOutcome::OutputFailed { error },
                 };
@@ -298,7 +316,7 @@ impl AudioPlayer {
                             return Ok(());
                         }
                         // 远端源恢复重开失败（多半 URL 过期）：发 sourceError 交 JS 重解析
-                        if is_remote {
+                        if is_remote && !is_device_napi_error(&e) {
                             self.inner.lock().emit_source_error();
                             return Ok(());
                         }
@@ -433,12 +451,15 @@ impl AudioPlayer {
             cover_dir,
             normalization_enabled,
             device_name,
+            output_generation,
             failure_callback,
             equalizer,
             tempo,
         ) = {
             let mut player = self.inner.lock();
             let (old_threads, old_output, token) = player.take_for_async_load(handle.clone());
+            let output_generation = player.reserve_output_generation();
+            let failure_callback = player.make_failure_callback(output_generation);
             (
                 old_threads,
                 old_output,
@@ -447,7 +468,8 @@ impl AudioPlayer {
                 player.cover_cache_dir().map(String::from),
                 player.is_normalization_enabled(),
                 player.selected_device_name().map(String::from),
-                player.make_failure_callback(),
+                output_generation,
+                failure_callback,
                 player.equalizer_handle(),
                 player.tempo_handle(),
             )
@@ -469,6 +491,7 @@ impl AudioPlayer {
             let output = audio_output::AudioOutput::new(
                 device_name.as_deref(),
                 Some(prepared.original_sample_rate()),
+                output_generation,
                 failure_callback,
             )?;
             let shared = Shared::new(output.sample_rate(), decoder::TARGET_CHANNELS);

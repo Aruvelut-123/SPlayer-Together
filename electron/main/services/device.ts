@@ -1,6 +1,6 @@
 import { sendToMain } from "@main/utils/broadcast";
 import { playerLog } from "@main/utils/logger";
-import { evaluateDeviceChange } from "./devicePolicy";
+import { evaluateDeviceChange, recoveryRetryDelay } from "./devicePolicy";
 
 type AudioEngineModule = typeof import("@splayer/audio-engine");
 type PlayerInstance = InstanceType<AudioEngineModule["AudioPlayer"]>;
@@ -14,36 +14,54 @@ let debounceTimer: NodeJS.Timeout | null = null;
 let lastDefaultDevice: string | null | undefined;
 let reinitPromise: Promise<void> | null = null;
 let pendingReinitPlayer: PlayerInstance | null = null;
+let retryTimer: NodeJS.Timeout | null = null;
 
-/** 串行重建音频输出，合并重建期间到达的设备变化 / 输出流错误 */
-export const requestReinit = (player: PlayerInstance): void => {
-  if (reinitPromise !== null) {
-    pendingReinitPlayer = player;
-    return;
+/** 取消尚未开始的恢复重试；正在执行的原生重建由新的 load token / 输出代次接管。 */
+export const cancelPendingReinit = (): void => {
+  if (retryTimer !== null) {
+    clearTimeout(retryTimer);
+    retryTimer = null;
   }
+  pendingReinitPlayer = null;
+};
 
+/** 执行一次恢复；失败时按固定次数和退避间隔重新调度。 */
+const runReinit = (player: PlayerInstance, attempt: number): void => {
   reinitPromise = player
     .reinitOutput()
     .then(() => {
       playerLog.info("音频输出已重建");
     })
     .catch((error) => {
-      playerLog.warn("重建音频输出失败:", error);
+      const nextAttempt = attempt + 1;
+      const delay = recoveryRetryDelay(nextAttempt);
+      if (delay === null || activePlayer !== player) {
+        playerLog.warn("音频输出恢复已耗尽重试次数:", error);
+        return;
+      }
+      playerLog.warn(`音频输出重建失败，将在 ${delay}ms 后重试:`, error);
+      retryTimer = setTimeout(() => {
+        retryTimer = null;
+        pendingReinitPlayer = null;
+        if (activePlayer === player) runReinit(player, nextAttempt);
+      }, delay);
     })
     .finally(() => {
       reinitPromise = null;
+      if (retryTimer !== null) return;
       const pendingPlayer = pendingReinitPlayer;
       pendingReinitPlayer = null;
-      if (pendingPlayer !== null && activePlayer === pendingPlayer) {
-        try {
-          const hasDefaultDevice = pendingPlayer.getDefaultDeviceName() != null;
-          const followsDefaultDevice = pendingPlayer.getSelectedDeviceName() == null;
-          if (hasDefaultDevice && followsDefaultDevice) requestReinit(pendingPlayer);
-        } catch (error) {
-          playerLog.warn("确认待处理设备变化失败:", error);
-        }
-      }
+      if (pendingPlayer !== null && activePlayer === pendingPlayer) requestReinit(pendingPlayer);
     });
+};
+
+/** 串行重建音频输出，合并重建期间到达的设备变化 / 输出流错误 */
+export const requestReinit = (player: PlayerInstance): void => {
+  if (reinitPromise !== null || retryTimer !== null) {
+    pendingReinitPlayer = player;
+    return;
+  }
+  runReinit(player, 0);
 };
 
 /** 处理一次设备变化信号 */
@@ -148,5 +166,5 @@ export const stopDeviceMonitoring = (): void => {
 
   activePlayer = null;
   lastDefaultDevice = undefined;
-  pendingReinitPlayer = null;
+  cancelPendingReinit();
 };
