@@ -98,7 +98,4 @@ jobs:
             libasound2-dev libdbus-1-dev libpipewire-0.3-dev libpulse-dev pkg-config clang
 
       - name: Check audio engine
-        run: |
-          cargo check -p audio-engine
-          cargo test -p audio-engine
-          cargo tree -p audio-engine -i cpal
+        run: cargo test -p audio-engine

@@ -105,13 +105,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
-      - name: Check native audio engine (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          cargo check -p audio-engine
-          cargo test -p audio-engine
-          cargo tree -p audio-engine -i cpal
-
       # 构建
       - name: Build ${{ matrix.name }} ${{ matrix.arch }}
         run: ${{ matrix.build_cmd }}
