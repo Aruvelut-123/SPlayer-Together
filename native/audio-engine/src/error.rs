@@ -96,8 +96,10 @@ impl AudioEngineError {
                 | ErrorKind::ConnectionReset
                 | ErrorKind::ConnectionAborted
                 | ErrorKind::NotConnected
-                | ErrorKind::AddrNotAvailable
-                | ErrorKind::BrokenPipe => AudioErrorKind::NetworkUnreachable,
+                | ErrorKind::AddrNotAvailable => AudioErrorKind::NetworkUnreachable,
+                // 裸 BrokenPipe 多为本地文件读取中断，属于数据源故障；
+                // 设备流错误会由输出模块边界显式标记为 Device，不会落入这里
+                ErrorKind::BrokenPipe => AudioErrorKind::DecodeFailed,
                 _ => return None,
             });
         }
@@ -136,8 +138,9 @@ impl AudioEngineError {
                 | ErrorKind::ConnectionReset
                 | ErrorKind::ConnectionAborted
                 | ErrorKind::NotConnected
-                | ErrorKind::AddrNotAvailable
-                | ErrorKind::BrokenPipe => AudioErrorKind::NetworkUnreachable,
+                | ErrorKind::AddrNotAvailable => AudioErrorKind::NetworkUnreachable,
+                // 与裸 io::Error 同理由：BrokenPipe 归为数据源故障，设备错误不走此路径
+                ErrorKind::BrokenPipe => AudioErrorKind::DecodeFailed,
                 _ => AudioErrorKind::DecodeFailed,
             },
             AudioError::Eof

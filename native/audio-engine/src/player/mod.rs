@@ -94,10 +94,14 @@ const _: fn() = || {
 impl InnerPlayer {
     /// 未初始化时通过 `AudioOutput::new` 懒构造音频输出。
     /// 设备失效时的重建由 `reinit_output` 显式处理，不在此函数内自动恢复
-    fn ensure_output(&mut self, _requested_sample_rate: Option<u32>) -> Result<&AudioOutput> {
+    fn ensure_output(&mut self, requested_sample_rate: Option<u32>) -> Result<&AudioOutput> {
         if self.output.is_none() {
             let on_failure = self.make_failure_callback();
-            self.output = Some(AudioOutput::new(self.selected_device_name.as_deref(), on_failure)?);
+            self.output = Some(AudioOutput::new(
+                self.selected_device_name.as_deref(),
+                requested_sample_rate,
+                on_failure,
+            )?);
         }
         self.output
             .as_ref()

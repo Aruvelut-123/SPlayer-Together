@@ -83,6 +83,13 @@ pub struct PreparedDecoder {
     cancel_handle: Option<HttpCancelHandle>,
 }
 
+impl PreparedDecoder {
+    /// 音源原始采样率，用于输出流采样率协商（设备支持时按精确采样率打开）
+    pub fn original_sample_rate(&self) -> u32 {
+        self.metadata.original_sample_rate
+    }
+}
+
 /// 统一结束解码线程；panic 属于源错误，但仍需结束 source 迭代
 fn finish_decode_thread(shared: &Shared, panicked: bool) {
     if panicked {

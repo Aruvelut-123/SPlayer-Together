@@ -62,13 +62,19 @@ impl AudioOutput {
     ///
     /// # Arguments
     /// * `device_name` - 输出设备名，`None` 走系统默认设备
+    /// * `requested_sample_rate` - 期望输出采样率；设备支持时按此打开流（音源精确采样率），
+    ///   否则回退到设备默认配置。`None` 表示直接用设备默认配置
     /// * `on_failure` - 运行期流错误回调，见 [`OutputFailureCallback`]
     ///
     /// # Errors
     /// - 找不到指定设备
     /// - 无可用音频设备
     /// - 专用线程 spawn 失败
-    pub fn new(device_name: Option<&str>, on_failure: OutputFailureCallback) -> Result<Self> {
+    pub fn new(
+        device_name: Option<&str>,
+        requested_sample_rate: Option<u32>,
+        on_failure: OutputFailureCallback,
+    ) -> Result<Self> {
         let device_name = device_name.map(String::from);
 
         // 把构建结果回传给调用线程；用 sync_channel 容量 1 避免发送方阻塞
@@ -81,7 +87,8 @@ impl AudioOutput {
             .spawn(move || {
                 priority::boost_current_audio_thread("audio-output-owner");
                 debug!(device = ?device_name, "audio-output-owner: starting");
-                let build_result = build_output_sink(device_name.as_deref(), on_failure);
+                let build_result =
+                    build_output_sink(device_name.as_deref(), requested_sample_rate, on_failure);
                 match build_result {
                     Ok((mut sink, sample_rate)) => {
                         sink.log_on_drop(false);
@@ -150,9 +157,11 @@ impl Drop for AudioOutput {
 /// 构建 cpal/rodio 输出流；**仅在 `audio-output-owner` 线程内调用**，
 /// 保证 `MixerDeviceSink` 的创建、持有和 drop 都发生在同一线程上
 ///
-/// 使用设备默认配置打开流，返回实际采样率供播放重采样器与 DSP 使用。
+/// `requested_sample_rate` 为期望采样率：设备支持时按精确采样率打开（音源原始采样率），
+/// 否则使用设备默认配置，返回实际采样率供播放重采样器与 DSP 使用。
 fn build_output_sink(
     device_name: Option<&str>,
+    requested_sample_rate: Option<u32>,
     on_failure: OutputFailureCallback,
 ) -> Result<(MixerDeviceSink, u32)> {
     let host = cpal::default_host();
@@ -164,9 +173,9 @@ fn build_output_sink(
                 .find(|device| persisted_device_name(device).as_deref() == Some(name))
                 .with_context(|| format!("Output device '{}' not found", name))
                 .with_audio_kind(AudioErrorKind::Device)?;
-            open_device_with_error_callback(&device, &on_failure)
+            open_device_with_error_callback(&device, requested_sample_rate, &on_failure)
         }
-        None => open_default_sink_with_callback(&on_failure),
+        None => open_default_sink_with_callback(requested_sample_rate, &on_failure),
     }
 }
 
@@ -191,14 +200,30 @@ fn persisted_device_name(device: &cpal::Device) -> Option<String> {
     device.name().ok()
 }
 
-/// 使用设备默认配置创建输出流，并注册运行期流错误回调
+/// 设备是否支持目标采样率（任一支持的配置范围覆盖该速率即可）
+fn rate_supported(device: &cpal::Device, rate: u32) -> bool {
+    device
+        .supported_output_configs()
+        .ok()
+        .into_iter()
+        .flatten()
+        .any(|range| range.min_sample_rate() <= rate && rate <= range.max_sample_rate())
+}
+
+/// 使用设备默认配置创建输出流，并注册运行期流错误回调；
+/// 目标采样率被设备支持时按该速率打开，否则保持默认配置
 fn open_device_with_error_callback(
     device: &cpal::Device,
+    requested_sample_rate: Option<u32>,
     on_failure: &OutputFailureCallback,
 ) -> Result<(MixerDeviceSink, u32)> {
-    let sink = DeviceSinkBuilder::from_device(device.clone())
+    let mut builder = DeviceSinkBuilder::from_device(device.clone())
         .context("Failed to get default output config")?
-        .with_error_callback(error_callback(on_failure))
+        .with_error_callback(error_callback(on_failure));
+    if let Some(rate) = requested_sample_rate.filter(|rate| rate_supported(device, *rate)) {
+        builder = builder.with_sample_rate(rodio::SampleRate::new(rate).unwrap());
+    }
+    let sink = builder
         .open_sink_or_fallback()
         .context("Failed to open output device")
         .with_audio_kind(AudioErrorKind::Device)?;
@@ -212,14 +237,19 @@ fn open_device_with_error_callback(
 /// rodio 的静态 `open_default_sink` 无法注入自定义错误回调，此处复刻其兜底逻辑：
 /// 每次候选尝试都使用同一份错误回调，全部失败时返回第一次默认设备的错误并标记为设备错误。
 fn open_default_sink_with_callback(
+    requested_sample_rate: Option<u32>,
     on_failure: &OutputFailureCallback,
 ) -> Result<(MixerDeviceSink, u32)> {
     let host = cpal::default_host();
     let default_device = host.default_output_device().ok_or(rodio::DeviceSinkError::NoDevice);
     let open = |device: cpal::Device| {
-        DeviceSinkBuilder::from_device(device)?
-            .with_error_callback(error_callback(on_failure))
-            .open_stream()
+        let wants_rate = requested_sample_rate.filter(|rate| rate_supported(&device, *rate));
+        let mut builder = DeviceSinkBuilder::from_device(device)?
+            .with_error_callback(error_callback(on_failure));
+        if let Some(rate) = wants_rate {
+            builder = builder.with_sample_rate(rodio::SampleRate::new(rate).unwrap());
+        }
+        builder.open_stream()
     };
 
     let sink = match default_device.and_then(open) {

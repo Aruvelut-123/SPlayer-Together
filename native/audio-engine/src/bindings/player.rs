@@ -208,10 +208,13 @@ impl AudioPlayer {
             // 释放旧 cpal 流，避免与新建流重叠占用设备
             drop(old_output);
 
-            let output = match audio_output::AudioOutput::new(device_name.as_deref(), on_failure) {
-                Ok(output) => output,
-                Err(error) => return ReinitOutcome::OutputFailed { error },
-            };
+            // 以原输出采样率重建：DecoderData 的重采样器目标与之一致
+            let output =
+                match audio_output::AudioOutput::new(device_name.as_deref(), Some(output_sample_rate), on_failure)
+                {
+                    Ok(output) => output,
+                    Err(error) => return ReinitOutcome::OutputFailed { error },
+                };
             // 设备配置变化导致实际采样率与重采样目标不一致时无法原地恢复，回退到完整 load
             if output.sample_rate() != output_sample_rate {
                 return ReinitOutcome::Reload {
@@ -462,7 +465,12 @@ impl AudioPlayer {
             if load_token.load(std::sync::atomic::Ordering::Acquire) != token {
                 anyhow::bail!(LOAD_SUPERSEDED_REASON);
             }
-            let output = audio_output::AudioOutput::new(device_name.as_deref(), failure_callback)?;
+            // 输出采样率协商：音源原始采样率被设备支持时按精确采样率打开
+            let output = audio_output::AudioOutput::new(
+                device_name.as_deref(),
+                Some(prepared.original_sample_rate()),
+                failure_callback,
+            )?;
             let shared = Shared::new(output.sample_rate(), decoder::TARGET_CHANNELS);
             shared.set_normalization_enabled(normalization_enabled);
             equalizer.lock().set_sample_rate(output.sample_rate());
