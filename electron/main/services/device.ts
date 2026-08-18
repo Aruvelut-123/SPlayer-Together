@@ -5,11 +5,9 @@ import { evaluateDeviceChange, recoveryRetryDelay } from "./devicePolicy";
 type AudioEngineModule = typeof import("@splayer/audio-engine");
 type PlayerInstance = InstanceType<AudioEngineModule["AudioPlayer"]>;
 
-const DEVICE_POLL_INTERVAL_MS = 3000;
 const DEVICE_EVENT_DEBOUNCE_MS = 200;
 
 let activePlayer: PlayerInstance | null = null;
-let pollingTimer: NodeJS.Timeout | null = null;
 let debounceTimer: NodeJS.Timeout | null = null;
 let lastDefaultDevice: string | null | undefined;
 let reinitPromise: Promise<void> | null = null;
@@ -116,12 +114,7 @@ const scheduleDeviceChange = (): void => {
   }, DEVICE_EVENT_DEBOUNCE_MS);
 };
 
-/** 非 Windows 平台和原生监听失败时使用低频轮询兜底 */
-const startPollingFallback = (): void => {
-  pollingTimer = setInterval(() => handleDeviceChange(false), DEVICE_POLL_INTERVAL_MS);
-};
-
-/** 启动音频设备监听，Windows 使用系统事件，其它平台暂用轮询 */
+/** 启动原生音频设备监听；不支持的后端依赖输出流错误和停滞检测恢复。 */
 export const startDeviceMonitoring = (player: PlayerInstance): void => {
   stopDeviceMonitoring();
   activePlayer = player;
@@ -139,19 +132,13 @@ export const startDeviceMonitoring = (player: PlayerInstance): void => {
       playerLog.info("已启用原生音频设备事件监听");
       return;
     } catch (error) {
-      playerLog.warn("原生音频设备监听启动失败，回退到轮询:", error);
+      playerLog.warn("原生音频设备监听启动失败，将依赖输出流错误恢复:", error);
     }
   }
-
-  startPollingFallback();
 };
 
 /** 停止音频设备监听并清理待处理事件 */
 export const stopDeviceMonitoring = (): void => {
-  if (pollingTimer !== null) {
-    clearInterval(pollingTimer);
-    pollingTimer = null;
-  }
   if (debounceTimer !== null) {
     clearTimeout(debounceTimer);
     debounceTimer = null;
