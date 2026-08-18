@@ -105,7 +105,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install --no-install-recommends -y \
-            libasound2-dev libdbus-1-dev libpulse-dev pkg-config clang \
+            libasound2-dev libdbus-1-dev libpipewire-0.3-dev libpulse-dev pkg-config clang \
             rpm libarchive-tools
 
       # 清理旧构建产物
@@ -127,6 +127,13 @@ jobs:
       # 安装项目依赖
       - name: Install dependencies
         run: pnpm install
+
+      - name: Check native audio engine (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          cargo check -p audio-engine
+          cargo test -p audio-engine
+          cargo tree -p audio-engine -i cpal
 
       # 仅构建本机架构
       - name: Build ${{ matrix.name }}
