@@ -205,8 +205,14 @@ impl InnerPlayer {
         })
     }
 
+    /// 取出当前输出流（`reinit_output` 在工作线程重建新流前释放旧流用）
+    pub fn take_output(&mut self) -> Option<AudioOutput> {
+        self.output.take()
+    }
+
     /// seek 三段式的最后一段：主线程持锁，attach 新 sink + 新解码线程
     ///
+    /// `output` 为输出重建（`reinit_output`）时新建的输出，seek 本身传 `None` 沿用现有输出。
     /// 返回 false 表示本次 seek 已被更新的 load/seek/stop 取代，结果被丢弃
     pub fn commit_seeked(
         &mut self,
@@ -214,6 +220,7 @@ impl InnerPlayer {
         position_secs: f64,
         shared: Arc<Shared>,
         handle: JoinHandle<decoder::DecoderData>,
+        output: Option<AudioOutput>,
     ) -> Result<bool> {
         // 抢占检查：与 commit_loaded 同款，不一致则丢弃本次 seek 结果
         if token != self.load_token.load(Ordering::Acquire) {
@@ -223,8 +230,11 @@ impl InnerPlayer {
             return Ok(false);
         }
 
+        if let Some(out) = output {
+            self.output = Some(out);
+        }
         let sink = {
-            let output = self.ensure_output()?;
+            let output = self.ensure_output(None)?;
             Arc::new(RodioPlayer::connect_new(output.mixer()))
         };
 
@@ -302,7 +312,7 @@ impl InnerPlayer {
         self.output = Some(output);
 
         let sink = {
-            let output = self.ensure_output()?;
+            let output = self.ensure_output(None)?;
             Arc::new(RodioPlayer::connect_new(output.mixer()))
         };
 

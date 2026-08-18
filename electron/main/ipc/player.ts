@@ -11,7 +11,11 @@ import * as lastfm from "@main/services/lastfm";
 import * as neteaseScrobble from "@main/services/neteaseScrobble";
 import { fetchBytes } from "@main/utils/fetchBytes";
 import { getPlayer, resetPlayer, onPlayerCreated } from "@main/services/engine";
-import { startDeviceMonitoring, stopDeviceMonitoring } from "@main/services/device";
+import {
+  startDeviceMonitoring,
+  stopDeviceMonitoring,
+  requestReinit,
+} from "@main/services/device";
 import { getThumbar } from "@main/services/thumbar";
 import {
   setTraySongName,
@@ -74,9 +78,6 @@ const fail = (code: ErrorCode, error?: unknown) => {
  * @param inst 播放器实例
  */
 const registerNativeEvents = (inst: InstanceType<AudioEngineModule["AudioPlayer"]>): void => {
-  // 自动重建输出的冷却时间戳
-  let lastReinitAt = 0;
-  const REINIT_COOLDOWN_MS = 5000;
   inst.onEvent((event: JsPlayerEvent) => {
     switch (event.type) {
       case "stateChanged": {
@@ -154,14 +155,16 @@ const registerNativeEvents = (inst: InstanceType<AudioEngineModule["AudioPlayer"
         wsBroadcast(fftEvent);
         break;
       }
+      case "outputFailed": {
+        // 运行期流错误（CPAL/Rodio），重建输出流恢复播放
+        playerLog.warn("检测到音频输出流错误，触发恢复");
+        requestReinit(inst);
+        break;
+      }
       case "outputStalled": {
-        const now = Date.now();
-        if (now - lastReinitAt < REINIT_COOLDOWN_MS) break;
-        lastReinitAt = now;
-        playerLog.warn("检测到音频输出停滞，自动重建");
-        inst.reinitOutput().catch((error) => {
-          playerLog.error("自动重建音频输出失败:", error);
-        });
+        // 看门狗：无流错误但长期未消费样本
+        playerLog.warn("检测到音频输出停滞，触发恢复");
+        requestReinit(inst);
         break;
       }
     }

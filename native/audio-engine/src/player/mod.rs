@@ -6,9 +6,9 @@ use anyhow::Result;
 use ffmpeg_audio::HttpCancelHandle;
 use parking_lot::Mutex;
 use rodio::Player as RodioPlayer;
-use tracing::{debug, info};
+use tracing::{debug, info, warn};
 
-use crate::audio_output::AudioOutput;
+use crate::audio_output::{AudioOutput, OutputFailure, OutputFailureCallback};
 use crate::decoder;
 use crate::equalizer::{Equalizer, EQ_BAND_COUNT};
 use crate::fft::FftAnalyzer;
@@ -94,13 +94,26 @@ const _: fn() = || {
 impl InnerPlayer {
     /// 未初始化时通过 `AudioOutput::new` 懒构造音频输出。
     /// 设备失效时的重建由 `reinit_output` 显式处理，不在此函数内自动恢复
-    fn ensure_output(&mut self) -> Result<&AudioOutput> {
+    fn ensure_output(&mut self, _requested_sample_rate: Option<u32>) -> Result<&AudioOutput> {
         if self.output.is_none() {
-            self.output = Some(AudioOutput::new(self.selected_device_name.as_deref())?);
+            let on_failure = self.make_failure_callback();
+            self.output = Some(AudioOutput::new(self.selected_device_name.as_deref(), on_failure)?);
         }
         self.output
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("ensure_output 后置条件违反"))
+    }
+
+    /// 构造输出失败回调：只发送轻量 `PlayerEvent::OutputFailed`，
+    /// 禁止在实时错误线程做任何阻塞操作
+    pub fn make_failure_callback(&self) -> OutputFailureCallback {
+        let Some(cb) = self.event_callback.as_ref().map(Arc::clone) else {
+            return std::sync::Arc::new(|_| {});
+        };
+        std::sync::Arc::new(move |failure: OutputFailure| {
+            warn!(message = %failure.message, "音频输出流错误");
+            cb(PlayerEvent::OutputFailed);
+        })
     }
 
     /// 当前实际输出流采样率（播放重采样目标）
@@ -164,11 +177,6 @@ impl InnerPlayer {
         self.selected_device_name.as_deref()
     }
 
-    /// 获取当前音频源
-    pub fn current_source(&self) -> Option<String> {
-        self.current_source.clone()
-    }
-
     /// 注册事件回调（支持热替换：先停止旧的定时器/渐变，确保旧回调的 Arc 引用尽快释放）
     pub fn set_event_callback(&mut self, cb: EventEmitter) {
         self.stop_position_timer();
@@ -187,18 +195,6 @@ impl InnerPlayer {
     /// 对外发 SourceError：供 NAPI 绑定层在远端源重开失败时通知 JS 重新解析
     pub fn emit_source_error(&self) {
         self.emit(PlayerEvent::SourceError);
-    }
-
-    /// 仅重建输出设备（系统休眠唤醒、设备热拔插等场景调用）
-    ///
-    /// 通过赋值新的 `AudioOutput` 触发旧 `AudioOutput` 的 `Drop`：旧 owner 线程
-    /// 退出 + 旧 `cpal::Stream` 在该线程内释放，再创建新 `AudioOutput`（新 owner 线程）。
-    /// 此函数仅替换输出设备，真正的状态恢复交由 NAPI 绑定层异步完成。
-    pub fn recreate_output_device(&mut self) -> Result<()> {
-        info!(device = ?self.selected_device_name, "开始重建音频输出");
-        self.output.take();
-        self.output = Some(AudioOutput::new(self.selected_device_name.as_deref())?);
-        Ok(())
     }
 
     /// 设置封面缓存目录
@@ -285,6 +281,18 @@ impl InnerPlayer {
         // 渐出已在后台运行，再同步停止定时器（join 开销不会影响音频淡出时序）
         self.stop_position_timer();
         self.stop_fft_timer();
+    }
+
+    /// 恢复失败后保留当前曲目与位置，播放器进入暂停态
+    ///
+    /// 不转 Stopped（避免 JS 按"播放结束"自动切歌），等待有限重试或用户手动操作。
+    pub fn enter_paused_for_recovery(&mut self) {
+        if self.state != PlayerState::Paused {
+            self.state = PlayerState::Paused;
+            self.emit(PlayerEvent::StateChanged {
+                state: PlayerState::Paused,
+            });
+        }
     }
 
     /// 停止播放并释放资源

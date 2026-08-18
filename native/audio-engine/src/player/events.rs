@@ -17,6 +17,8 @@ pub enum PlayerEvent {
     FftData { ldata: Vec<f32>, rdata: Vec<f32> },
     /// 输出流停滞（rodio sink 长时间未消费样本，需要外部重建输出）
     OutputStalled,
+    /// 输出流在运行期失效（CPAL/Rodio 流错误），由 JS 侧触发输出重建
+    OutputFailed,
 }
 
 /// 事件发射器类型（跨线程安全）

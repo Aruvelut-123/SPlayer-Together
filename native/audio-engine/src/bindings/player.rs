@@ -8,7 +8,9 @@ use napi_derive::napi;
 use parking_lot::Mutex;
 use tracing::{info, warn};
 
-use crate::player::{self, InnerPlayer, PlayerEvent, PlayerState, SeekTake};
+use crate::player::{
+    self, InnerPlayer, PlayerEvent, PlayerState, SeekTake,
+};
 use crate::{audio_output, decoder, device_watcher};
 
 use super::IntoNapiResult;
@@ -22,6 +24,23 @@ enum SeekOutcome {
     },
     /// seek 失败，需要 fallback 到完整 load
     Fallback,
+}
+
+/// 输出恢复阶段 2 的输出
+enum ReinitOutcome {
+    /// 恢复成功：新输出 + 新解码线程，等待提交
+    Resumed {
+        shared: Arc<crate::shared::Shared>,
+        handle: JoinHandle<crate::decoder::DecoderData>,
+        output: audio_output::AudioOutput,
+    },
+    /// 无法从原位置恢复解码（或输出采样率已变），需要重新加载音源
+    Reload {
+        source: Option<String>,
+        was_playing: bool,
+    },
+    /// 输出重建失败：设备错误，播放器保留曲目进入暂停
+    OutputFailed { error: anyhow::Error },
 }
 
 /// load 被更新的 load/stop 取代时的错误文案
@@ -86,7 +105,7 @@ pub struct JsFftData {
 #[napi(object)]
 #[derive(Default)]
 pub struct JsPlayerEvent {
-    /// 事件类型："stateChanged" | "ended" | "sourceError" | "position" | "fftData" | "outputStalled"
+    /// 事件类型："stateChanged" | "ended" | "sourceError" | "position" | "fftData" | "outputStalled" | "outputFailed"
     #[napi(js_name = "type")]
     pub event_type: String,
     /// 状态（仅 stateChanged 时有值）
@@ -123,6 +142,7 @@ fn state_to_str(state: PlayerState) -> &'static str {
         PlayerState::Stopped => "stopped",
     }
 }
+
 /// 音频播放器，通过 napi-rs 暴露给 Node.js
 #[napi]
 pub struct AudioPlayer {
@@ -143,63 +163,83 @@ impl AudioPlayer {
         })
     }
 
-    /// 重新初始化音频输出设备（系统休眠唤醒后调用）
+    /// 重新初始化音频输出设备（系统休眠唤醒、设备热插拔或输出流错误后调用）
+    ///
+    /// 恢复为全成全败：新输出创建失败时不启动解码、不提交状态，保留当前曲目与位置，
+    /// 播放器进入暂停态并返回设备错误；在线音源不会因设备错误触发 URL 重取或 sourceError。
     #[napi]
     pub async fn reinit_output(&self) -> Result<()> {
         info!("重新初始化音频输出设备");
 
-        let (take, position, was_playing, current_source) = {
+        let take = {
             let mut player = self.inner.lock();
+            // position 需在 take 前读取（take 会 drain 共享缓冲）
             let position = player.position();
-            let was_playing = player.state() == PlayerState::Playing;
-            let current_source = player.current_source();
+            let seek_take = match player.take_for_async_seek() {
+                Some(t) => t,
+                // 空闲 / 已停止 / 正在异步加载：无播放可恢复，仅需让后续 load 重新打开输出
+                None => return Ok(()),
+            };
+            let old_output = player.take_output();
+            let device_name = player.selected_device_name().map(String::from);
+            let on_failure = player.make_failure_callback();
+            (seek_take, old_output, device_name, position, on_failure)
+        };
+        let (
+            SeekTake {
+                old_threads,
+                normalization_enabled,
+                normalization_gain,
+                current_source,
+                was_playing,
+                output_sample_rate,
+                token,
+                equalizer,
+                tempo,
+            },
+            old_output,
+            device_name,
+            position,
+            on_failure,
+        ) = take;
 
-            let take = player.take_for_async_seek();
+        let outcome: ReinitOutcome = tokio::task::spawn_blocking(move || {
+            let decoder_data = old_threads.join_aux().and_then(|h| h.join().ok());
+            // 释放旧 cpal 流，避免与新建流重叠占用设备
+            drop(old_output);
 
-            if let Err(e) = player.recreate_output_device() {
-                warn!("重建输出设备失败: {}", e);
+            let output = match audio_output::AudioOutput::new(device_name.as_deref(), on_failure) {
+                Ok(output) => output,
+                Err(error) => return ReinitOutcome::OutputFailed { error },
+            };
+            // 设备配置变化导致实际采样率与重采样目标不一致时无法原地恢复，回退到完整 load
+            if output.sample_rate() != output_sample_rate {
+                return ReinitOutcome::Reload {
+                    source: current_source,
+                    was_playing,
+                };
             }
 
-            let take = take.map(|mut t| {
-                t.output_sample_rate = player.output_sample_rate();
-                t
-            });
-
-            (take, position, was_playing, current_source)
-        };
-
-        let Some(take) = take else {
-            return Ok(());
-        };
-
-        let SeekTake {
-            old_threads,
-            normalization_enabled,
-            normalization_gain,
-            current_source: _,
-            was_playing: _,
-            output_sample_rate,
-            token,
-            equalizer,
-            tempo,
-        } = take;
-
-        let outcome: SeekOutcome = tokio::task::spawn_blocking(move || {
-            let decoder_data = old_threads.join_aux().and_then(|h| h.join().ok());
-            let mut decoder_data = match decoder_data {
-                Some(d) => d,
-                None => return SeekOutcome::Fallback,
+            let Some(mut decoder_data) = decoder_data else {
+                return ReinitOutcome::Reload {
+                    source: current_source,
+                    was_playing,
+                };
             };
             if !decoder_data.seek(position) {
-                return SeekOutcome::Fallback;
+                return ReinitOutcome::Reload {
+                    source: current_source,
+                    was_playing,
+                };
             }
+
             let shared =
-                crate::shared::Shared::new(output_sample_rate, crate::decoder::TARGET_CHANNELS);
+                crate::shared::Shared::new(output.sample_rate(), crate::decoder::TARGET_CHANNELS);
             shared.set_normalization_enabled(normalization_enabled);
             shared.set_normalization_gain(normalization_gain);
-            equalizer.lock().set_sample_rate(output_sample_rate);
+            equalizer.lock().set_sample_rate(output.sample_rate());
             equalizer.lock().reset_state();
-            tempo.lock().set_sample_rate(output_sample_rate);
+            tempo.lock().set_sample_rate(output.sample_rate());
             tempo.lock().reset();
             let handle = match crate::decoder::resume_decode(
                 decoder_data,
@@ -208,47 +248,71 @@ impl AudioPlayer {
                 tempo,
             ) {
                 Ok(handle) => handle,
-                Err(err) => {
-                    warn!(error = %err, "重建输出后启动解码线程失败，回退到重新加载");
-                    return SeekOutcome::Fallback;
+                Err(error) => {
+                    warn!(error = %error, "输出重建后启动解码线程失败");
+                    return ReinitOutcome::Reload {
+                        source: current_source,
+                        was_playing,
+                    };
                 }
             };
-            SeekOutcome::Resumed { shared, handle }
+
+            ReinitOutcome::Resumed {
+                shared,
+                handle,
+                output,
+            }
         })
         .await
         .map_err(|e| Error::from_reason(format!("reinit task join error: {e}")))?;
 
         match outcome {
-            SeekOutcome::Resumed { shared, handle } => {
+            ReinitOutcome::Resumed {
+                shared,
+                handle,
+                output,
+            } => {
                 let mut player = self.inner.lock();
                 let committed = player
-                    .commit_seeked(token, position, shared, handle)
+                    .commit_seeked(token, position, shared, handle, Some(output))
                     .into_napi()?;
                 if !committed {
                     info!("reinit 已被更新的 load/seek/stop 取代，丢弃结果");
                 }
                 Ok(())
             }
-            SeekOutcome::Fallback => {
+            ReinitOutcome::Reload {
+                source,
+                was_playing,
+            } => {
                 if !self.inner.lock().is_load_token_current(token) {
                     return Ok(());
                 }
-                if let Some(src) = current_source {
+                if let Some(src) = source {
                     let is_remote = src.starts_with("http://") || src.starts_with("https://");
                     if let Err(e) = self.load(src, Some(was_playing)).await {
                         if e.reason == LOAD_SUPERSEDED_REASON {
                             return Ok(());
                         }
+                        // 远端源恢复重开失败（多半 URL 过期）：发 sourceError 交 JS 重解析
                         if is_remote {
                             self.inner.lock().emit_source_error();
                             return Ok(());
                         }
                         return Err(e);
                     }
-                    Ok(())
-                } else {
-                    Ok(())
                 }
+                Ok(())
+            }
+            ReinitOutcome::OutputFailed { error } => {
+                let mut player = self.inner.lock();
+                if !player.is_load_token_current(token) {
+                    return Ok(());
+                }
+                // 保留曲目与位置，进入暂停态，交给 JS 侧有限重试或用户手动操作
+                player.enter_paused_for_recovery();
+                warn!(error = %error, "输出重建失败，播放器进入暂停态");
+                Err(error).into_napi()
             }
         }
     }
@@ -296,6 +360,10 @@ impl AudioPlayer {
                 },
                 PlayerEvent::OutputStalled => JsPlayerEvent {
                     event_type: "outputStalled".into(),
+                    ..Default::default()
+                },
+                PlayerEvent::OutputFailed => JsPlayerEvent {
+                    event_type: "outputFailed".into(),
                     ..Default::default()
                 },
             };
@@ -362,6 +430,7 @@ impl AudioPlayer {
             cover_dir,
             normalization_enabled,
             device_name,
+            failure_callback,
             equalizer,
             tempo,
         ) = {
@@ -375,6 +444,7 @@ impl AudioPlayer {
                 player.cover_cache_dir().map(String::from),
                 player.is_normalization_enabled(),
                 player.selected_device_name().map(String::from),
+                player.make_failure_callback(),
                 player.equalizer_handle(),
                 player.tempo_handle(),
             )
@@ -392,7 +462,7 @@ impl AudioPlayer {
             if load_token.load(std::sync::atomic::Ordering::Acquire) != token {
                 anyhow::bail!(LOAD_SUPERSEDED_REASON);
             }
-            let output = audio_output::AudioOutput::new(device_name.as_deref())?;
+            let output = audio_output::AudioOutput::new(device_name.as_deref(), failure_callback)?;
             let shared = Shared::new(output.sample_rate(), decoder::TARGET_CHANNELS);
             shared.set_normalization_enabled(normalization_enabled);
             equalizer.lock().set_sample_rate(output.sample_rate());
@@ -571,7 +641,7 @@ impl AudioPlayer {
             SeekOutcome::Resumed { shared, handle } => {
                 let mut player = self.inner.lock();
                 let committed = player
-                    .commit_seeked(token, position, shared, handle)
+                    .commit_seeked(token, position, shared, handle, None)
                     .into_napi()?;
                 if !committed {
                     info!(position, "seek 已被更新的 load/seek/stop 取代，丢弃结果");

@@ -23,6 +23,16 @@ use tracing::{debug, info, warn};
 use crate::error::{AudioErrorKind, AudioResultExt};
 use crate::priority;
 
+/// 输出失败事件，由实时错误回调产生
+#[derive(Clone, Debug)]
+pub struct OutputFailure {
+    pub message: String,
+}
+
+/// 输出失败回调：实时错误线程调用，只允许发送轻量事件。
+/// 禁止获取 `InnerPlayer` 锁、join 线程、枚举设备、创建新流或调用 NAPI async 方法。
+pub type OutputFailureCallback = std::sync::Arc<dyn Fn(OutputFailure) + Send + Sync + 'static>;
+
 /// 持有音频输出的跨线程句柄。`Send`，可放进 `InnerPlayer` 而不需 `unsafe impl Send`。
 ///
 /// 内部专用线程独占 `MixerDeviceSink`，drop 这个结构会通过 channel 通知线程退出，
@@ -52,12 +62,13 @@ impl AudioOutput {
     ///
     /// # Arguments
     /// * `device_name` - 输出设备名，`None` 走系统默认设备
+    /// * `on_failure` - 运行期流错误回调，见 [`OutputFailureCallback`]
     ///
     /// # Errors
     /// - 找不到指定设备
     /// - 无可用音频设备
     /// - 专用线程 spawn 失败
-    pub fn new(device_name: Option<&str>) -> Result<Self> {
+    pub fn new(device_name: Option<&str>, on_failure: OutputFailureCallback) -> Result<Self> {
         let device_name = device_name.map(String::from);
 
         // 把构建结果回传给调用线程；用 sync_channel 容量 1 避免发送方阻塞
@@ -70,7 +81,7 @@ impl AudioOutput {
             .spawn(move || {
                 priority::boost_current_audio_thread("audio-output-owner");
                 debug!(device = ?device_name, "audio-output-owner: starting");
-                let build_result = build_output_sink(device_name.as_deref());
+                let build_result = build_output_sink(device_name.as_deref(), on_failure);
                 match build_result {
                     Ok((mut sink, sample_rate)) => {
                         sink.log_on_drop(false);
@@ -139,8 +150,11 @@ impl Drop for AudioOutput {
 /// 构建 cpal/rodio 输出流；**仅在 `audio-output-owner` 线程内调用**，
 /// 保证 `MixerDeviceSink` 的创建、持有和 drop 都发生在同一线程上
 ///
-/// 始终使用设备默认配置打开流，返回实际采样率供播放重采样器与 DSP 使用。
-fn build_output_sink(device_name: Option<&str>) -> Result<(MixerDeviceSink, u32)> {
+/// 使用设备默认配置打开流，返回实际采样率供播放重采样器与 DSP 使用。
+fn build_output_sink(
+    device_name: Option<&str>,
+    on_failure: OutputFailureCallback,
+) -> Result<(MixerDeviceSink, u32)> {
     let host = cpal::default_host();
     match device_name {
         Some(name) => {
@@ -150,16 +164,24 @@ fn build_output_sink(device_name: Option<&str>) -> Result<(MixerDeviceSink, u32)
                 .find(|device| persisted_device_name(device).as_deref() == Some(name))
                 .with_context(|| format!("Output device '{}' not found", name))
                 .with_audio_kind(AudioErrorKind::Device)?;
-            open_device_with_default_config(&device)
+            open_device_with_error_callback(&device, &on_failure)
         }
-        None => {
-            let sink = DeviceSinkBuilder::open_default_sink()
-                .context("Failed to open default output device")
-                .with_audio_kind(AudioErrorKind::Device)?;
-            let sample_rate = sink.config().sample_rate().get();
-            info!(sample_rate, "使用系统默认音频输出配置");
-            Ok((sink, sample_rate))
-        }
+        None => open_default_sink_with_callback(&on_failure),
+    }
+}
+
+/// 从一次流错误回调参数构造失败事件闭包
+///
+/// 闭包捕获的都是可克隆值（`Arc`），满足 rodio builder 的 `E: Clone` 约束，
+/// 同一份回调可安全复用到多次候选设备尝试。
+fn error_callback(
+    on_failure: &OutputFailureCallback,
+) -> impl FnMut(cpal::StreamError) + Clone + Send + 'static {
+    let on_failure = std::sync::Arc::clone(on_failure);
+    move |error| {
+        on_failure(OutputFailure {
+            message: error.to_string(),
+        });
     }
 }
 
@@ -169,15 +191,59 @@ fn persisted_device_name(device: &cpal::Device) -> Option<String> {
     device.name().ok()
 }
 
-/// 使用设备默认配置创建输出流
-fn open_device_with_default_config(device: &cpal::Device) -> Result<(MixerDeviceSink, u32)> {
+/// 使用设备默认配置创建输出流，并注册运行期流错误回调
+fn open_device_with_error_callback(
+    device: &cpal::Device,
+    on_failure: &OutputFailureCallback,
+) -> Result<(MixerDeviceSink, u32)> {
     let sink = DeviceSinkBuilder::from_device(device.clone())
         .context("Failed to get default output config")?
+        .with_error_callback(error_callback(on_failure))
         .open_sink_or_fallback()
         .context("Failed to open output device")
         .with_audio_kind(AudioErrorKind::Device)?;
     let sample_rate = sink.config().sample_rate().get();
-    info!(sample_rate, "使用设备默认音频输出配置");
+    info!(sample_rate, "打开音频输出");
+    Ok((sink, sample_rate))
+}
+
+/// 打开系统默认输出设备并注册错误回调；默认设备失败时枚举其它非 null 输出设备兜底
+///
+/// rodio 的静态 `open_default_sink` 无法注入自定义错误回调，此处复刻其兜底逻辑：
+/// 每次候选尝试都使用同一份错误回调，全部失败时返回第一次默认设备的错误并标记为设备错误。
+fn open_default_sink_with_callback(
+    on_failure: &OutputFailureCallback,
+) -> Result<(MixerDeviceSink, u32)> {
+    let host = cpal::default_host();
+    let default_device = host.default_output_device().ok_or(rodio::DeviceSinkError::NoDevice);
+    let open = |device: cpal::Device| {
+        DeviceSinkBuilder::from_device(device)?
+            .with_error_callback(error_callback(on_failure))
+            .open_stream()
+    };
+
+    let sink = match default_device.and_then(open) {
+        Ok(sink) => sink,
+        Err(original) => {
+            let devices = host
+                .output_devices()
+                .context("Failed to enumerate output devices")
+                .with_audio_kind(AudioErrorKind::Device)?;
+            devices
+                .filter(|device| {
+                    device
+                        .description()
+                        .map(|desc| desc.driver().is_some_and(|driver| driver != "null"))
+                        .unwrap_or(false)
+                })
+                .find_map(|device| open(device).ok())
+                .ok_or(original)
+                .map_err(anyhow::Error::from)
+                .with_audio_kind(AudioErrorKind::Device)?
+        }
+    };
+    let sample_rate = sink.config().sample_rate().get();
+    info!(sample_rate, "使用系统默认音频输出配置");
     Ok((sink, sample_rate))
 }
 

@@ -15,8 +15,8 @@ let lastDefaultDevice: string | null | undefined;
 let reinitPromise: Promise<void> | null = null;
 let pendingReinitPlayer: PlayerInstance | null = null;
 
-/** 串行重建音频输出，合并重建期间到达的设备变化 */
-const requestReinit = (player: PlayerInstance): void => {
+/** 串行重建音频输出，合并重建期间到达的设备变化 / 输出流错误 */
+export const requestReinit = (player: PlayerInstance): void => {
   if (reinitPromise !== null) {
     pendingReinitPlayer = player;
     return;
