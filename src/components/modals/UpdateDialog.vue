@@ -1,18 +1,18 @@
 <script setup lang="ts">
 import { marked } from "marked";
 import { useUpdateStore } from "@/stores/update";
+import { getChangelogRange } from "@/utils/changelog";
 import { APP_VERSION, IS_APPX } from "@/utils/config";
 import { formatFileSize } from "@/utils/format";
 
 const { t } = useI18n();
 const update = useUpdateStore();
 
-/** release notes 渲染为 HTML */
-const notesHtml = computed(() =>
-  update.meta?.releaseNotes
-    ? (marked.parse(update.meta.releaseNotes, { async: false }) as string)
-    : "",
-);
+/** release notes 渲染为 HTML：聚合从当前版本到最新版本的全部更新日志 */
+const notesHtml = computed(() => {
+  const raw = getChangelogRange(APP_VERSION, update.meta?.version);
+  return raw ? (marked.parse(raw, { async: false }) as string) : "";
+});
 
 /** 发布日期（本地化，空/非法则不显示） */
 const releaseDateText = computed(() => {

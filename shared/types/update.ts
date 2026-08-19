@@ -23,14 +23,6 @@ export type UpdateEvent =
   | { type: "downloaded"; meta: UpdateMeta }
   | { type: "error"; message: string; manual: boolean };
 
-/** 服务器提供的更新日志 */
-export interface ServerChangelog {
-  /** 服务器最新版本号 */
-  version: string;
-  /** 更新日志（Markdown） */
-  notes: string;
-}
-
 /** 更新模块对渲染层暴露的 API */
 export interface UpdateApi {
   /** 检查更新 */
@@ -41,8 +33,6 @@ export interface UpdateApi {
   install: () => Promise<void>;
   /** 打开 Releases 下载页 */
   openDownloadPage: () => Promise<void>;
-  /** 获取服务器提供的更新日志 */
-  getChangelog: () => Promise<ServerChangelog | null>;
   /** 订阅更新事件，返回取消订阅函数 */
   onEvent: (callback: (event: UpdateEvent) => void) => () => void;
 }

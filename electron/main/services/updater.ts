@@ -94,19 +94,6 @@ const runCheck = async (manual: boolean): Promise<void> => {
   }
 };
 
-/** 获取服务器提供的更新日志（含最新版本号），失败返回 null */
-export const fetchChangelog = async (): Promise<{ version: string; notes: string } | null> => {
-  try {
-    const res = await fetch(UPDATE_API, { signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const manifest = (await res.json()) as UpdateManifest;
-    return { version: manifest.version, notes: manifest.notes ?? "" };
-  } catch (error) {
-    updaterLog.error("获取更新日志失败", error);
-    return null;
-  }
-};
-
 /**
  * 检查更新：自动检查受设置开关约束，手动检查始终执行
  * @param manual - 是否由用户手动触发
