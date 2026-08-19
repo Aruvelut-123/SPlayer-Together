@@ -2,7 +2,7 @@
 title: 下载
 ---
 
-# 下载 SPlayer-Next
+# 下载 SPlayer Together
 
 下方会自动从 GitHub 拉取对应更新通道的最新版本，并根据你的系统推荐合适的安装包。默认选择 Stable 正式版；若下载缓慢，可切换镜像线路。
 
@@ -41,22 +41,22 @@ title: 下载
 
 ```bash
 # AppImage
-chmod +x ./splayer-next-*.AppImage
-./splayer-next-*.AppImage # 直接运行
-./splayer-next-*.AppImage --appimage-extract # 或解压到 squashfs-root 目录
+chmod +x ./splayer-together-*.AppImage
+./splayer-together-*.AppImage # 直接运行
+./splayer-together-*.AppImage --appimage-extract # 或解压到 squashfs-root 目录
 
 # deb
-sudo apt install ./splayer-next-*.deb
+sudo apt install ./splayer-together-*.deb
 
 # rpm
-sudo dnf install ./splayer-next-*.rpm # Fedora
-sudo zypper install ./splayer-next-*.rpm # openSUSE
+sudo dnf install ./splayer-together-*.rpm # Fedora
+sudo zypper install ./splayer-together-*.rpm # openSUSE
 
 # pacman
-sudo pacman -U ./splayer-next-*.pacman
+sudo pacman -U ./splayer-together-*.pacman
 
 # 压缩包
-tar -xzf ./splayer-next-*.tar.gz
-cd splayer-next-*/
-./SPlayer-Next
+tar -xzf ./splayer-together-*.tar.gz
+cd splayer-together-*/
+./SPlayer Together
 ```

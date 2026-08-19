@@ -2,7 +2,7 @@
 layout: home
 
 hero:
-  name: "SPlayer-Next"
+  name: "SPlayer Together"
   text: "Music, the way it should be"
   tagline: A clean and refined cross-platform desktop music player with broad format support, expressive lyrics, deep performance optimization, and carefully crafted details.
   actions:

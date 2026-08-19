@@ -1,4 +1,4 @@
-# SPlayer Next Privacy Policy
+# SPlayer Together Privacy Policy
 
 **Version: v1.2**  
 **Effective: August 5, 2026**  
@@ -6,7 +6,7 @@
 
 This English translation is provided for convenience. If it differs from the [Chinese policy](/privacy), the Chinese text prevails.
 
-This policy explains how SPlayer Next processes, stores, and protects information when you install and use the application. By using the software, you acknowledge this policy.
+This policy explains how SPlayer Together processes, stores, and protects information when you install and use the application. By using the software, you acknowledge this policy.
 
 ## 1. Principles
 
@@ -48,7 +48,7 @@ You can inspect local databases and configuration, update preferences and server
 
 ## 7. Children
 
-SPlayer Next is a general-purpose tool and is not designed to collect information from children. Minors should review this policy and use the software with a guardian.
+SPlayer Together is a general-purpose tool and is not designed to collect information from children. Minors should review this policy and use the software with a guardian.
 
 ## 8. Policy updates
 

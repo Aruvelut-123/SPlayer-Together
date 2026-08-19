@@ -25,7 +25,7 @@ const jsonContent = (value: unknown) => ({
 /** 创建并注册 SPlayer MCP 能力 */
 const createServer = (): McpServer => {
   const server = new McpServer({
-    name: "splayer-next",
+    name: "splayer-together",
     version: appVersion,
   });
 

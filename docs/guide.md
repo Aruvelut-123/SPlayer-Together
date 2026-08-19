@@ -1,6 +1,6 @@
 # 使用指南
 
-本页介绍 SPlayer-Next 的基本使用。安装包请见 [下载](/download)。
+本页介绍 SPlayer Together 的基本使用。安装包请见 [下载](/download)。
 
 ## 播放音乐
 
@@ -20,7 +20,7 @@
 
 ## 歌词
 
-SPlayer-Next 支持 LRC / QRC / YRC / TTML 多种歌词格式，提供逐字高亮、翻译与音译。在线歌词会按 **设置 → 歌词** 中的「歌词来源偏好」「音源排序」「格式偏好」依次匹配。
+SPlayer Together 支持 LRC / QRC / YRC / TTML 多种歌词格式，提供逐字高亮、翻译与音译。在线歌词会按 **设置 → 歌词** 中的「歌词来源偏好」「音源排序」「格式偏好」依次匹配。
 
 在此之外，还提供两种高质量 TTML 歌词来源。
 
@@ -58,7 +58,7 @@ SPlayer-Next 支持 LRC / QRC / YRC / TTML 多种歌词格式，提供逐字高�
 
 ## 插件
 
-SPlayer-Next 内置插件系统，可通过脚本扩展音源与控制等能力，详见 [插件使用](/plugins-usage) 与 [插件开发](/plugins/)。
+SPlayer Together 内置插件系统，可通过脚本扩展音源与控制等能力，详见 [插件使用](/plugins-usage) 与 [插件开发](/plugins/)。
 
 ## 外部控制
 

@@ -1,6 +1,6 @@
 # 外部 API（HTTP）
 
-SPlayer-Next 提供一个可选的本地 HTTP 接口，用于查询播放状态与控制播放。实时状态推送请使用 [WebSocket API](/socket)，接入 AI 应用请使用 [MCP 接口](/mcp)。
+SPlayer Together 提供一个可选的本地 HTTP 接口，用于查询播放状态与控制播放。实时状态推送请使用 [WebSocket API](/socket)，接入 AI 应用请使用 [MCP 接口](/mcp)。
 
 ::: warning 默认关闭
 外部 API **默认关闭**，需在 **设置 → 外部 API** 中开启。服务默认仅绑定 `127.0.0.1`（本机可访问），**不含任何鉴权**；如需局域网访问，请显式开启「允许局域网访问」，并仅在可信网络中使用。
@@ -47,7 +47,7 @@ GET /api/info
 **响应**
 
 ```json
-{ "name": "SPlayer-Next", "version": "1.0.0", "wsClients": 0 }
+{ "name": "SPlayer Together", "version": "1.0.0", "wsClients": 0 }
 ```
 
 ### 获取播放状态

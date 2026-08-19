@@ -1,6 +1,6 @@
 # MCP Interface
 
-SPlayer-Next includes a [Model Context Protocol](https://modelcontextprotocol.io/) service that lets MCP clients inspect playback, search the local library, and control the player.
+SPlayer Together includes a [Model Context Protocol](https://modelcontextprotocol.io/) service that lets MCP clients inspect playback, search the local library, and control the player.
 
 ## Connection
 
@@ -14,7 +14,7 @@ MCP is disabled by default. Enable **Settings → AI Integration → MCP**, then
 ```json
 {
   "mcpServers": {
-    "splayer-next": {
+    "splayer-together": {
       "type": "http",
       "url": "http://127.0.0.1:14559/mcp",
       "headers": {
@@ -25,7 +25,7 @@ MCP is disabled by default. Enable **Settings → AI Integration → MCP**, then
 }
 ```
 
-Client configuration fields vary. Keep SPlayer-Next running while the client is connected.
+Client configuration fields vary. Keep SPlayer Together running while the client is connected.
 
 ## Tools
 

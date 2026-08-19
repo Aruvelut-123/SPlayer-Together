@@ -300,7 +300,7 @@ export interface McpAgentApp {
   name: string;
   /** 配置文件路径 */
   configPath: string;
-  /** 是否已配置 splayer-next */
+  /** 是否已配置 splayer-together */
   configured: boolean;
   /** 是否支持自动写入配置 */
   injectable: boolean;

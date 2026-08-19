@@ -3,7 +3,7 @@
 layout: home
 
 hero:
-  name: "SPlayer-Next"
+  name: "SPlayer Together"
   text: "听音乐，本该如此"
   tagline: 一款简洁而精致的多平台桌面音乐播放器。支持多种音频格式与丰富的歌词展现形式，性能经过深度优化，每一处细节都恰到好处。
   actions:

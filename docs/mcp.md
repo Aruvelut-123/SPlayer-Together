@@ -1,6 +1,6 @@
 # MCP 接口
 
-SPlayer-Next 内置 [Model Context Protocol](https://modelcontextprotocol.io/) 服务，允许支持 MCP 的 AI 应用查询当前播放状态、本地曲库并控制播放器。
+SPlayer Together 内置 [Model Context Protocol](https://modelcontextprotocol.io/) 服务，允许支持 MCP 的 AI 应用查询当前播放状态、本地曲库并控制播放器。
 
 ## 连接
 
@@ -16,7 +16,7 @@ MCP 服务默认关闭。先在 **设置 → AI 集成 → MCP** 中启用，再
 ```json
 {
   "mcpServers": {
-    "splayer-next": {
+    "splayer-together": {
       "type": "http",
       "url": "http://127.0.0.1:14559/mcp",
       "headers": {
@@ -27,7 +27,7 @@ MCP 服务默认关闭。先在 **设置 → AI 集成 → MCP** 中启用，再
 }
 ```
 
-不同 AI 客户端的配置字段可能不同，请以客户端当前文档为准。连接前应保持 SPlayer-Next 正在运行。
+不同 AI 客户端的配置字段可能不同，请以客户端当前文档为准。连接前应保持 SPlayer Together 正在运行。
 
 ## 工具
 

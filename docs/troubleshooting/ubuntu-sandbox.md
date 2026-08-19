@@ -49,7 +49,7 @@ sudo chmod 4755 /path/to/chrome-sandbox
 
 ```bash
 # 运行 AppImage 时追加参数
-./SPlayer-Next-*.AppImage --no-sandbox
+./SPlayer Together-*.AppImage --no-sandbox
 ```
 
 ## 缺少系统库
@@ -69,7 +69,7 @@ Fedora 使用 `dnf`、Arch 使用 `pacman` 安装对应的 nss / alsa / libXScrn
 在 WSL 中运行需使用 WSL2 + WSLg（Windows 11 或 Windows 10 21H2+），且沙箱通常需禁用：
 
 ```bash
-./SPlayer-Next-*.AppImage --no-sandbox
+./SPlayer Together-*.AppImage --no-sandbox
 ```
 
 ## 仍有问题？

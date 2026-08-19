@@ -16,7 +16,7 @@
 4. 播放器拿到第一个非空 `url` 即用它播放；插件抛错或返回空地址，则尝试下一个候选插件。
 
 ::: warning source key 必须匹配平台
-插件 `register` 的 source key **不是随便起的**——只有与目标平台约定一致的 key 才会被播放器调用。SPlayer-Next 沿用 lx-music 社区约定的 key，当前播放会用到的是 `wy` / `tx` / `kg` 三个，各对应一个在线平台。
+插件 `register` 的 source key **不是随便起的**——只有与目标平台约定一致的 key 才会被播放器调用。SPlayer Together 沿用 lx-music 社区约定的 key，当前播放会用到的是 `wy` / `tx` / `kg` 三个，各对应一个在线平台。
 
 - 移植某个 lx 源脚本时，沿用它原本的 source key 即可；
 - 自己新写时，用与目标平台对应的 key；不确定就在 handler 里 `splayer.log.info(req.source)`，看播放器实际传入的 key；
@@ -187,7 +187,7 @@ splayer.on("musicUrl", async (req) => {
 
 ## 元数据兜底（歌词 / 封面） {#metadata-fallback}
 
-除了播放地址，音源插件还能在**内置来源拿不到时兜底元数据**。SPlayer-Next 内置 netease / qqmusic / kugou 的搜索与歌词，但：
+除了播放地址，音源插件还能在**内置来源拿不到时兜底元数据**。SPlayer Together 内置 netease / qqmusic / kugou 的搜索与歌词，但：
 
 - 内置三平台都匹配不到歌词时，宿主回退到插件的 `musicLyric`（在线平台曲目与本地文件都先经三平台按歌名匹配，全 miss 后才轮到插件）；
 - 曲目**完全没有封面**时（如无内嵌封面的本地文件），宿主回退到插件的 `musicPic`，补全全屏播放器大图（同时填充背景与取色）。
@@ -398,7 +398,7 @@ splayer.on("musicComment", async ({ musicInfo, type, page, limit }) => {
 
 ## 兼容 lx 插件
 
-SPlayer-Next 提供 `lx` 兼容层，覆盖 [lx-music-desktop](https://github.com/lyswhut/lx-music-desktop) `user_api` 脚本的常用接口（`lx.request` / `lx.on("request")` / `lx.send("inited")` / `lx.utils`）。兼容层由宿主**自动注入**，多数现有 lx 音源脚本（含 `gz_` 压缩分发）无需任何修改或声明即可导入运行。
+SPlayer Together 提供 `lx` 兼容层，覆盖 [lx-music-desktop](https://github.com/lyswhut/lx-music-desktop) `user_api` 脚本的常用接口（`lx.request` / `lx.on("request")` / `lx.send("inited")` / `lx.utils`）。兼容层由宿主**自动注入**，多数现有 lx 音源脚本（含 `gz_` 压缩分发）无需任何修改或声明即可导入运行。
 
 ::: tip
 兼容层仅用于兼容存量 lx 音源脚本，且只覆盖音源能力。编写**新插件**请直接使用 `splayer.*` API。

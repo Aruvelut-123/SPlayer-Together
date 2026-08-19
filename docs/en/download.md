@@ -2,7 +2,7 @@
 title: Download
 ---
 
-# Download SPlayer-Next
+# Download SPlayer Together
 
 The list below fetches the latest release for the selected channel from GitHub and recommends a package for your system. Stable is selected by default. If GitHub is slow, choose a download mirror.
 
@@ -41,22 +41,22 @@ Change the channel under **Settings → General → Release channel**. Alpha bui
 
 ```bash
 # AppImage
-chmod +x ./splayer-next-*.AppImage
-./splayer-next-*.AppImage
-./splayer-next-*.AppImage --appimage-extract
+chmod +x ./splayer-together-*.AppImage
+./splayer-together-*.AppImage
+./splayer-together-*.AppImage --appimage-extract
 
 # deb
-sudo apt install ./splayer-next-*.deb
+sudo apt install ./splayer-together-*.deb
 
 # rpm
-sudo dnf install ./splayer-next-*.rpm
-sudo zypper install ./splayer-next-*.rpm
+sudo dnf install ./splayer-together-*.rpm
+sudo zypper install ./splayer-together-*.rpm
 
 # pacman
-sudo pacman -U ./splayer-next-*.pacman
+sudo pacman -U ./splayer-together-*.pacman
 
 # Archive
-tar -xzf ./splayer-next-*.tar.gz
-cd splayer-next-*/
-./SPlayer-Next
+tar -xzf ./splayer-together-*.tar.gz
+cd splayer-together-*/
+./SPlayer Together
 ```

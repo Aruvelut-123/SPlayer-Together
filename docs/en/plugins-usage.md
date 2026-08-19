@@ -16,7 +16,7 @@ Scripts distributed with a `gz_` prefix are detected and decompressed automatica
 ## Enable, disable, and uninstall
 
 - Newly installed plugins are enabled automatically.
-- Multiple plugins may be enabled at once. If several support the same source, SPlayer-Next selects one by priority.
+- Multiple plugins may be enabled at once. If several support the same source, SPlayer Together selects one by priority.
 - A control plugin can expose settings from its plugin card.
 - **Uninstalling deletes the script and its local data and cannot be undone.**
 
@@ -24,7 +24,7 @@ States are **Ready**, **Loading**, **Error** (with a reason), and **Disabled**.
 
 ## LX plugin compatibility
 
-SPlayer-Next supports [lx-music-desktop](https://github.com/lyswhut/lx-music-desktop) `user_api` scripts. Most public LX scripts can be imported directly, though scripts using uncommon or newer LX APIs may fail to load.
+SPlayer Together supports [lx-music-desktop](https://github.com/lyswhut/lx-music-desktop) `user_api` scripts. Most public LX scripts can be imported directly, though scripts using uncommon or newer LX APIs may fail to load.
 
 ## Troubleshooting
 

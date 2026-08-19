@@ -9,7 +9,7 @@ export interface StreamingAuthSession {
   userId: string;
 }
 
-const CLIENT_NAME = "SPlayer-Next";
+const CLIENT_NAME = "SPlayer-Together";
 const CLIENT_VERSION = "1.0.0";
 const DEVICE_NAME = "SPlayer Desktop";
 const REQUEST_TIMEOUT_MS = 15_000;
@@ -45,7 +45,7 @@ interface JellyItem {
  * @param config - 主进程服务器配置
  * @returns Jellyfin/Emby 设备 ID
  */
-const deviceId = (config: StreamingRuntimeConfig): string => `splayer-next-${config.id}`;
+const deviceId = (config: StreamingRuntimeConfig): string => `splayer-together-${config.id}`;
 
 /**
  * 请求 Jellyfin/Emby API

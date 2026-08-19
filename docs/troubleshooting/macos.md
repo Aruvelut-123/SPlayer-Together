@@ -1,6 +1,6 @@
 # macOS 常见问题
 
-本文汇总 macOS 上使用 SPlayer-Next 时可能遇到的常见问题及解决方案。
+本文汇总 macOS 上使用 SPlayer Together 时可能遇到的常见问题及解决方案。
 
 ## 应用签名问题
 
@@ -14,7 +14,7 @@
 2. 或在终端执行：
 
    ```bash
-   sudo xattr -rd com.apple.quarantine /Applications/SPlayer-Next.app
+   sudo xattr -rd com.apple.quarantine /Applications/SPlayer Together.app
    ```
 
 若提示“应用已损坏”，请参考 [Mac 应用显示已损坏](/troubleshooting/macos-damaged)。
@@ -23,14 +23,14 @@
 
 ```bash
 # 强制移除所有属性
-sudo xattr -cr /Applications/SPlayer-Next.app
+sudo xattr -cr /Applications/SPlayer Together.app
 ```
 
 ## 系统集成
 
 ### 控制中心“正在播放”
 
-SPlayer-Next 在 macOS 上**支持系统级媒体集成**：通过 `media-ctrl` 原生模块对接 macOS Now Playing，可在控制中心、锁屏界面查看并控制当前播放。
+SPlayer Together 在 macOS 上**支持系统级媒体集成**：通过 `media-ctrl` 原生模块对接 macOS Now Playing，可在控制中心、锁屏界面查看并控制当前播放。
 
 若未正常显示，可尝试重启应用；并确认未被其他播放器（如音乐 App、Spotify）抢占媒体会话。
 

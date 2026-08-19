@@ -1,6 +1,6 @@
 # Plugin Updates
 
-SPlayer-Next uses **host version checks with user-approved installation**. A plugin declares `@updateUrl` pointing to the latest raw JavaScript. The host downloads the script, compares `@version`, and shows an update on the plugin card. Applying it replaces the script in place while preserving enabled state, settings, storage, and priority.
+SPlayer Together uses **host version checks with user-approved installation**. A plugin declares `@updateUrl` pointing to the latest raw JavaScript. The host downloads the script, compares `@version`, and shows an update on the plugin card. Applying it replaces the script in place while preserving enabled state, settings, storage, and priority.
 
 ## Workflow
 

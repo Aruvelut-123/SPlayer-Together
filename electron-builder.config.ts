@@ -17,9 +17,9 @@ if (updateChannel !== inferredUpdateChannel) {
 }
 
 const config: Configuration = {
-  appId: "top.imsyy.splayer-next",
-  productName: "SPlayer-Next",
-  copyright: "Copyright © imsyy 2025",
+  appId: "top.imsyy.splayer-together",
+  productName: "SPlayer Together",
+  copyright: "Copyright © 2026 imsyy, Baymaxawa",
   directories: { buildResources: "public" },
   afterPack: "./scripts/after-pack.ts",
   compression: "maximum",
@@ -80,7 +80,7 @@ const config: Configuration = {
     },
   ],
   win: {
-    executableName: "SPlayer-Next",
+    executableName: "SPlayer-Together",
     icon: "public/icons/logo.ico",
     artifactName: "${productName}-${version}-${arch}.${ext}",
     forceCodeSigning: false,
@@ -89,12 +89,12 @@ const config: Configuration = {
   },
   nsis: {
     oneClick: false,
-    guid: "top.imsyy.splayer-next",
+    guid: "top.imsyy.splayer-together",
     installerIcon: "public/icons/favicon.ico",
     uninstallerIcon: "public/icons/favicon.ico",
     artifactName: "${productName}-${version}-${arch}-setup.${ext}",
-    shortcutName: "SPlayer Next",
-    uninstallDisplayName: "SPlayer Next",
+    shortcutName: "SPlayer Together",
+    uninstallDisplayName: "SPlayer Together",
     createDesktopShortcut: "always",
     allowElevation: true,
     allowToChangeInstallationDirectory: true,
@@ -104,7 +104,7 @@ const config: Configuration = {
     artifactName: "${productName}-${version}-${arch}-portable.${ext}",
   },
   mac: {
-    executableName: "SPlayer-Next",
+    executableName: "SPlayer-Together",
     icon: "public/icons/icon.icns",
     artifactName: "${productName}-${version}-${arch}.${ext}",
     identity: null,
@@ -128,7 +128,7 @@ const config: Configuration = {
     artifactName: "${productName}-${version}-${arch}.${ext}",
   },
   linux: {
-    executableName: "SPlayer-Next",
+    executableName: "SPlayer-Together",
     icon: "public/icons/favicon-512x512.png",
     artifactName: "${name}-${version}-${arch}.${ext}",
     maintainer: "imsyy.top",

@@ -5,7 +5,7 @@ import { getArtistCacheDir } from "@main/utils/config";
 import { toCacheUrl } from "@main/utils/protocol";
 
 /** MusicBrainz User-Agent */
-const UA = "SPlayer-Next/1.0.0 (https://github.com/imsyy/SPlayer)";
+const UA = "SPlayer-Together/1.0.0 (https://github.com/imsyy/SPlayer)";
 
 /** 预取并发数 */
 const PREFETCH_CONCURRENCY = 2;

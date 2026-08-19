@@ -1,7 +1,7 @@
 # Windows 7 Compatibility
 
 ::: warning Unsupported system
-Electron 23 and later no longer support Windows 7, 8, or 8.1. The Electron version used by SPlayer-Next is incompatible with these systems. **Windows 10 1903 or later is recommended.**
+Electron 23 and later no longer support Windows 7, 8, or 8.1. The Electron version used by SPlayer Together is incompatible with these systems. **Windows 10 1903 or later is recommended.**
 :::
 
 Installing all Windows updates and the [Visual C++ Redistributable 2015–2022](https://aka.ms/vs/17/release/vc_redist.x64.exe) may resolve some startup errors, but it cannot restore full compatibility.

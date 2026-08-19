@@ -1,9 +1,9 @@
 # Windows 7 兼容性问题
 
-SPlayer-Next 基于 Electron 构建，对 Windows 7 的支持存在限制。
+SPlayer Together 基于 Electron 构建，对 Windows 7 的支持存在限制。
 
 ::: warning 重要提示
-自 Electron 23 起，官方不再支持 Windows 7 / 8 / 8.1。SPlayer-Next 使用的 Electron 版本已不兼容这些系统。**推荐 Windows 10 1903 及以上**。
+自 Electron 23 起，官方不再支持 Windows 7 / 8 / 8.1。SPlayer Together 使用的 Electron 版本已不兼容这些系统。**推荐 Windows 10 1903 及以上**。
 :::
 
 ## 常见问题

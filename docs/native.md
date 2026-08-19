@@ -1,6 +1,6 @@
 # 原生模块
 
-SPlayer-Next 将性能敏感的能力下沉到 **Rust**，通过 [NAPI-RS](https://napi.rs/) 编译为 Node 原生插件（`.node`），由主进程按需加载。所有原生模块都位于仓库的 `native/` 目录。
+SPlayer Together 将性能敏感的能力下沉到 **Rust**，通过 [NAPI-RS](https://napi.rs/) 编译为 Node 原生插件（`.node`），由主进程按需加载。所有原生模块都位于仓库的 `native/` 目录。
 
 ## 模块一览
 

@@ -1,6 +1,6 @@
 # 调试模式与错误排查
 
-本文介绍如何定位 SPlayer-Next 运行中遇到的问题。
+本文介绍如何定位 SPlayer Together 运行中遇到的问题。
 
 ## 开发者工具
 
@@ -24,9 +24,9 @@
 
 | 系统    | 路径                                                        |
 | ------- | ----------------------------------------------------------- |
-| Windows | `%APPDATA%\SPlayer-Next\app-data\logs\`                     |
-| macOS   | `~/Library/Application Support/SPlayer-Next/app-data/logs/` |
-| Linux   | `~/.config/SPlayer-Next/app-data/logs/`                     |
+| Windows | `%APPDATA%\SPlayer Together\app-data\logs\`                     |
+| macOS   | `~/Library/Application Support/SPlayer Together/app-data/logs/` |
+| Linux   | `~/.config/SPlayer Together/app-data/logs/`                     |
 
 原生模块日志位于 `app-data/logs/native/`。
 
@@ -38,7 +38,7 @@
 
 ## 提交 Issue
 
-请附上：操作系统与版本、SPlayer-Next 版本（开发版附 Commit ID）、Console 完整错误日志、可复现的操作步骤。
+请附上：操作系统与版本、SPlayer Together 版本（开发版附 Commit ID）、Console 完整错误日志、可复现的操作步骤。
 
 > [!IMPORTANT]
 >
@@ -54,11 +54,11 @@
 
 ```bash
 # Windows
-rd /s /q "%APPDATA%\SPlayer-Next"
+rd /s /q "%APPDATA%\SPlayer Together"
 
 # macOS
-rm -rf ~/Library/Application\ Support/SPlayer-Next
+rm -rf ~/Library/Application\ Support/SPlayer Together
 
 # Linux
-rm -rf "${XDG_CONFIG_HOME:-$HOME/.config}/SPlayer-Next"
+rm -rf "${XDG_CONFIG_HOME:-$HOME/.config}/SPlayer Together"
 ```

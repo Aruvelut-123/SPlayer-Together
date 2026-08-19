@@ -1,6 +1,6 @@
 # Linux Wayland Compatibility
 
-Some window features are restricted under Wayland. Certain environments may show flicker, corrupted frames, or even compositor hangs. These are common Electron/Chromium Wayland limitations rather than SPlayer-Next-specific behavior.
+Some window features are restricted under Wayland. Certain environments may show flicker, corrupted frames, or even compositor hangs. These are common Electron/Chromium Wayland limitations rather than SPlayer Together-specific behavior.
 
 ## Using Xwayland
 
@@ -10,10 +10,10 @@ For flicker, hangs, or broken floating windows, run through X11/Xwayland:
 pnpm dev -- --ozone-platform=x11
 ```
 
-For an installed package, copy `top.imsyy.splayer_next.desktop` from `/usr/share/applications/` to `~/.local/share/applications/` and add the argument to `Exec`:
+For an installed package, copy `top.imsyy.splayer_together.desktop` from `/usr/share/applications/` to `~/.local/share/applications/` and add the argument to `Exec`:
 
 ```desktop
-Exec=/opt/SPlayer-Next/SPlayer-Next --ozone-platform=x11 %U
+Exec=/opt/SPlayer Together/SPlayer Together --ozone-platform=x11 %U
 ```
 
 In KDE Plasma, the same change can be made by editing the application's desktop entry and replacing `%U` with `--ozone-platform=x11 %U`.
@@ -38,13 +38,13 @@ Behavior varies between GNOME Mutter, KDE KWin, wlroots-based compositors, and o
 
 ## Desktop lyric window rules
 
-The desktop lyric window has the fixed title `SPlayer-Next - Desktop Lyric`. In KWin, create a rule matching window class `top.imsyy.splayer_next` and this exact title. You can force Always on Top, Overlay layer, All Desktops, and skip taskbar/pager/switcher behavior.
+The desktop lyric window has the fixed title `SPlayer Together - Desktop Lyric`. In KWin, create a rule matching window class `top.imsyy.splayer_together` and this exact title. You can force Always on Top, Overlay layer, All Desktops, and skip taskbar/pager/switcher behavior.
 
 Example KWin rule:
 
 ```ini
-[SPlayer Next Desktop Lyric]
-Description=SPlayer Next Desktop Lyric
+[SPlayer Together Desktop Lyric]
+Description=SPlayer Together Desktop Lyric
 above=true
 aboverule=2
 desktops=\0
@@ -57,9 +57,9 @@ skipswitcher=true
 skipswitcherrule=2
 skiptaskbar=true
 skiptaskbarrule=2
-title=SPlayer-Next - Desktop Lyric
+title=SPlayer Together - Desktop Lyric
 titlematch=1
-wmclass=top.imsyy.splayer_next
+wmclass=top.imsyy.splayer_together
 wmclassmatch=1
 ```
 
@@ -67,7 +67,7 @@ Example Niri rule, which has not been extensively tested:
 
 ```kdl
 window-rule {
-    match app-id="top.imsyy.splayer_next" title="SPlayer-Next - Desktop Lyric"
+    match app-id="top.imsyy.splayer_together" title="SPlayer Together - Desktop Lyric"
     open-floating true
 }
 ```
@@ -78,9 +78,9 @@ Click-through while locked is a known issue; Xwayland may help.
 
 ## Global shortcuts
 
-On native Wayland, Electron registers global shortcuts through `xdg-desktop-portal`. New shortcuts should trigger a permission request when the app starts. KDE lists them under **System Settings → Keyboard → Shortcuts → SPlayer-Next**.
+On native Wayland, Electron registers global shortcuts through `xdg-desktop-portal`. New shortcuts should trigger a permission request when the app starts. KDE lists them under **System Settings → Keyboard → Shortcuts → SPlayer Together**.
 
-Electron registers a display name such as `SPlayer-Next shortcut: Ctrl+Shift+Left`. The actual key combination is the binding assigned to that entry in system settings. Changing a shortcut in the app changes the registered name; restart SPlayer-Next after each change so the portal can request permission again.
+Electron registers a display name such as `SPlayer Together shortcut: Ctrl+Shift+Left`. The actual key combination is the binding assigned to that entry in system settings. Changing a shortcut in the app changes the registered name; restart SPlayer Together after each change so the portal can request permission again.
 
 Check whether the active portal backend exposes GlobalShortcuts:
 
@@ -98,6 +98,6 @@ If Electron floating windows do not work well, a desktop-native panel or widget 
 
 ## Reporting a problem
 
-Include the distribution, desktop environment, compositor, whether SPlayer-Next is using native Wayland or Xwayland, and the exact window behavior.
+Include the distribution, desktop environment, compositor, whether SPlayer Together is using native Wayland or Xwayland, and the exact window behavior.
 
 Run `xprop` and click the window: output indicates Xwayland, while no response usually indicates native Wayland. `xeyes` can also distinguish them because its eyes follow the pointer over Xwayland windows but not native Wayland windows.

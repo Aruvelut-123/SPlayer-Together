@@ -23,3 +23,7 @@ package-lock.json
 # Code signing certificates
 *.pfx
 *.p12
+
+# 服务器配置（含管理员凭据与密钥白名单，避免泄露）
+server/config.yml
+__pycache__/

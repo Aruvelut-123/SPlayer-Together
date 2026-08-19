@@ -16,17 +16,17 @@ pnpm dev -- --ozone-platform=x11
 
 **KDE Plasma**
 
-1. 右击 SPlayer-Next 的桌面项 → **编辑应用程序…**；
+1. 右击 SPlayer Together 的桌面项 → **编辑应用程序…**；
 2. 在 **命令行参数** 中，把 `%U` 改为 `--ozone-platform=x11 %U`；
 3. 保存退出。
 
 **其他桌面环境**
 
-1. 找到 SPlayer-Next 的 `.desktop` 文件（通常在 `/usr/share/applications/` 下，文件名为 `top.imsyy.splayer_next.desktop`）；
+1. 找到 SPlayer Together 的 `.desktop` 文件（通常在 `/usr/share/applications/` 下，文件名为 `top.imsyy.splayer_together.desktop`）；
 2. 复制到 `~/.local/share/applications/`；
 3. 用文本编辑器打开，找到 `Exec=` 开头的行，在可执行文件后追加 `--ozone-platform=x11`，例如：
    ```desktop
-   Exec=/opt/SPlayer-Next/SPlayer-Next --ozone-platform=x11 %U
+   Exec=/opt/SPlayer Together/SPlayer Together --ozone-platform=x11 %U
    ```
 4. 保存退出。
 
@@ -38,7 +38,7 @@ pnpm dev -- --ozone-platform=x11
 
 ## 已知的窗口限制
 
-Wayland 出于安全考虑，不允许应用读取 / 设置全局屏幕坐标，并对置顶、穿透、透明无边框窗口有更多约束。这会影响 SPlayer-Next 的以下功能：
+Wayland 出于安全考虑，不允许应用读取 / 设置全局屏幕坐标，并对置顶、穿透、透明无边框窗口有更多约束。这会影响 SPlayer Together 的以下功能：
 
 | 功能                                     | 在 Wayland 下的表现                               |
 | ---------------------------------------- | ------------------------------------------------- |
@@ -53,12 +53,12 @@ Wayland 出于安全考虑，不允许应用读取 / 设置全局屏幕坐标，
 
 ## 桌面歌词的窗口规则
 
-桌面歌词窗口使用固定的窗口标题 **`SPlayer-Next - Desktop Lyric`** 以方便窗口规则匹配。
+桌面歌词窗口使用固定的窗口标题 **`SPlayer Together - Desktop Lyric`** 以方便窗口规则匹配。
 
 在 KDE（KWin）下可通过**窗口规则**按标题匹配，手动补齐 Wayland 下缺失的行为（如保持置顶等）：
 
 1. 打开 **系统设置 → 窗口管理 → 窗口规则**，新建一条规则；
-2. 在 **窗口匹配** 中，将 **窗口类** 设为 `top.imsyy.splayer_next`（精确匹配），将 **窗口标题** 设为 `SPlayer-Next - Desktop Lyric`（精确匹配）；
+2. 在 **窗口匹配** 中，将 **窗口类** 设为 `top.imsyy.splayer_together`（精确匹配），将 **窗口标题** 设为 `SPlayer Together - Desktop Lyric`（精确匹配）；
 3. 添加需要的属性，例如：
    - **窗口置顶**：设为 **强制**、**是**；
    - 可选 **图层**：设为 **强制**、**叠加**（全屏游戏时窗口也在上方）；
@@ -80,8 +80,8 @@ KWin 规则
 > 编者用的规则，我觉得挺好用的
 
 ```ini
-[SPlayer Next 桌面歌词]
-Description=SPlayer Next 桌面歌词
+[SPlayer Together 桌面歌词]
+Description=SPlayer Together 桌面歌词
 above=true
 aboverule=2
 desktops=\\0
@@ -94,9 +94,9 @@ skipswitcher=true
 skipswitcherrule=2
 skiptaskbar=true
 skiptaskbarrule=2
-title=SPlayer-Next - Desktop Lyric
+title=SPlayer Together - Desktop Lyric
 titlematch=1
-wmclass=top.imsyy.splayer_next
+wmclass=top.imsyy.splayer_together
 wmclassmatch=1
 ```
 
@@ -106,7 +106,7 @@ Niri 窗口规则
 
 ```kdl
 window-rule {
-    match app-id="top.imsyy.splayer_next" title="SPlayer-Next - Desktop Lyric"
+    match app-id="top.imsyy.splayer_together" title="SPlayer Together - Desktop Lyric"
     open-floating true
 }
 ```
@@ -115,7 +115,7 @@ window-rule {
 
 </details>
 
-拖动时直接按鼠标左键无法拖动。此时可以尝试打开 SPlayer-Next 的 **全局设置 → 外部歌词 → 桌面歌词 → 使用 CSS 拖拽** 功能。若还是无法拖动，请使用 WM 的窗口拖动快捷键（如 KWin 默认的 <kbd>Meta</kbd>+<kbd>鼠标左键</kbd> 或 Mutter 默认的 <kbd>Alt</kbd>+<kbd>鼠标左键</kbd>）
+拖动时直接按鼠标左键无法拖动。此时可以尝试打开 SPlayer Together 的 **全局设置 → 外部歌词 → 桌面歌词 → 使用 CSS 拖拽** 功能。若还是无法拖动，请使用 WM 的窗口拖动快捷键（如 KWin 默认的 <kbd>Meta</kbd>+<kbd>鼠标左键</kbd> 或 Mutter 默认的 <kbd>Alt</kbd>+<kbd>鼠标左键</kbd>）
 
 锁定时鼠标穿透不生效是已知问题。可以尝试[使用 Xwayland](#使用-xwayland)
 
@@ -123,15 +123,15 @@ window-rule {
 
 在原生 Wayland 下，Electron 的全局快捷键通过 `xdg-desktop-portal` 实现。
 
-打开应用时，若有新的未申请的全局快捷键，应该会弹出授权请求，点击确定即可。也可以在系统设置中查看 SPlayer-Next 是否有注册全局快捷键（在 KDE Plasma Wayland 中是 **系统设置 → 键盘 → 快捷键 → SPlayer-Next**）
+打开应用时，若有新的未申请的全局快捷键，应该会弹出授权请求，点击确定即可。也可以在系统设置中查看 SPlayer Together 是否有注册全局快捷键（在 KDE Plasma Wayland 中是 **系统设置 → 键盘 → 快捷键 → SPlayer Together**）
 
-Electron 注册的快捷键名称格式为 `SPlayer-Next shortcut: <组合键>`，但这个名称**并非实际生效的组合键**。实际生效的组合键由**系统设置**中为该名称绑定的按键决定。应用内设置的全局快捷键只决定它在系统中注册的名称，不决定实际按键。
+Electron 注册的快捷键名称格式为 `SPlayer Together shortcut: <组合键>`，但这个名称**并非实际生效的组合键**。实际生效的组合键由**系统设置**中为该名称绑定的按键决定。应用内设置的全局快捷键只决定它在系统中注册的名称，不决定实际按键。
 
 例如：
 
-1. 在应用内设置“上一曲”为 `Ctrl+Shift+←`，系统会注册名为 `SPlayer-Next shortcut: Ctrl+Shift+Left` 的项。
+1. 在应用内设置“上一曲”为 `Ctrl+Shift+←`，系统会注册名为 `SPlayer Together shortcut: Ctrl+Shift+Left` 的项。
 2. 在系统设置中，将该项绑定为 `Ctrl+Alt+Shift+←`，实际生效的全局快捷键就是 `Ctrl+Alt+Shift+←`。
-3. 若之后在应用内将“上一曲”改为 `Ctrl+Alt+Shift+←`，旧名称失效，应用会请求注册新名称 `SPlayer-Next shortcut: Ctrl+Alt+Shift+Left`，此时实际生效的按键取决于系统设置中新名称对应的绑定。
+3. 若之后在应用内将“上一曲”改为 `Ctrl+Alt+Shift+←`，旧名称失效，应用会请求注册新名称 `SPlayer Together shortcut: Ctrl+Alt+Shift+Left`，此时实际生效的按键取决于系统设置中新名称对应的绑定。
 
 > [!TIP]
 >
@@ -153,7 +153,7 @@ Electron 注册的快捷键名称格式为 `SPlayer-Next shortcut: <组合键>`�
 
 ## 第三方 / 外部 API 替代
 
-如果在 Wayland 下内置悬浮窗体验不佳，可改用桌面环境原生的**面板 / 挂件类**第三方歌词组件：它们通过 SPlayer-Next 的 [外部 API（HTTP）](/api) 或 [WebSocket API](/socket) 获取当前播放与歌词，再由桌面环境自身负责显示，从而绕开 Electron 悬浮窗在 Wayland 下的限制。
+如果在 Wayland 下内置悬浮窗体验不佳，可改用桌面环境原生的**面板 / 挂件类**第三方歌词组件：它们通过 SPlayer Together 的 [外部 API（HTTP）](/api) 或 [WebSocket API](/socket) 获取当前播放与歌词，再由桌面环境自身负责显示，从而绕开 Electron 悬浮窗在 Wayland 下的限制。
 
 ## 报障信息
 

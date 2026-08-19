@@ -16,9 +16,9 @@ The easiest route is **Settings → About → Open log directory**.
 
 | System  | Path                                                        |
 | ------- | ----------------------------------------------------------- |
-| Windows | `%APPDATA%\SPlayer-Next\app-data\logs\`                     |
-| macOS   | `~/Library/Application Support/SPlayer-Next/app-data/logs/` |
-| Linux   | `~/.config/SPlayer-Next/app-data/logs/`                     |
+| Windows | `%APPDATA%\SPlayer Together\app-data\logs\`                     |
+| macOS   | `~/Library/Application Support/SPlayer Together/app-data/logs/` |
+| Linux   | `~/.config/SPlayer Together/app-data/logs/`                     |
 
 Native module logs are in `app-data/logs/native/`.
 
@@ -30,7 +30,7 @@ Native module logs are in `app-data/logs/native/`.
 
 ## Filing an issue
 
-Include the operating system and version, SPlayer-Next version or commit, complete error output, and reproducible steps. For Linux, also include the desktop environment, distribution, package format or third-party build script, and review [Wayland compatibility](/en/troubleshooting/wayland).
+Include the operating system and version, SPlayer Together version or commit, complete error output, and reproducible steps. For Linux, also include the desktop environment, distribution, package format or third-party build script, and review [Wayland compatibility](/en/troubleshooting/wayland).
 
 ## Resetting the app
 
@@ -40,13 +40,13 @@ Resetting deletes all local user data, including accounts, playlists, settings, 
 
 ```bat
 :: Windows
-rd /s /q "%APPDATA%\SPlayer-Next"
+rd /s /q "%APPDATA%\SPlayer Together"
 ```
 
 ```bash
 # macOS
-rm -rf ~/Library/Application\ Support/SPlayer-Next
+rm -rf ~/Library/Application\ Support/SPlayer Together
 
 # Linux
-rm -rf "${XDG_CONFIG_HOME:-$HOME/.config}/SPlayer-Next"
+rm -rf "${XDG_CONFIG_HOME:-$HOME/.config}/SPlayer Together"
 ```

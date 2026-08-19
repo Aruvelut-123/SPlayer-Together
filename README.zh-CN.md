@@ -1,8 +1,8 @@
 <div align="center">
 
-<img alt="SPlayer-Next logo" width="120" height="120" src="public/icons/favicon.png" />
+<img alt="SPlayer Together logo" width="120" height="120" src="public/icons/favicon.png" />
 
-<h2>SPlayer-Next</h2>
+<h2>SPlayer Together</h2>
 
 <p>🎵 跨平台桌面音乐播放器，支持丰富的歌词展现形式与广泛的音频格式</p>
 
@@ -86,7 +86,7 @@ pnpm build:native     # 仅构建 Rust 原生模块（加 `--dev` 为 debug 构�
 
 ## 致谢
 
-特别感谢以下让 SPlayer-Next 成为可能的开源项目：
+特别感谢以下让 SPlayer Together 成为可能的开源项目：
 
 - [applemusic-like-lyrics](https://github.com/Steve-xmh/applemusic-like-lyrics) —— 类 Apple Music 歌词显示组件库
 - [NeteaseCloudMusicApiEnhanced](https://github.com/neteasecloudmusicapienhanced/api-enhanced) —— 网易云音乐 API 备份 + 增强

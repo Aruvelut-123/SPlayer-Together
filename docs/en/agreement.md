@@ -1,6 +1,6 @@
 <!-- agreement-version: 3 -->
 
-# SPlayer Next User Agreement and Disclaimer
+# SPlayer Together User Agreement and Disclaimer
 
 **Version: v1.2**  
 **Effective: May 29, 2026**  
@@ -8,7 +8,7 @@
 
 This English translation is provided for convenience. If it differs from the [Chinese agreement](/agreement), the Chinese text prevails.
 
-SPlayer Next is a free and open-source cross-platform desktop music player. Read this agreement, especially limitations of liability, governing law, and dispute provisions, before downloading or using it. If you do not agree, stop using and delete the software. Minors should review it with a guardian.
+SPlayer Together is a free and open-source cross-platform desktop music player. Read this agreement, especially limitations of liability, governing law, and dispute provisions, before downloading or using it. If you do not agree, stop using and delete the software. Minors should review it with a guardian.
 
 ## 1. Definitions
 
@@ -29,7 +29,7 @@ The software itself does not provide, host, or distribute audio content and does
 
 ## 3. AGPL-3.0 license
 
-SPlayer Next is licensed under the GNU Affero General Public License v3.0. The complete license is in `LICENSE`.
+SPlayer Together is licensed under the GNU Affero General Public License v3.0. The complete license is in `LICENSE`.
 
 When copying, modifying, or redistributing the software, comply with AGPL-3.0, including preserving notices, providing corresponding source where required, identifying modifications, and not imposing incompatible additional restrictions. If a modified version is offered for remote network interaction, AGPL-3.0 section 13 may require offering its complete corresponding source to those users.
 
@@ -53,7 +53,7 @@ You must be authorized to access each configured server and its content. You are
 
 ### 5.3 Plugins and sources
 
-The software includes an open extension mechanism and optional plugin market. Market entries index third-party submissions; they are not authored or operated by the SPlayer Next developers unless explicitly stated.
+The software includes an open extension mechanism and optional plugin market. Market entries index third-party submissions; they are not authored or operated by the SPlayer Together developers unless explicitly stated.
 
 Market submissions receive automated checks and maintainer review, but this is not a complete security audit, legal determination, or endorsement. Locally or remotely imported plugins do not pass through market review. Plugins are executable code that can make network requests and persist data, so inspect their source and permissions and install only trusted plugins.
 
@@ -73,7 +73,7 @@ You are responsible for protecting accounts, devices, and credentials.
 
 ## 7. Intellectual property and trademarks
 
-Copyright in the software remains with its contributors subject to AGPL-3.0. Rights in the “SPlayer” and “SPlayer Next” names, logos, and visual identity are reserved. Do not use them in a way that creates confusion, false affiliation, or endorsement. Rights in third-party content remain with their respective owners.
+Copyright in the software remains with its contributors subject to AGPL-3.0. Rights in the “SPlayer” and “SPlayer Together” names, logos, and visual identity are reserved. Do not use them in a way that creates confusion, false affiliation, or endorsement. Rights in third-party content remain with their respective owners.
 
 ## 8. User responsibility
 

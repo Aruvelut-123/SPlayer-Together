@@ -32,7 +32,7 @@ sudo chmod 4755 /path/to/chrome-sandbox
 :::
 
 ```bash
-./SPlayer-Next-*.AppImage --no-sandbox
+./SPlayer Together-*.AppImage --no-sandbox
 ```
 
 ## Missing libraries

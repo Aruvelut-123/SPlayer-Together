@@ -1,8 +1,8 @@
 <div align="center">
 
-<img alt="SPlayer-Next logo" width="120" height="120" src="public/icons/favicon.png" />
+<img alt="SPlayer Together logo" width="120" height="120" src="public/icons/favicon.png" />
 
-<h2>SPlayer-Next</h2>
+<h2>SPlayer Together</h2>
 
 <p>🎵 Cross-platform desktop music player with rich lyric support and wide audio format compatibility.</p>
 
@@ -86,7 +86,7 @@ pnpm build:native     # Build the Rust native modules only (add `--dev` for debu
 
 ## Acknowledgements
 
-Special thanks to the open-source projects that make SPlayer-Next possible:
+Special thanks to the open-source projects that make SPlayer Together possible:
 
 - [applemusic-like-lyrics](https://github.com/Steve-xmh/applemusic-like-lyrics) — Apple Music-style lyrics display component library
 - [NeteaseCloudMusicApiEnhanced](https://github.com/neteasecloudmusicapienhanced/api-enhanced) — NetEase Cloud Music API (backup + enhanced)

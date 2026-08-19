@@ -1,6 +1,6 @@
 # User Guide
 
-This page covers the basics of SPlayer-Next. See [Download](/en/download) for installation packages.
+This page covers the basics of SPlayer Together. See [Download](/en/download) for installation packages.
 
 ## Playing music
 
@@ -20,7 +20,7 @@ Connect self-hosted Subsonic, Navidrome, Jellyfin, or Emby servers. See [Streami
 
 ## Lyrics
 
-SPlayer-Next supports LRC, QRC, YRC, and TTML, including word-by-word highlighting, translations, and romanization. Online lyrics are matched according to **Settings → Lyrics → Source preference**, source order, and format preference.
+SPlayer Together supports LRC, QRC, YRC, and TTML, including word-by-word highlighting, translations, and romanization. Online lyrics are matched according to **Settings → Lyrics → Source preference**, source order, and format preference.
 
 ### Online TTML lyrics
 

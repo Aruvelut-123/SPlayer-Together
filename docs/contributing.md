@@ -1,6 +1,6 @@
 # 贡献指南
 
-欢迎为 SPlayer-Next 贡献代码！本页介绍本地开发环境与基本约定。
+欢迎为 SPlayer Together 贡献代码！本页介绍本地开发环境与基本约定。
 
 ## 环境要求
 
@@ -13,7 +13,7 @@
 ```bash
 # 克隆仓库
 git clone https://github.com/SPlayer-Dev/SPlayer-Next.git
-cd SPlayer-Next
+cd SPlayer Together
 
 # 安装依赖
 pnpm install
@@ -104,7 +104,7 @@ shared/             跨进程共享的类型与默认配置
 
 1. 安装插件
 2. 打开本项目，在 **设置 → 工具 → Easy i18n** 中配置此插件
-3. 在 **Modules Configuration → Add new module**，输入 SPlayer-Next（或任意名称），点击右侧的加号，新建模块
+3. 在 **Modules Configuration → Add new module**，输入 SPlayer Together（或任意名称），点击右侧的加号，新建模块
 4. 在下方的配置中，找到 **Preset** 选择 **VUE_I18N**。在 **Resource Configuration** 的 **Path template** 中填写 `$PROJECT_DIR$/src/i18n/locales/{locale}.json`
 5. (可选) 在上方的 **Common Configuration** 的 **Preview locale** 中填写 `zh-CN`
 
