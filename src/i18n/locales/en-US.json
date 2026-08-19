@@ -225,6 +225,7 @@
     "allowGuestEditPlaylist": "Allow members to edit the playlist",
     "transferHost": "Transfer host",
     "demotedToGuest": "You are no longer the host",
+    "requireLogin": "Sign in to your NetEase account to use Listen Together",
     "roomClosed": "The room has been closed"
   },
   "license": {
@@ -417,6 +418,7 @@
     }
   },
   "login": {
+    "title": "Sign In",
     "qrTipWaiting": "Open the Cloud Music app and scan the QR code",
     "qrTipScanned": "Scanned, please confirm in the app",
     "qrTipExpired": "QR code expired, refreshing",
@@ -840,6 +842,7 @@
       "checking": "Checking",
       "newVersion": "Update Available",
       "changelog": "View Changelog",
+      "changelogEmpty": "No changelog provided by server",
       "openLogs": "Open Logs",
       "officialSite": "Official Site",
       "showMore": "More Contributors",

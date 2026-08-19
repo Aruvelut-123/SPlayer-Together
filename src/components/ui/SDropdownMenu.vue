@@ -63,7 +63,7 @@ const handleSelect = (item: DropdownMenuItem): void => {
 /** 内容区域样式 */
 const contentClass = computed(() =>
   [
-    "z-300 min-w-32 rounded-lg shadow-lg p-1 text-sm data-[state=open]:animate-popover-in data-[state=closed]:animate-popover-out",
+    "z-300 min-w-32 rounded-lg shadow-lg p-1 text-sm app-no-drag data-[state=open]:animate-popover-in data-[state=closed]:animate-popover-out",
     props.cover
       ? "bg-black/55 backdrop-blur-xl backdrop-saturate-160 border border-solid border-white/10"
       : "bg-surface-bright",
@@ -73,7 +73,7 @@ const contentClass = computed(() =>
 /** 菜单项样式 */
 const menuItemClass = computed(() =>
   [
-    "flex items-center gap-2 px-2 py-1.5 rounded-md outline-none select-none cursor-pointer data-[disabled]:opacity-40 data-[disabled]:pointer-events-none",
+    "flex items-center gap-2 px-2 py-1.5 rounded-md outline-none select-none cursor-pointer transition-colors duration-150 data-[disabled]:opacity-40 data-[disabled]:pointer-events-none",
     props.cover
       ? "text-cover data-[highlighted]:bg-cover/15"
       : "text-on-surface data-[highlighted]:bg-on-surface/12",

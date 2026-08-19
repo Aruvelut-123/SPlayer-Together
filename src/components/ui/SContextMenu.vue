@@ -38,11 +38,11 @@ const handleSelect = (item: DropdownMenuItem): void => {
 
 /** 内容区域样式 */
 const contentClass =
-  "z-300 min-w-32 max-w-52 rounded-lg bg-surface-bright shadow-lg p-1 text-sm data-[state=open]:animate-popover-in data-[state=closed]:animate-popover-out";
+  "z-300 min-w-32 max-w-52 rounded-lg bg-surface-bright shadow-lg p-1 text-sm app-no-drag data-[state=open]:animate-popover-in data-[state=closed]:animate-popover-out";
 
 /** 菜单项样式 */
 const menuItemClass =
-  "flex items-center gap-2 px-2 py-1.5 rounded-md text-on-surface outline-none select-none cursor-pointer data-[highlighted]:bg-on-surface/12 data-[disabled]:opacity-40 data-[disabled]:pointer-events-none";
+  "flex items-center gap-2 px-2 py-1.5 rounded-md text-on-surface outline-none select-none cursor-pointer transition-colors duration-150 data-[highlighted]:bg-on-surface/12 data-[disabled]:opacity-40 data-[disabled]:pointer-events-none";
 </script>
 
 <template>

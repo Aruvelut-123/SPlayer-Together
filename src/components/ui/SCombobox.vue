@@ -193,7 +193,7 @@ const compareByValue = (a: unknown, b: unknown): boolean => {
         position="popper"
         :side-offset="4"
         :collision-padding="12"
-        class="z-400 w-[var(--reka-popper-anchor-width)] overflow-hidden rounded-xl bg-surface-bright shadow-lg data-[state=open]:animate-select-in data-[state=closed]:animate-select-out"
+        class="z-400 w-[var(--reka-popper-anchor-width)] overflow-hidden rounded-xl bg-surface-bright shadow-lg app-no-drag data-[state=open]:animate-select-in data-[state=closed]:animate-select-out"
       >
         <!-- 搜索框 -->
         <div

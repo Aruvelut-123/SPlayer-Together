@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useListenTogetherStore } from "@/stores/listenTogether";
+import { useUserStore } from "@/stores/user";
 import { toast } from "@/composables/useToast";
 import IconLucideCopy from "~icons/lucide/copy";
 import IconLucideRadio from "~icons/lucide/radio";
@@ -7,16 +8,22 @@ import IconLucideUserPlus from "~icons/lucide/user-plus";
 import IconLucideLogOut from "~icons/lucide/log-out";
 import IconLucideUsers from "~icons/lucide/users";
 import IconLucideLoaderCircle from "~icons/lucide/loader-circle";
+import IconLucideLogIn from "~icons/lucide/log-in";
 
 defineProps<{ open: boolean }>();
 const emit = defineEmits<{ "update:open": [value: boolean] }>();
 
 const { t } = useI18n();
 const store = useListenTogetherStore();
+const user = useUserStore();
 const { connection, role, code, members, hostId, sharedState, permissions, lastError } =
   storeToRefs(store);
 
 const joinCode = ref("");
+const loginOpen = ref(false);
+
+/** 是否已登录网易云：一起听要求登录后才可使用 */
+const notLoggedIn = computed(() => !user.isLoggedIn);
 
 /** 成员权限开关变化后同步到服务器 */
 const handlePermissionChange = (): void => {
@@ -50,6 +57,7 @@ const sharedTrackText = computed(() => {
 
 const handleCreate = async (): Promise<void> => {
   if (busy.value) return;
+  if (notLoggedIn.value) { loginOpen.value = true; return; }
   busy.value = true;
   try {
     await store.createRoom();
@@ -60,6 +68,7 @@ const handleCreate = async (): Promise<void> => {
 
 const handleJoin = async (): Promise<void> => {
   if (busy.value || !joinCode.value.trim()) return;
+  if (notLoggedIn.value) { loginOpen.value = true; return; }
   busy.value = true;
   try {
     await store.joinRoom(joinCode.value);
@@ -92,6 +101,16 @@ const copyCode = async (): Promise<void> => {
   >
     <!-- 未入房：配置 + 创建/加入 -->
     <div v-if="role === 'none'" class="flex flex-col gap-3">
+      <SAlert v-if="notLoggedIn" type="warning" class="mt-1">
+        <div class="flex items-center justify-between gap-2">
+          <span>{{ t("listenTogether.requireLogin") }}</span>
+          <SButton variant="secondary" size="small" @click="loginOpen = true">
+            <template #icon><IconLucideLogIn /></template>
+            {{ t("login.title") }}
+          </SButton>
+        </div>
+      </SAlert>
+
       <SFormItem :label="t('listenTogether.nickname')">
         <SInput
           v-model="store.nickname"
@@ -237,4 +256,6 @@ const copyCode = async (): Promise<void> => {
       </div>
     </div>
   </SDialog>
+
+  <LoginDialog v-model:open="loginOpen" />
 </template>

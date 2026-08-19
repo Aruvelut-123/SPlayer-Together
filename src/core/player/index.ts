@@ -70,6 +70,12 @@ const MAX_CONSECUTIVE_FAILURES = 5;
 const SKIP_ON_ERROR_DELAY_MS = 1000;
 
 /**
+ * 推进 loadTrack 竞态 token 并返回新值
+ * 一起听等外部逻辑在切换目标前调用，可让在途的旧 loadTrack 自行取消
+ */
+export const advanceTrackToken = (): number => ++trackToken;
+
+/**
  * 单曲级失败兜底
  * 达到连续失败上限 / 队列长度则交 onQueueEnded 停下
  * @param myToken - 调用方进入失败路径时的 token 快照

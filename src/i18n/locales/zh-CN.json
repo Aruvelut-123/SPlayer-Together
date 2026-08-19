@@ -213,6 +213,7 @@
     "allowGuestEditPlaylist": "允许成员编辑播放列表",
     "transferHost": "移交房主",
     "demotedToGuest": "你已不再是房主",
+    "requireLogin": "一起听需要登录网易云账号后使用",
     "roomClosed": "房间已关闭"
   },
   "license": {
@@ -405,6 +406,7 @@
     }
   },
   "login": {
+    "title": "登录",
     "qrTipWaiting": "请打开云音乐 APP 扫码登录",
     "qrTipScanned": "扫描成功，请在客户端确认登录",
     "qrTipExpired": "二维码已过期，正在重试",
@@ -828,6 +830,7 @@
       "checking": "检查中",
       "newVersion": "发现新版本",
       "changelog": "查看更新日志",
+      "changelogEmpty": "服务器未提供更新日志",
       "openLogs": "打开日志",
       "officialSite": "官方网站",
       "showMore": "更多贡献者",

@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { getContributors, type Contributor } from "@/apis/github";
 import { marked } from "marked";
-import { CURRENT_CHANGELOG } from "@/utils/changelog";
 import { useCopyText } from "@/composables/useCopyText";
 import { useUpdateStore } from "@/stores/update";
 import { openExternal } from "@/utils/url";
@@ -100,11 +99,27 @@ const dependencies: Dependency[] = [
   },
 ];
 
-/** 当前版本 changelog 弹窗 */
+/** 服务器更新日志弹窗 */
 const changelogOpen = ref(false);
-const changelogHtml = computed(() =>
-  marked.parse(CURRENT_CHANGELOG, { async: false }) as string,
-);
+const changelogLoading = ref(false);
+const changelogHtml = ref("");
+
+/** 打开更新日志弹窗：从服务器拉取更新说明 */
+const openChangelog = async (): Promise<void> => {
+  changelogOpen.value = true;
+  changelogLoading.value = true;
+  try {
+    const remote = await window.api.update.getChangelog();
+    changelogHtml.value = remote?.notes
+      ? (marked.parse(remote.notes, { async: false }) as string)
+      : "";
+  } catch (error) {
+    console.error("获取更新日志失败:", error);
+    changelogHtml.value = "";
+  } finally {
+    changelogLoading.value = false;
+  }
+};
 
 const developers = ref<Contributor[]>([]);
 const showAllDevelopers = ref(false);
@@ -165,7 +180,7 @@ onMounted(async () => {
                   : t("settings.about.checkUpdate")
             }}
           </SButton>
-          <SButton variant="secondary" @click="changelogOpen = true">
+          <SButton variant="secondary" @click="openChangelog">
             <template #icon><IconLucideFileText /></template>
             {{ t("settings.about.changelog") }}
           </SButton>
@@ -295,16 +310,22 @@ onMounted(async () => {
     </section>
   </div>
 
-  <!-- 当前版本 changelog -->
+  <!-- 服务器更新日志 -->
   <SDialog
     :open="changelogOpen"
     :title="t('settings.about.changelog')"
     width="520px"
     @update:open="changelogOpen = $event"
   >
-    <div
-      class="markdown-body max-h-80 overflow-y-auto px-1 py-1"
-      v-html="changelogHtml"
-    />
+    <div v-if="changelogLoading" class="py-10 flex items-center justify-center">
+      <SLoading class="size-5 text-primary/70" />
+    </div>
+    <div v-else-if="changelogHtml" class="markdown-body max-h-80 overflow-y-auto px-1 py-1">
+      <!-- eslint-disable-next-line vue/no-v-html -->
+      <div v-html="changelogHtml" />
+    </div>
+    <div v-else class="py-8 text-center text-sm text-on-surface-variant/60">
+      {{ t("settings.about.changelogEmpty") }}
+    </div>
   </SDialog>
 </template>

@@ -68,8 +68,10 @@ export const fetchLoginStatus = async (): Promise<UserProfile | null> => {
   if (body?.code !== undefined && Number(body.code) !== 200) return null;
   const raw = body?.data?.profile ?? body?.profile;
   const userId = raw?.userId ?? body?.data?.account?.id ?? body?.account?.id;
+  // 未登录时 userId 可能为 0 或 undefined；同时要求 nickname 非空
   if (!userId) return null;
   const profile = raw ?? {};
+  if (!profile.nickname) return null;
   return {
     userId,
     nickname: profile.nickname ?? "",

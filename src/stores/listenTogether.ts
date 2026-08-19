@@ -2,6 +2,7 @@ import type { Track } from "@shared/types/player";
 import { useMediaStore } from "@/stores/media";
 import { useStatusStore } from "@/stores/status";
 import { useLicenseStore } from "@/stores/license";
+import { useUserStore } from "@/stores/user";
 import { queue as queueStore, setQueue } from "@/stores/queue";
 import * as player from "@/core/player";
 import { toast } from "@/composables/useToast";
@@ -78,9 +79,17 @@ export const useListenTogetherStore = defineStore("listenTogether", () => {
   const media = useMediaStore();
   const status = useStatusStore();
   const license = useLicenseStore();
+  const user = useUserStore();
 
-  /** 房间内昵称 */
-  const nickname = ref("");
+  /** 房间内昵称：默认使用网易云账号名 */
+  const nickname = ref(user.profile?.nickname || "");
+  // 网易云登录后自动填充昵称（仅当用户尚未手动输入时）
+  watch(
+    () => user.profile?.nickname,
+    (name) => {
+      if (name && !nickname.value) nickname.value = name;
+    },
+  );
   /** 轮询连接状态 */
   const connection = ref<ListenTogetherConnection>("idle");
   /** 当前身份 */
@@ -119,7 +128,9 @@ export const useListenTogetherStore = defineStore("listenTogether", () => {
   /** 上次请求心跳时间戳（状态无变化时也定期刷新活跃） */
   let lastHeartbeatAt = 0;
   /** 成员跟随中的曲目（等待加载完成确认） */
-  let pendingFollow: { trackId: string; expected: number; playing: boolean } | null = null;
+  let pendingFollow:
+    | { trackId: string; expected: number; playing: boolean; trackToken: number }
+    | null = null;
   /** 本机无法播放的曲目 id（房主切歌前不再重试） */
   const lastFailedTrackId = ref("");
 
@@ -321,31 +332,56 @@ export const useListenTogetherStore = defineStore("listenTogether", () => {
   /** 成员应用房间状态：切歌跟随 / 播放态对齐 / 漂移纠正（所有成员跟随同一进度） */
   const applyState = async (s: ListenTogetherSharedState): Promise<void> => {
     if (!roomActive.value) return;
-    if (!s.track || !SHAREABLE_SOURCES.has(s.track.source)) {
+    const sharedTrack = s.track;
+    if (!sharedTrack || !SHAREABLE_SOURCES.has(sharedTrack.source)) {
       if (status.isPlaying) await player.pause();
       return;
     }
-    if (s.track.id === lastFailedTrackId.value) return;
+    if (sharedTrack.id === lastFailedTrackId.value) return;
     const myTrack = media.track;
-    if (myTrack?.id !== s.track.id) {
-      if (pendingFollow) return;
+    if (myTrack?.id !== sharedTrack.id) {
+      // 同一目标仍在加载：仅刷新目标进度，避免重复 playNow
+      if (pendingFollow?.trackId === sharedTrack.id) {
+        pendingFollow.expected = expectedPosition(s);
+        pendingFollow.playing = s.state === "playing";
+        return;
+      }
+      // 目标已变：递增 trackToken 取消在途旧加载，并记录本次跟随
+      const myToken = player.advanceTrackToken();
       pendingFollow = {
-        trackId: s.track.id,
+        trackId: sharedTrack.id,
         expected: expectedPosition(s),
         playing: s.state === "playing",
+        trackToken: myToken,
       };
+      // 从本地队列中找同 id 的 Track（队列已通过 applyQueue 同步）
+      // 使用本地队列的 Track 对象而非 host 推送的，避免因 host 端特有字段
+      //（如 pluginId、URL 等）导致 guest 端解析音源失败
+      const localTrack = queueStore.value.find((t) => t.id === sharedTrack.id) ?? sharedTrack;
       const prevSource = status.currentSource;
-      await player.playNow(s.track);
+      try {
+        await player.playNow(localTrack, status.currentPlaybackContext);
+      } catch {
+        // 加载异常：清空跟随状态并上报，避免 pendingFollow 残留导致后续切歌全部被跳过
+        pendingFollow = null;
+        lastFailedTrackId.value = sharedTrack.id;
+        reportLoadFailed(sharedTrack);
+        return;
+      }
+      // 加载期间被更新的切歌接管：本次结果作废，由新目标处理
+      if (pendingFollow.trackToken !== myToken) return;
       const loadedOk =
-        media.track?.id === s.track.id &&
+        media.track?.id === sharedTrack.id &&
         !!status.currentSource &&
         status.currentSource !== prevSource;
       if (!loadedOk) {
         pendingFollow = null;
-        lastFailedTrackId.value = s.track.id;
-        reportLoadFailed(s.track);
+        lastFailedTrackId.value = sharedTrack.id;
+        reportLoadFailed(sharedTrack);
         return;
       }
+      // 成功跟随：清除历史失败标记，允许之后重试曾被跳过的歌曲
+      lastFailedTrackId.value = "";
       const target = pendingFollow.expected;
       if (target > 500) await player.seek(target);
       if (pendingFollow.playing) {

@@ -64,7 +64,7 @@ const handleChange = (val: string): void => {
         :collision-padding="12"
         :style="{ minWidth: `${minWidth}px` }"
         :class="[
-          'z-400 rounded-lg shadow-lg text-sm data-[state=open]:animate-popover-in data-[state=closed]:animate-popover-out',
+          'z-400 rounded-lg shadow-lg text-sm app-no-drag data-[state=open]:animate-popover-in data-[state=closed]:animate-popover-out',
           cover
             ? 'bg-black/55 backdrop-blur-xl backdrop-saturate-160 border border-solid border-white/10'
             : 'bg-surface-bright',
