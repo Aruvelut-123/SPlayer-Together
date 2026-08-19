@@ -95,7 +95,6 @@ impl PlatformBackend for Backend {
     fn new(callback: DeviceChangedCallback) -> Result<Self> {
         let (ready_tx, ready_rx) = mpsc::sync_channel(1);
         let (commands, command_rx) = channel::channel();
-        let command_sender = commands.clone();
 
         let thread = thread::Builder::new()
             .name("pipewire-device-watcher".into())
@@ -110,7 +109,7 @@ impl PlatformBackend for Backend {
 
         match ready_rx.recv() {
             Ok(Ok(())) => Ok(Self {
-                commands: command_sender,
+                commands,
                 thread: Some(thread),
             }),
             Ok(Err(error)) => {
@@ -175,7 +174,6 @@ fn run_watcher(
         })
         .global_remove({
             let state = Rc::clone(&state);
-            let notifications = notifications.clone();
             move |id| {
                 let changed = state.borrow_mut().sink_ids.remove(&id);
                 notify_if_ready(&state, changed, &notifications);
