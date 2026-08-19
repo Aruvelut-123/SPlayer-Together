@@ -35,15 +35,10 @@ tracing-appender = "0.2"
 time = { version = "0.3", features = ["macros", "formatting"] }
 walkdir = "2"
 tokio = { version = "1", features = ["rt"] }
+cpal = { version = "0.18.2", default-features = false }
 
 [target.'cfg(target_os = "windows")'.dependencies]
 windows-core = "0.62.2"
-
-[target.'cfg(not(target_os = "linux"))'.dependencies]
-rodio = { version = "0.22.2", default-features = false, features = [
-  "playback",
-  "tracing",
-] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 pipewire = { version = "0.10.0", features = ["v0_3_53"] }

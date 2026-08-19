@@ -32,7 +32,7 @@ enum ReinitOutcome {
     Resumed {
         shared: Arc<crate::shared::Shared>,
         handle: JoinHandle<crate::decoder::DecoderData>,
-        output: audio_output::AudioOutput,
+        output: Box<audio_output::AudioOutput>,
     },
     /// 无法从原位置恢复解码（或输出采样率已变），需要重新加载音源
     Reload {
@@ -185,13 +185,11 @@ impl AudioPlayer {
                 // 空闲 / 已停止 / 正在异步加载：无播放可恢复，仅需让后续 load 重新打开输出
                 None => return Ok(()),
             };
-            let old_output = player.take_output();
             let device_name = player.selected_device_name().map(String::from);
             let output_generation = player.reserve_output_generation();
             let on_failure = player.make_failure_callback(output_generation);
             (
                 seek_take,
-                old_output,
                 device_name,
                 position,
                 output_generation,
@@ -210,7 +208,6 @@ impl AudioPlayer {
                 equalizer,
                 tempo,
             },
-            old_output,
             device_name,
             position,
             output_generation,
@@ -219,8 +216,6 @@ impl AudioPlayer {
 
         let outcome: ReinitOutcome = tokio::task::spawn_blocking(move || {
             let decoder_data = old_threads.join_aux().and_then(|h| h.join().ok());
-            // 释放旧 cpal 流，避免与新建流重叠占用设备
-            drop(old_output);
 
             // 以原输出采样率重建：DecoderData 的重采样器目标与之一致
             let output =
@@ -281,7 +276,7 @@ impl AudioPlayer {
             ReinitOutcome::Resumed {
                 shared,
                 handle,
-                output,
+                output: Box::new(output),
             }
         })
         .await
@@ -295,7 +290,7 @@ impl AudioPlayer {
             } => {
                 let mut player = self.inner.lock();
                 let committed = player
-                    .commit_seeked(token, position, shared, handle, Some(output))
+                    .commit_seeked(token, position, shared, handle, Some(*output))
                     .into_napi()?;
                 if !committed {
                     info!("reinit 已被更新的 load/seek/stop 取代，丢弃结果");
@@ -445,7 +440,6 @@ impl AudioPlayer {
         let handle = HttpCancelHandle::new();
         let (
             old_threads,
-            old_output,
             token,
             load_token,
             cover_dir,
@@ -457,12 +451,11 @@ impl AudioPlayer {
             tempo,
         ) = {
             let mut player = self.inner.lock();
-            let (old_threads, old_output, token) = player.take_for_async_load(handle.clone());
+            let (old_threads, token) = player.take_for_async_load(handle.clone());
             let output_generation = player.reserve_output_generation();
             let failure_callback = player.make_failure_callback(output_generation);
             (
                 old_threads,
-                old_output,
                 token,
                 player.load_token_handle(),
                 player.cover_cache_dir().map(String::from),
@@ -481,7 +474,6 @@ impl AudioPlayer {
             if let Some(h) = old_threads.join_aux() {
                 let _ = h.join();
             }
-            drop(old_output);
             let prepared =
                 decoder::prepare_decode(&source_for_decoder, cover_dir.as_deref(), handle)?;
             if load_token.load(std::sync::atomic::Ordering::Acquire) != token {

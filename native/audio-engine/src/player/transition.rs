@@ -72,11 +72,11 @@ pub struct LoadedPlayback {
 impl InnerPlayer {
     /// 给 NAPI 绑定层 async load 用：原子地发出停止信号 + take 所有旧线程 handle
     /// 调用方负责在工作线程 join 这些 handle，主线程持锁阶段不阻塞
-    /// 返回旧输出流供工作线程在打开新流前释放；token 用于校验本次 load 是否已被取代
+    /// 返回旧线程集合与本次 load 的 token（token 用于校验本次 load 是否已被取代）
     pub fn take_for_async_load(
         &mut self,
         handle: HttpCancelHandle,
-    ) -> (OldThreads, Option<AudioOutput>, u64) {
+    ) -> (OldThreads, u64) {
         // 自增 token：本次 load 的标识；任何并发的更早 commit_loaded 比较时会发现不匹配
         let token = self.load_token.fetch_add(1, Ordering::AcqRel) + 1;
         if let Some(previous) = self.pending_load_handle.replace(handle) {
@@ -116,7 +116,7 @@ impl InnerPlayer {
             fft_timer: self.fft_timer_handle.take(),
             fade_handle: self.fade_handle.take(),
         };
-        (old_threads, self.output.take(), token)
+        (old_threads, token)
     }
 
     /// token 是否仍是最新值（seek 失败回退到 load 前校验，避免复活已被取代的旧源）
@@ -202,11 +202,6 @@ impl InnerPlayer {
             equalizer: Arc::clone(&self.equalizer),
             tempo: Arc::clone(&self.tempo),
         })
-    }
-
-    /// 取出当前输出流（`reinit_output` 在工作线程重建新流前释放旧流用）
-    pub fn take_output(&mut self) -> Option<AudioOutput> {
-        self.output.take()
     }
 
     /// seek 三段式的最后一段：主线程持锁，attach 新 sink + 新解码线程

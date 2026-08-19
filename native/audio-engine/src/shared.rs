@@ -33,14 +33,14 @@ pub struct Shared {
     decode_eof: AtomicBool,
     output_eof: AtomicBool,
     is_stopping: AtomicBool,
-    /// 已被 rodio 消费的交错采样数（含所有声道，即 stereo 时每帧 +2）
+    /// 已被输出回调消费的交错采样数（含所有声道，即 stereo 时每帧 +2）
     samples_consumed: AtomicU64,
     /// 输出采样率（创建时确定，不可变）
     sample_rate: u32,
     /// 输出声道数（创建时确定，不可变）
     channels: u16,
     /// 所有数据已被消费完毕（DecoderSource 返回 None 时设置）
-    /// 比 is_done() 更准确：is_done 只表示缓冲区空，all_consumed 表示 rodio 侧已消费完
+    /// 比 is_done() 更准确：is_done 只表示缓冲区空，all_consumed 表示输出回调已消费完
     all_consumed: AtomicBool,
     /// 解码线程因读取失败（网络中断 / URL 失效）中止，区别于正常 EOF
     decode_failed: AtomicBool,
@@ -179,7 +179,7 @@ impl Shared {
         self.is_stopping.load(Ordering::Acquire)
     }
 
-    /// 检查是否所有数据已被 rodio 消费完毕
+    /// 检查是否所有数据已被输出回调消费完毕
     pub fn is_all_consumed(&self) -> bool {
         self.all_consumed.load(Ordering::Acquire)
     }

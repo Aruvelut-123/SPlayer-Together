@@ -110,7 +110,7 @@ impl InnerPlayer {
                 let position = seek_base + shared.consumed_position();
                 cb(PlayerEvent::Position { position, duration });
 
-                // 检测播放结束：all_consumed 表示 rodio 侧已消费完所有数据
+                // 检测播放结束：all_consumed 表示输出回调已消费完所有数据
                 if shared.is_all_consumed() {
                     // 解码因读取失败中止且距末尾尚远 → 音源失效，前端重新解析地址续播；
                     // 距末尾 3s 内的失败按正常结束处理——Content-Length 偏大的转码源

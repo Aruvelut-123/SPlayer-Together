@@ -1,18 +1,12 @@
 use std::sync::Arc;
 
-#[cfg(not(target_os = "linux"))]
-use std::time::Duration;
-
-#[cfg(not(target_os = "linux"))]
-use rodio::{ChannelCount, SampleRate, Source};
-
 use crate::fft::FftAnalyzer;
 use crate::shared::{PopResult, Shared};
 const UNDERRUN_SILENCE_MS: u32 = 20;
 
 /// 平台无关的解码样本读取器。
 /// DSP 已在后台线程完成；这里不获取 DSP 锁、不扩容，欠载时返回短静音垫片。
-/// Linux CPAL callback 和非 Linux Rodio 包装共用此读取器。
+/// 所有平台的 CPAL 输出回调都从该读取器拉取样本。
 pub struct DecoderSampleReader {
     shared: Arc<Shared>,
     fft: Arc<FftAnalyzer>,
@@ -106,28 +100,8 @@ impl Drop for DecoderSampleReader {
     }
 }
 
-/// 当前 Rodio 输出路径的薄包装别名。
-/// Linux 切换到 CPAL callback 后将不再使用该 trait 实现。
+/// 解码样本读取器别名，作为播放输出链路的输入类型
 pub type DecoderSource = DecoderSampleReader;
-
-#[cfg(not(target_os = "linux"))]
-impl Source for DecoderSampleReader {
-    fn current_span_len(&self) -> Option<usize> {
-        None
-    }
-
-    fn channels(&self) -> ChannelCount {
-        ChannelCount::new(self.channels).expect("声道数必须大于零")
-    }
-
-    fn sample_rate(&self) -> SampleRate {
-        SampleRate::new(self.sample_rate).expect("采样率必须大于零")
-    }
-
-    fn total_duration(&self) -> Option<Duration> {
-        None
-    }
-}
 
 #[cfg(test)]
 mod tests {

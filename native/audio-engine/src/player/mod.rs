@@ -26,8 +26,7 @@ pub use transition::{LoadedPlayback, SeekTake};
 
 /// 内部播放器，管理音频输出、解码和状态
 pub struct InnerPlayer {
-    /// 跨线程安全的音频输出包装：内部专用线程独占 cpal::Stream，
-    /// 此处只持有 Send 的 Mixer，保证 InnerPlayer 整体是 Send 的
+    /// 输出设备与配置句柄（不持有流），保证 InnerPlayer 整体是 Send 的
     output: Option<AudioOutput>,
     /// 使用 Arc 包装，允许 fade 线程在 Mutex 外操作音量
     playback: Option<Arc<PlaybackHandle>>,
@@ -86,7 +85,7 @@ pub struct InnerPlayer {
     pending_load_handle: Option<HttpCancelHandle>,
 }
 
-/// 编译期保证 `InnerPlayer: Send`：cpal::Stream（!Send）已通过 AudioOutput 隔离到专用线程，
+/// 编译期保证 `InnerPlayer: Send`：cpal::Stream 由 `PlaybackHandle` 持有且各后端均为 Send，
 /// 此处不再需要 `unsafe impl Send`。如果未来有人加了 !Send 字段，这条断言会编译失败提醒。
 const _: fn() = || {
     fn assert_send<T: Send>() {}
@@ -409,7 +408,7 @@ impl InnerPlayer {
     /// 检查播放是否已结束
     pub fn is_finished(&self) -> bool {
         match (&self.shared, &self.playback) {
-            (Some(shared), Some(playback)) => shared.is_all_consumed() && playback.is_empty(),
+            (Some(shared), Some(_)) => shared.is_all_consumed(),
             _ => false,
         }
     }

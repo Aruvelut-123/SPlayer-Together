@@ -19,7 +19,7 @@ use crate::priority;
 use crate::shared::{AudioChunk, Shared};
 use crate::tempo::StretchProcessor;
 
-/// 播放输出目标格式（重采样后送入 rodio）
+/// 播放输出目标格式（重采样后送入输出流）
 pub const TARGET_CHANNELS: u16 = 2;
 
 /// 播放输出默认采样率

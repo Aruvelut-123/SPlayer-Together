@@ -6,8 +6,6 @@ use std::io::ErrorKind;
 
 use ffmpeg_audio::error::HttpError;
 use ffmpeg_audio::AudioError;
-#[cfg(not(target_os = "linux"))]
-use rodio::cpal;
 use thiserror::Error;
 
 /// 原生层内部使用的稳定错误类别
@@ -107,18 +105,8 @@ impl AudioEngineError {
         if let Some(error) = source.downcast_ref::<AudioError>() {
             return Some(Self::classify_audio_error(error));
         }
-        #[cfg(not(target_os = "linux"))]
-        {
-            if source.downcast_ref::<cpal::BuildStreamError>().is_some()
-                || source
-                    .downcast_ref::<cpal::DefaultStreamConfigError>()
-                    .is_some()
-                || source.downcast_ref::<cpal::DevicesError>().is_some()
-                || source.downcast_ref::<cpal::DeviceNameError>().is_some()
-                || source.downcast_ref::<rodio::DeviceSinkError>().is_some()
-            {
-                return Some(AudioErrorKind::Device);
-            }
+        if source.downcast_ref::<cpal::Error>().is_some() {
+            return Some(AudioErrorKind::Device);
         }
         None
     }
@@ -218,10 +206,9 @@ mod tests {
         ));
     }
 
-    #[cfg(not(target_os = "linux"))]
     #[test]
-    fn rodio_device_sink_errors_are_device_errors() {
-        let error = anyhow::Error::new(rodio::DeviceSinkError::NoDevice);
+    fn cpal_errors_are_device_errors() {
+        let error = anyhow::Error::new(cpal::Error::from(cpal::ErrorKind::DeviceBusy));
 
         assert!(matches!(
             AudioEngineError::classify(&error),
