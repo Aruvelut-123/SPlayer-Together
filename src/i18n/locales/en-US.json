@@ -219,20 +219,28 @@
     "joinFailed": "Failed to join room",
     "localNotShareable": "Local music is not supported during Listen Together. Paused.",
     "sharedPlaylist": "Shared Playlist",
-    "emptyPlaylist": "No shared playlist"
+    "emptyPlaylist": "No shared playlist",
+    "memberPermissions": "Member permissions",
+    "allowGuestControl": "Allow members to control playback",
+    "allowGuestEditPlaylist": "Allow members to edit the playlist",
+    "transferHost": "Transfer host",
+    "demotedToGuest": "You are no longer the host",
+    "roomClosed": "The room has been closed"
   },
   "license": {
-    "subtitle": "This app requires authorization. Send your machine key to the administrator, then check authorization.",
-    "serverUrl": "Relay server",
+    "subtitle": "Send your machine key to the administrator to add it to the whitelist. You can keep using the app while offline, but it will exit automatically after 1 hour offline.",
     "machineKey": "Machine key",
     "generating": "Generating…",
     "verify": "Check Authorization",
     "copied": "Copied",
     "copyFailed": "Copy failed",
     "invalidKey": "Key not authorized. Contact the administrator.",
-    "networkError": "Cannot connect to server. Check the address and network.",
+    "networkError": "Cannot connect to server. Check your network.",
     "keyRequired": "Machine key unavailable",
-    "hint": "Authorization is re-checked every 5 minutes. The app locks immediately when the key is revoked."
+    "updateRequired": "A new version is available. Please update before continuing.",
+    "continueUse": "Continue without authorization",
+    "offlineNotice": "Not connected to the license server. Usage is unaffected, but the app will exit after 1 hour offline.",
+    "hint": "Authorization is re-checked every 5 minutes"
   },
   "uiZoom": {
     "title": "Interface Zoom",
@@ -831,6 +839,7 @@
       "checkUpdate": "Check for Updates",
       "checking": "Checking",
       "newVersion": "Update Available",
+      "changelog": "View Changelog",
       "openLogs": "Open Logs",
       "officialSite": "Official Site",
       "showMore": "More Contributors",

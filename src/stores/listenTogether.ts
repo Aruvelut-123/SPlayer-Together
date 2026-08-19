@@ -19,9 +19,9 @@ import i18n from "@/i18n";
 const SHAREABLE_SOURCES = new Set(["netease", "qqmusic", "kugou"]);
 
 /** 房主推送 / 成员拉取的最小间隔（毫秒） */
-const SYNC_INTERVAL_MS = 2_000;
-/** 成员跟随漂移纠正阈值（毫秒），超过则 seek 对齐 */
-const DRIFT_THRESHOLD_MS = 2_000;
+const SYNC_INTERVAL_MS = 1_000;
+/** 成员跟随漂移纠正阈值（毫秒），超过则 seek 对齐，越小同步越紧 */
+const DRIFT_THRESHOLD_MS = 800;
 
 export type ListenTogetherRole = "none" | "host" | "guest";
 export type ListenTogetherConnection = "idle" | "connecting" | "connected" | "error";
@@ -63,7 +63,15 @@ interface RoomSnapshot {
   hostId: string;
   queue: Track[] | null;
   reports: RoomReport[];
+  permissions: { allowGuestControl: boolean; allowGuestEditPlaylist: boolean };
+  lastActor: string | null;
   serverNow: number;
+}
+
+/** 房主控制的成员权限 */
+export interface ListenTogetherPermissions {
+  allowGuestControl: boolean;
+  allowGuestEditPlaylist: boolean;
 }
 
 export const useListenTogetherStore = defineStore("listenTogether", () => {
@@ -87,6 +95,11 @@ export const useListenTogetherStore = defineStore("listenTogether", () => {
   const sharedState = ref<ListenTogetherSharedState | null>(null);
   /** 服务器上的共享播放列表 */
   const roomQueue = ref<Track[]>([]);
+  /** 房主设置的成员权限 */
+  const permissions = ref<ListenTogetherPermissions>({
+    allowGuestControl: true,
+    allowGuestEditPlaylist: true,
+  });
   /** 最近一次错误提示 */
   const lastError = ref("");
 
@@ -103,6 +116,8 @@ export const useListenTogetherStore = defineStore("listenTogether", () => {
   let lastPushed: { trackId: string | null; state: string; positionMs: number } | null = null;
   /** 上次推送队列的指纹 */
   let lastPushedQueueKey = "";
+  /** 上次请求心跳时间戳（状态无变化时也定期刷新活跃） */
+  let lastHeartbeatAt = 0;
   /** 成员跟随中的曲目（等待加载完成确认） */
   let pendingFollow: { trackId: string; expected: number; playing: boolean } | null = null;
   /** 本机无法播放的曲目 id（房主切歌前不再重试） */
@@ -143,6 +158,17 @@ export const useListenTogetherStore = defineStore("listenTogether", () => {
     pollTimer = undefined;
   };
 
+  /** 判断错误是否为房间已关闭（404），如是则提示并退出房间 */
+  const handleRoomGone = (err: unknown): boolean => {
+    const message = err instanceof Error ? err.message : String(err);
+    if (message.includes("not found") || message.includes("404")) {
+      toast.warning(i18n.global.t("listenTogether.roomClosed"), { duration: 4_000 });
+      void leaveRoom();
+      return true;
+    }
+    return false;
+  };
+
   /** 按服务器时间换算的目标进度（毫秒） */
   const expectedPosition = (s: ListenTogetherSharedState): number =>
     s.state === "playing" ? s.positionMs + (Date.now() + serverOffsetMs - s.at) : s.positionMs;
@@ -175,6 +201,9 @@ export const useListenTogetherStore = defineStore("listenTogether", () => {
     prevMemberIds = snap.members.map((m) => m.id);
     members.value = snap.members;
     hostId.value = snap.hostId;
+    if (snap.permissions) {
+      permissions.value = snap.permissions;
+    }
     if (snap.reports.length > 0 && role.value === "host") {
       for (const r of snap.reports) {
         if (r.kind === "loadFailed") {
@@ -188,18 +217,35 @@ export const useListenTogetherStore = defineStore("listenTogether", () => {
         }
       }
     }
-    if (snap.queue && role.value === "guest") {
+    // 所有成员共享同一播放列表：任何成员推送的队列都会被其他成员应用
+    if (snap.queue) {
       applyQueue(snap.queue);
     }
     roomQueue.value = snap.queue ?? [];
     if (snap.state) {
       sharedState.value = { ...snap.state, seq: snap.seq };
     }
+    // 房主身份变化：被转移 / 自动升级
+    if (snap.hostId === memberId.value && role.value !== "host") {
+      role.value = "host";
+      toast.success(i18n.global.t("listenTogether.promotedToHost"));
+      stopTimers();
+      pushTimer = window.setInterval(() => void pushState(), SYNC_INTERVAL_MS);
+      void pushState(true);
+      void pushQueue();
+    } else if (snap.hostId !== memberId.value && role.value === "host") {
+      role.value = "guest";
+      toast.info(i18n.global.t("listenTogether.demotedToGuest"));
+      stopTimers();
+      pollTimer = window.setInterval(() => void pollState(), SYNC_INTERVAL_MS);
+      void pollState();
+    }
   };
 
-  /** 房主推送当前播放状态；非房主 / 未连接时忽略 */
+  /** 成员推送当前播放状态（房主总是允许，成员需 allowGuestControl 权限） */
   const pushState = async (force = false): Promise<void> => {
-    if (role.value !== "host" || !roomActive.value) return;
+    if (!roomActive.value) return;
+    if (role.value !== "host" && !permissions.value.allowGuestControl) return;
     const track = media.track;
     const shareable = !!track && SHAREABLE_SOURCES.has(track.source);
     const state = !shareable
@@ -217,7 +263,10 @@ export const useListenTogetherStore = defineStore("listenTogether", () => {
       lastPushed.trackId !== trackId ||
       lastPushed.state !== state ||
       Math.abs(lastPushed.positionMs - positionMs) >= SYNC_INTERVAL_MS;
-    if (!changed) return;
+    // 状态无变化时也定期心跳，避免被服务器判定离线
+    const heartbeatDue = Date.now() - lastHeartbeatAt > 15_000;
+    if (!changed && !heartbeatDue) return;
+    lastHeartbeatAt = Date.now();
     lastPushed = { trackId, state, positionMs };
     try {
       const snap = await api<RoomSnapshot>(`/api/rooms/${code.value}/state`, {
@@ -226,14 +275,16 @@ export const useListenTogetherStore = defineStore("listenTogether", () => {
       });
       connection.value = "connected";
       applyRoomView(snap);
-    } catch {
+    } catch (err) {
+      if (handleRoomGone(err)) return;
       connection.value = "error";
     }
   };
 
-  /** 房主推送播放列表（仅内容变化时） */
+  /** 成员推送播放列表（房主总是允许，成员需 allowGuestEditPlaylist 权限） */
   const pushQueue = async (): Promise<void> => {
-    if (role.value !== "host" || !roomActive.value) return;
+    if (!roomActive.value) return;
+    if (role.value !== "host" && !permissions.value.allowGuestEditPlaylist) return;
     const tracks = queueStore.value;
     const key = tracks.map((t) => t.id).join("\u0000");
     if (key === lastPushedQueueKey) return;
@@ -244,39 +295,32 @@ export const useListenTogetherStore = defineStore("listenTogether", () => {
         body: JSON.stringify({ tracks }),
       });
       applyRoomView(snap);
-    } catch {
-      /* 队列推送失败，下次轮询重试 */
+    } catch (err) {
+      if (handleRoomGone(err)) return;
+      /* 队列推送失败，下次重试 */
     }
   };
 
-  /** 成员拉取房间状态 */
+  /** 成员拉取房间状态（含房主失联自动升级 / 被转移降级） */
   const pollState = async (): Promise<void> => {
     if (role.value !== "guest" || !roomActive.value) return;
     try {
       const snap = await api<RoomSnapshot>(`/api/rooms/${code.value}/state`);
       connection.value = "connected";
       applyRoomView(snap);
-      // 房主离开后自动升级
-      if (snap.hostId === memberId.value && role.value === "guest") {
-        role.value = "host";
-        toast.success(i18n.global.t("listenTogether.promotedToHost"));
-        stopTimers();
-        pushTimer = window.setInterval(() => void pushState(), SYNC_INTERVAL_MS);
-        void pushState(true);
-        void pushQueue();
-        return;
-      }
-      if (snap.state) {
+      // 不跟随自己推送的状态
+      if (snap.state && snap.lastActor !== memberId.value) {
         await applyState(sharedState.value as ListenTogetherSharedState);
       }
-    } catch {
+    } catch (err) {
+      if (handleRoomGone(err)) return;
       connection.value = "error";
     }
   };
 
-  /** 成员应用房间状态：切歌跟随 / 播放态对齐 / 漂移纠正 */
+  /** 成员应用房间状态：切歌跟随 / 播放态对齐 / 漂移纠正（所有成员跟随同一进度） */
   const applyState = async (s: ListenTogetherSharedState): Promise<void> => {
-    if (role.value !== "guest") return;
+    if (!roomActive.value) return;
     if (!s.track || !SHAREABLE_SOURCES.has(s.track.source)) {
       if (status.isPlaying) await player.pause();
       return;
@@ -420,6 +464,39 @@ export const useListenTogetherStore = defineStore("listenTogether", () => {
     lastPushed = null;
     lastPushedQueueKey = "";
     prevMemberIds = [];
+    permissions.value = { allowGuestControl: true, allowGuestEditPlaylist: true };
+  };
+
+  /** 房主设置成员权限 */
+  const setPermissions = async (next: Partial<ListenTogetherPermissions>): Promise<void> => {
+    if (role.value !== "host" || !roomActive.value) return;
+    try {
+      const snap = await api<RoomSnapshot>(`/api/rooms/${code.value}/permissions`, {
+        method: "POST",
+        body: JSON.stringify({
+          allowGuestControl: next.allowGuestControl ?? permissions.value.allowGuestControl,
+          allowGuestEditPlaylist:
+            next.allowGuestEditPlaylist ?? permissions.value.allowGuestEditPlaylist,
+        }),
+      });
+      applyRoomView(snap);
+    } catch (err) {
+      if (handleRoomGone(err)) return;
+    }
+  };
+
+  /** 房主将房主身份转移给其他成员 */
+  const transferHost = async (targetMemberId: string): Promise<void> => {
+    if (role.value !== "host" || !roomActive.value) return;
+    try {
+      const snap = await api<RoomSnapshot>(`/api/rooms/${code.value}/transfer`, {
+        method: "POST",
+        body: JSON.stringify({ targetMemberId }),
+      });
+      applyRoomView(snap);
+    } catch (err) {
+      if (handleRoomGone(err)) return;
+    }
   };
 
   // 房主侧：曲目 / 播放态变化时立即推送
@@ -469,9 +546,12 @@ export const useListenTogetherStore = defineStore("listenTogether", () => {
     hostId,
     sharedState,
     roomQueue,
+    permissions,
     lastError,
     createRoom,
     joinRoom,
     leaveRoom,
+    setPermissions,
+    transferHost,
   };
 });

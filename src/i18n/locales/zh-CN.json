@@ -207,20 +207,28 @@
     "joinFailed": "加入房间失败",
     "localNotShareable": "一起听期间不支持本地音乐，已暂停",
     "sharedPlaylist": "共享列表",
-    "emptyPlaylist": "暂无共享列表"
+    "emptyPlaylist": "暂无共享列表",
+    "memberPermissions": "成员权限",
+    "allowGuestControl": "允许成员控制播放",
+    "allowGuestEditPlaylist": "允许成员编辑播放列表",
+    "transferHost": "移交房主",
+    "demotedToGuest": "你已不再是房主",
+    "roomClosed": "房间已关闭"
   },
   "license": {
-    "subtitle": "本软件需要授权才能使用。请复制机器密钥发给管理员，加入白名单后点击「检查授权」。",
-    "serverUrl": "中继服务器",
+    "subtitle": "请将机器密钥发给管理员加入白名单。未连接服务器也能继续使用，但连续离线超过 1 小时将自动退出。",
     "machineKey": "机器密钥",
     "generating": "生成中…",
     "verify": "检查授权",
     "copied": "已复制",
     "copyFailed": "复制失败",
     "invalidKey": "密钥未授权，请联系管理员",
-    "networkError": "无法连接服务器，请检查地址与网络",
+    "networkError": "无法连接服务器，请检查网络",
     "keyRequired": "未获取到机器密钥",
-    "hint": "授权状态每 5 分钟自动复核，密钥失效将立即锁定。"
+    "updateRequired": "检测到新版本，请先更新后再使用",
+    "continueUse": "继续使用",
+    "offlineNotice": "未连接到授权服务器：不影响使用，但连续离线 1 小时后将自动退出",
+    "hint": "授权状态每 5 分钟复核一次"
   },
   "uiZoom": {
     "title": "界面缩放",
@@ -819,6 +827,7 @@
       "checkUpdate": "检查更新",
       "checking": "检查中",
       "newVersion": "发现新版本",
+      "changelog": "查看更新日志",
       "openLogs": "打开日志",
       "officialSite": "官方网站",
       "showMore": "更多贡献者",

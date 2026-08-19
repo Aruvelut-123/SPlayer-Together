@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { getContributors, type Contributor } from "@/apis/github";
+import { marked } from "marked";
+import { CURRENT_CHANGELOG } from "@/utils/changelog";
 import { useCopyText } from "@/composables/useCopyText";
 import { useUpdateStore } from "@/stores/update";
 import { openExternal } from "@/utils/url";
@@ -7,17 +9,15 @@ import {
   APP_VERSION,
   REPO_URL,
   REPO_NAME,
-  HOMEPAGE_URL,
   COPYRIGHT_HOLDER,
   IS_APPX,
   COMMIT_HASH,
   COMMIT_DATE,
 } from "@/utils/config";
 import IconLucideRefreshCw from "~icons/lucide/refresh-cw";
-import IconLucideGithub from "~icons/lucide/github";
-import IconLucideRss from "~icons/lucide/rss";
 import IconLucideArrowUpRight from "~icons/lucide/arrow-up-right";
 import IconLucideChevronDown from "~icons/lucide/chevron-down";
+import IconLucideFileText from "~icons/lucide/file-text";
 
 const { t } = useI18n();
 const { copy } = useCopyText();
@@ -84,6 +84,11 @@ interface Dependency {
 /** 依赖的开源项目 */
 const dependencies: Dependency[] = [
   {
+    name: "SPlayer-Next",
+    description: "上游项目：SPlayer Next 桌面音乐播放器",
+    url: "https://github.com/SPlayer-Dev/SPlayer-Next",
+  },
+  {
     name: "applemusic-like-lyrics",
     description: "类 Apple Music 歌词显示组件库",
     url: "https://github.com/Steve-xmh/applemusic-like-lyrics",
@@ -95,11 +100,11 @@ const dependencies: Dependency[] = [
   },
 ];
 
-/** 社区与资讯入口 */
-const community = computed(() => [
-  { name: REPO_NAME, url: REPO_URL, icon: IconLucideGithub },
-  { name: t("settings.about.officialSite"), url: HOMEPAGE_URL, icon: IconLucideRss },
-]);
+/** 当前版本 changelog 弹窗 */
+const changelogOpen = ref(false);
+const changelogHtml = computed(() =>
+  marked.parse(CURRENT_CHANGELOG, { async: false }) as string,
+);
 
 const developers = ref<Contributor[]>([]);
 const showAllDevelopers = ref(false);
@@ -159,6 +164,10 @@ onMounted(async () => {
                   ? t("settings.about.checking")
                   : t("settings.about.checkUpdate")
             }}
+          </SButton>
+          <SButton variant="secondary" @click="changelogOpen = true">
+            <template #icon><IconLucideFileText /></template>
+            {{ t("settings.about.changelog") }}
           </SButton>
           <SButton variant="secondary" @click="handleOpenLogs">
             {{ t("settings.about.openLogs") }}
@@ -222,9 +231,11 @@ onMounted(async () => {
             <div class="text-sm font-medium text-on-surface truncate">{{ dev.login }}</div>
             <div class="text-xs text-on-surface-variant/60 truncate">
               {{
-                dev.login === COPYRIGHT_HOLDER || dev.login === "Baymaxawa"
-                  ? "Author"
-                  : "Contributor"
+                dev.login === COPYRIGHT_HOLDER
+                  ? "Original Author"
+                  : dev.login === "Baymaxawa"
+                    ? "Author"
+                    : "Contributor"
               }}
             </div>
           </div>
@@ -245,28 +256,6 @@ onMounted(async () => {
           />
         </template>
       </SButton>
-    </section>
-
-    <!-- 社区与资讯 -->
-    <section>
-      <h3 class="flex items-center gap-2 text-lg font-semibold text-on-surface mb-3 px-1">
-        <span class="w-0.75 h-4 rounded-full bg-primary" />
-        {{ t("settings.section.community") }}
-      </h3>
-      <div class="grid grid-cols-3 gap-2.5">
-        <SCard
-          v-for="item in community"
-          :key="item.name"
-          variant="settings"
-          hoverable
-          :bordered="false"
-          class="flex items-center gap-2.5"
-          @click="openExternal(item.url)"
-        >
-          <component :is="item.icon" class="size-5 text-on-surface-variant shrink-0" />
-          <span class="text-sm font-medium text-on-surface truncate">{{ item.name }}</span>
-        </SCard>
-      </div>
     </section>
 
     <!-- 环境信息 -->
@@ -305,4 +294,17 @@ onMounted(async () => {
       </SCard>
     </section>
   </div>
+
+  <!-- 当前版本 changelog -->
+  <SDialog
+    :open="changelogOpen"
+    :title="t('settings.about.changelog')"
+    width="520px"
+    @update:open="changelogOpen = $event"
+  >
+    <div
+      class="markdown-body max-h-80 overflow-y-auto px-1 py-1"
+      v-html="changelogHtml"
+    />
+  </SDialog>
 </template>

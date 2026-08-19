@@ -13,10 +13,18 @@ const emit = defineEmits<{ "update:open": [value: boolean] }>();
 
 const { t } = useI18n();
 const store = useListenTogetherStore();
-const { connection, role, code, members, hostId, sharedState, roomQueue, lastError } =
+const { connection, role, code, members, hostId, sharedState, permissions, lastError } =
   storeToRefs(store);
 
 const joinCode = ref("");
+
+/** 成员权限开关变化后同步到服务器 */
+const handlePermissionChange = (): void => {
+  void store.setPermissions({
+    allowGuestControl: permissions.value.allowGuestControl,
+    allowGuestEditPlaylist: permissions.value.allowGuestEditPlaylist,
+  });
+};
 
 /** 连接状态文案与颜色 */
 const connectionMeta = computed(() => {
@@ -169,24 +177,29 @@ const copyCode = async (): Promise<void> => {
         </SCard>
       </div>
 
-      <div class="flex flex-col gap-1.5">
-        <span class="text-sm font-medium">{{ t("listenTogether.sharedPlaylist") }}</span>
-        <SCard class="px-3 py-2 flex flex-col gap-1.5 max-h-40 overflow-y-auto">
-          <span v-if="!roomQueue.length" class="text-sm text-on-surface-variant">
-            {{ t("listenTogether.emptyPlaylist") }}
-          </span>
-          <div
-            v-for="(track, index) in roomQueue"
-            :key="`${track.id}-${index}`"
-            class="flex items-center gap-2 text-sm min-w-0"
-          >
-            <span class="text-xs tabular-nums text-on-surface-variant/60 shrink-0">
-              {{ index + 1 }}
-            </span>
-            <span class="truncate">{{ track.title }}</span>
-            <span class="text-xs text-on-surface-variant/60 truncate">
-              {{ track.artists.map((a) => a.name).join(" / ") }}
-            </span>
+      <!-- 房主：成员权限控制 -->
+      <div v-if="isHost" class="flex flex-col gap-1.5">
+        <span class="text-sm font-medium">{{ t("listenTogether.memberPermissions") }}</span>
+        <SCard class="px-3 py-2.5 flex flex-col gap-2">
+          <div class="flex items-center justify-between gap-3">
+            <span class="text-sm">{{ t("listenTogether.allowGuestControl") }}</span>
+            <SSwitch
+              :model-value="permissions.allowGuestControl"
+              @update:model-value="
+                permissions.allowGuestControl = $event;
+                handlePermissionChange();
+              "
+            />
+          </div>
+          <div class="flex items-center justify-between gap-3">
+            <span class="text-sm">{{ t("listenTogether.allowGuestEditPlaylist") }}</span>
+            <SSwitch
+              :model-value="permissions.allowGuestEditPlaylist"
+              @update:model-value="
+                permissions.allowGuestEditPlaylist = $event;
+                handlePermissionChange();
+              "
+            />
           </div>
         </SCard>
       </div>
@@ -211,6 +224,14 @@ const copyCode = async (): Promise<void> => {
               v-if="member.id === hostId && connection === 'connecting'"
               class="size-3.5 animate-spin text-on-surface-variant"
             />
+            <SButton
+              v-if="isHost && member.id !== hostId"
+              variant="ghost"
+              size="small"
+              @click="store.transferHost(member.id)"
+            >
+              {{ t("listenTogether.transferHost") }}
+            </SButton>
           </div>
         </SCard>
       </div>

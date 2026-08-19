@@ -46,8 +46,8 @@ ROOM_CODE_LEN = 6
 MEMBER_TIMEOUT_MS = 60_000
 # 房主超过该时长未推送状态视为失联，将房主转移给在线成员
 HOST_TIMEOUT_MS = 20_000
-# 无在线成员的房间超过该时长后清理
-ROOM_TTL_MS = 10 * 60 * 1000
+# 无在线成员的房间超过该时长后清理（仅清理无人在线的房间）
+ROOM_TTL_MS = 2 * 60 * 1000
 # 后台清理任务间隔
 CLEANUP_INTERVAL_MS = 30_000
 
@@ -111,6 +111,13 @@ class Room:
         self.seq = 0
         self.created_at = now_ms()
         self.host_last_push = now_ms()
+        # 房主控制的成员权限
+        self.permissions: dict[str, Any] = {
+            "allowGuestControl": True,
+            "allowGuestEditPlaylist": True,
+        }
+        # 最后推播放状态的成员 id
+        self.last_actor: str | None = None
 
     def touch(self, member_id: str) -> None:
         self.members[member_id]["last_seen"] = now_ms()
@@ -153,6 +160,8 @@ def room_snapshot(room: Room) -> dict[str, Any]:
         "hostId": room.host_id,
         "queue": room.queue,
         "reports": reports,
+        "permissions": room.permissions,
+        "lastActor": room.last_actor,
         "serverNow": now_ms(),
     }
 
@@ -273,28 +282,32 @@ async def handle_join(request: web.Request) -> web.Response:
 
 
 async def handle_push_state(request: web.Request) -> web.Response:
-    """房主推送播放状态；任意成员都会刷新活跃时间。返回房间快照。"""
+    """成员推送播放状态（房主总是允许，成员需 allowGuestControl 权限）"""
     auth = room_auth(request)
     if auth is None:
         return web.json_response({"error": "unauthorized"}, status=401)
     room, member_id = auth
     body = await request.json()
-    if member_id == room.host_id:
-        room.seq += 1
-        room.state = {
-            "track": body.get("track"),
-            "state": body.get("state"),
-            "positionMs": int(body.get("positionMs", 0) or 0),
-            "at": now_ms(),
-        }
+    is_host = member_id == room.host_id
+    if not is_host and not room.permissions.get("allowGuestControl", False):
+        return web.json_response({"error": "forbidden"}, status=403)
+    room.seq += 1
+    room.state = {
+        "track": body.get("track"),
+        "state": body.get("state"),
+        "positionMs": int(body.get("positionMs", 0) or 0),
+        "at": now_ms(),
+    }
+    room.last_actor = member_id
+    if is_host:
         room.host_last_push = now_ms()
-        log.debug(
-            "房主 %s 推送状态：%s，进度 %sms",
-            member_id[:8],
-            room.state.get("state"),
-            room.state.get("positionMs"),
-        )
     room.touch(member_id)
+    log.debug(
+        "成员 %s 推送状态：%s，进度 %sms",
+        member_id[:8],
+        room.state.get("state"),
+        room.state.get("positionMs"),
+    )
     return web.json_response(room_snapshot(room))
 
 
@@ -309,7 +322,28 @@ async def handle_get_state(request: web.Request) -> web.Response:
 
 
 async def handle_push_queue(request: web.Request) -> web.Response:
-    """房主推送播放列表"""
+    """成员推送播放列表（房主总是允许，成员需 allowGuestEditPlaylist 权限）"""
+    auth = room_auth(request)
+    if auth is None:
+        return web.json_response({"error": "unauthorized"}, status=401)
+    room, member_id = auth
+    is_host = member_id == room.host_id
+    if not is_host and not room.permissions.get("allowGuestEditPlaylist", False):
+        return web.json_response({"error": "forbidden"}, status=403)
+    body = await request.json()
+    room.queue = body.get("tracks", []) or []
+    room.touch(member_id)
+    log.debug(
+        "成员 %s 推送播放列表（%s 首）到房间 %s",
+        member_id[:8],
+        len(room.queue),
+        room.code,
+    )
+    return web.json_response(room_snapshot(room))
+
+
+async def handle_set_permissions(request: web.Request) -> web.Response:
+    """房主设置成员权限"""
     auth = room_auth(request)
     if auth is None:
         return web.json_response({"error": "unauthorized"}, status=401)
@@ -317,9 +351,34 @@ async def handle_push_queue(request: web.Request) -> web.Response:
     if member_id != room.host_id:
         return web.json_response({"error": "forbidden"}, status=403)
     body = await request.json()
-    room.queue = body.get("tracks", []) or []
+    current = room.permissions
+    room.permissions = {
+        "allowGuestControl": bool(body.get("allowGuestControl", current.get("allowGuestControl", True))),
+        "allowGuestEditPlaylist": bool(
+            body.get("allowGuestEditPlaylist", current.get("allowGuestEditPlaylist", True))
+        ),
+    }
     room.touch(member_id)
-    log.debug("房主 %s 推送播放列表（%s 首）到房间 %s", member_id[:8], len(room.queue), room.code)
+    log.info("房间 %s 权限更新：%s", room.code, room.permissions)
+    return web.json_response(room_snapshot(room))
+
+
+async def handle_transfer_host(request: web.Request) -> web.Response:
+    """房主将房主身份转移给其他成员，自己变为成员"""
+    auth = room_auth(request)
+    if auth is None:
+        return web.json_response({"error": "unauthorized"}, status=401)
+    room, member_id = auth
+    if member_id != room.host_id:
+        return web.json_response({"error": "forbidden"}, status=403)
+    body = await request.json()
+    target = str(body.get("targetMemberId", ""))
+    if target not in room.members or target == member_id:
+        return web.json_response({"error": "invalid target"}, status=400)
+    room.host_id = target
+    room.host_last_push = now_ms()
+    room.touch(member_id)
+    log.warning("房主 %s 将房主身份转移给 %s（房间 %s）", member_id[:8], target[:8], room.code)
     return web.json_response(room_snapshot(room))
 
 
@@ -517,6 +576,8 @@ def build_app() -> web.Application:
     app.router.add_post("/api/rooms/{code}/state", handle_push_state)
     app.router.add_get("/api/rooms/{code}/state", handle_get_state)
     app.router.add_post("/api/rooms/{code}/queue", handle_push_queue)
+    app.router.add_post("/api/rooms/{code}/permissions", handle_set_permissions)
+    app.router.add_post("/api/rooms/{code}/transfer", handle_transfer_host)
     app.router.add_post("/api/rooms/{code}/report", handle_report)
     app.router.add_post("/api/rooms/{code}/leave", handle_leave)
     app.router.add_post("/api/admin/login", handle_admin_login)
