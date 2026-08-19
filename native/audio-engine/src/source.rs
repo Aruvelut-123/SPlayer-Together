@@ -1,6 +1,9 @@
 use std::sync::Arc;
+
+#[cfg(not(target_os = "linux"))]
 use std::time::Duration;
 
+#[cfg(not(target_os = "linux"))]
 use rodio::{ChannelCount, SampleRate, Source};
 
 use crate::fft::FftAnalyzer;
@@ -107,6 +110,7 @@ impl Drop for DecoderSampleReader {
 /// Linux 切换到 CPAL callback 后将不再使用该 trait 实现。
 pub type DecoderSource = DecoderSampleReader;
 
+#[cfg(not(target_os = "linux"))]
 impl Source for DecoderSampleReader {
     fn current_span_len(&self) -> Option<usize> {
         None

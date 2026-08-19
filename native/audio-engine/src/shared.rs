@@ -311,12 +311,6 @@ impl Shared {
             self.recycle_fft_buffer(chunk.fft_samples);
         }
     }
-
-    /// 检查播放是否已结束（EOF 且缓冲区为空）
-    pub fn is_done(&self) -> bool {
-        let output = self.output_buffer.lock();
-        self.output_eof.load(Ordering::Acquire) && output.is_empty()
-    }
 }
 
 #[cfg(test)]

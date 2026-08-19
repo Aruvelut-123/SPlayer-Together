@@ -2,9 +2,6 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::thread::JoinHandle;
 
-use anyhow::Result;
-use ffmpeg_audio::HttpCancelHandle;
-use parking_lot::Mutex;
 use crate::audio_output::AudioOutput;
 use crate::decoder;
 use crate::equalizer::Equalizer;
@@ -13,6 +10,9 @@ use crate::playback::PlaybackHandle;
 use crate::shared::Shared;
 use crate::source::DecoderSource;
 use crate::tempo::StretchProcessor;
+use anyhow::Result;
+use ffmpeg_audio::HttpCancelHandle;
+use parking_lot::Mutex;
 
 use super::{InnerPlayer, PlayerEvent, PlayerState};
 
@@ -243,7 +243,7 @@ impl InnerPlayer {
         let volume = self.target_volume;
         let playback = {
             let output = self.ensure_output(None)?;
-            Arc::new(PlaybackHandle::attach(output, reader, volume, was_paused))
+            Arc::new(PlaybackHandle::attach(output, reader, volume, was_paused)?)
         };
 
         self.playback = Some(playback);
@@ -313,7 +313,7 @@ impl InnerPlayer {
         let volume = self.target_volume;
         let playback = {
             let output = self.ensure_output(None)?;
-            Arc::new(PlaybackHandle::attach(output, reader, volume, !auto_play))
+            Arc::new(PlaybackHandle::attach(output, reader, volume, !auto_play)?)
         };
 
         self.playback = Some(playback);

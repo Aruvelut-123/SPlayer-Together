@@ -12,15 +12,28 @@
 //! 对外只暴露可跨线程克隆的 `Mixer`。
 //! Stream 在该线程上创建，在该线程上 drop，永远不会被跨线程访问。
 
+#[cfg(target_os = "linux")]
+mod linux;
+#[cfg(target_os = "linux")]
+pub use linux::*;
+
+#[cfg(not(target_os = "linux"))]
 use std::sync::mpsc;
+#[cfg(not(target_os = "linux"))]
 use std::thread::{self, JoinHandle};
 
+#[cfg(not(target_os = "linux"))]
 use anyhow::{Context, Result};
+#[cfg(not(target_os = "linux"))]
 use rodio::cpal::{self, traits::DeviceTrait, traits::HostTrait};
+#[cfg(not(target_os = "linux"))]
 use rodio::{mixer::Mixer, DeviceSinkBuilder, MixerDeviceSink};
+#[cfg(not(target_os = "linux"))]
 use tracing::{debug, info, warn};
 
+#[cfg(not(target_os = "linux"))]
 use crate::error::{AudioErrorKind, AudioResultExt};
+#[cfg(not(target_os = "linux"))]
 use crate::priority;
 
 /// 输出失败回调：实时错误线程调用，只允许发送轻量事件。
@@ -41,18 +54,26 @@ pub type OutputFailureCallback = std::sync::Arc<dyn Fn() + Send + Sync + 'static
 /// // player 可在任意线程上使用；output 持有的 cpal::Stream 始终在专用线程上
 /// ```
 pub struct AudioOutput {
+    #[cfg(not(target_os = "linux"))]
     mixer: Mixer,
+    #[cfg(target_os = "linux")]
+    device_name: Option<String>,
     /// 该输出流的单调代次，用于诊断和过滤销毁后迟到的流错误
     generation: u64,
     /// 实际打开的输出流采样率
     sample_rate: u32,
+    #[cfg(target_os = "linux")]
+    on_failure: OutputFailureCallback,
+    #[cfg(not(target_os = "linux"))]
     /// drop 这个 sender 会让 owner 线程的 recv 返回 Err，从而退出并释放 Stream
     /// 包成 Option 是为了 Drop 里能 take() 出来显式 drop，从而在 join 前先关闭 channel
     shutdown: Option<mpsc::Sender<()>>,
+    #[cfg(not(target_os = "linux"))]
     /// owner 线程句柄，Drop 时 join 等待 cpal stream 在该线程真正释放
     thread: Option<JoinHandle<()>>,
 }
 
+#[cfg(not(target_os = "linux"))]
 impl AudioOutput {
     /// 在专用线程上创建音频输出
     ///
@@ -135,9 +156,9 @@ impl AudioOutput {
     pub fn sample_rate(&self) -> u32 {
         self.sample_rate
     }
-
 }
 
+#[cfg(not(target_os = "linux"))]
 impl Drop for AudioOutput {
     /// 确定性释放：先 drop 发送端通知 owner 线程退出，再 join 等待 cpal stream 真正释放
     ///
@@ -159,6 +180,7 @@ impl Drop for AudioOutput {
 ///
 /// `requested_sample_rate` 为期望采样率：设备支持时按精确采样率打开（音源原始采样率），
 /// 否则使用设备默认配置，返回实际采样率供播放重采样器与 DSP 使用。
+#[cfg(not(target_os = "linux"))]
 fn build_output_sink(
     device_name: Option<&str>,
     requested_sample_rate: Option<u32>,
@@ -183,6 +205,7 @@ fn build_output_sink(
 ///
 /// 闭包捕获的都是可克隆值（`Arc`），满足 rodio builder 的 `E: Clone` 约束，
 /// 同一份回调可安全复用到多次候选设备尝试。
+#[cfg(not(target_os = "linux"))]
 fn error_callback(
     on_failure: &OutputFailureCallback,
 ) -> impl FnMut(cpal::StreamError) + Clone + Send + 'static {
@@ -194,11 +217,13 @@ fn error_callback(
 
 /// 设备名已被设置持久化为选择键，继续沿用旧 API 的值以避免升级后已有配置失效
 #[allow(deprecated)]
+#[cfg(not(target_os = "linux"))]
 fn persisted_device_name(device: &cpal::Device) -> Option<String> {
     device.name().ok()
 }
 
 /// 设备是否支持目标采样率（任一支持的配置范围覆盖该速率即可）
+#[cfg(not(target_os = "linux"))]
 fn rate_supported(device: &cpal::Device, rate: u32) -> bool {
     device
         .supported_output_configs()
@@ -210,6 +235,7 @@ fn rate_supported(device: &cpal::Device, rate: u32) -> bool {
 
 /// 使用设备默认配置创建输出流，并注册运行期流错误回调；
 /// 目标采样率被设备支持时按该速率打开，否则保持默认配置
+#[cfg(not(target_os = "linux"))]
 fn open_device_with_error_callback(
     device: &cpal::Device,
     requested_sample_rate: Option<u32>,
@@ -234,16 +260,19 @@ fn open_device_with_error_callback(
 ///
 /// rodio 的静态 `open_default_sink` 无法注入自定义错误回调，此处复刻其兜底逻辑：
 /// 每次候选尝试都使用同一份错误回调，全部失败时返回第一次默认设备的错误并标记为设备错误。
+#[cfg(not(target_os = "linux"))]
 fn open_default_sink_with_callback(
     requested_sample_rate: Option<u32>,
     on_failure: &OutputFailureCallback,
 ) -> Result<(MixerDeviceSink, u32)> {
     let host = cpal::default_host();
-    let default_device = host.default_output_device().ok_or(rodio::DeviceSinkError::NoDevice);
+    let default_device = host
+        .default_output_device()
+        .ok_or(rodio::DeviceSinkError::NoDevice);
     let open = |device: cpal::Device| {
         let wants_rate = requested_sample_rate.filter(|rate| rate_supported(&device, *rate));
-        let mut builder = DeviceSinkBuilder::from_device(device)?
-            .with_error_callback(error_callback(on_failure));
+        let mut builder =
+            DeviceSinkBuilder::from_device(device)?.with_error_callback(error_callback(on_failure));
         if let Some(rate) = wants_rate {
             builder = builder.with_sample_rate(rodio::SampleRate::new(rate).unwrap());
         }
@@ -277,6 +306,7 @@ fn open_default_sink_with_callback(
 
 /// 枚举所有输出设备，返回 `(name, is_default)` 列表
 /// 纯查询，不涉及 `!Send` 状态，调用方任意线程都能用
+#[cfg(not(target_os = "linux"))]
 pub fn list_output_devices() -> Vec<(String, bool)> {
     let host = cpal::default_host();
     let default_name = host
@@ -296,6 +326,7 @@ pub fn list_output_devices() -> Vec<(String, bool)> {
 }
 
 /// 取系统默认输出设备名
+#[cfg(not(target_os = "linux"))]
 pub fn default_device_name() -> Option<String> {
     cpal::default_host()
         .default_output_device()

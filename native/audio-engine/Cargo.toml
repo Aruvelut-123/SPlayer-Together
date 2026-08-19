@@ -14,10 +14,6 @@ ffmpeg_audio = { version = "0.3.1", default-features = false, features = [
   "tracing",
 ] }
 libc = "0.2"
-rodio = { version = "0.22.2", default-features = false, features = [
-  "playback",
-  "tracing",
-] }
 parking_lot = "0.12"
 anyhow = "1"
 thiserror = "2"
@@ -43,8 +39,15 @@ tokio = { version = "1", features = ["rt"] }
 [target.'cfg(target_os = "windows")'.dependencies]
 windows-core = "0.62.2"
 
+[target.'cfg(not(target_os = "linux"))'.dependencies]
+rodio = { version = "0.22.2", default-features = false, features = [
+  "playback",
+  "tracing",
+] }
+
 [target.'cfg(target_os = "linux")'.dependencies]
 pipewire = { version = "0.10.0", features = ["v0_3_53"] }
+cpal = { version = "0.18.2", default-features = false, features = ["pipewire", "pulseaudio"] }
 
 [target.'cfg(target_os = "windows")'.dependencies.windows]
 version = "0.62"

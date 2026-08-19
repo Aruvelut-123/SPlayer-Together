@@ -409,7 +409,7 @@ impl InnerPlayer {
     /// 检查播放是否已结束
     pub fn is_finished(&self) -> bool {
         match (&self.shared, &self.playback) {
-            (Some(shared), Some(playback)) => shared.is_done() && playback.is_empty(),
+            (Some(shared), Some(playback)) => shared.is_all_consumed() && playback.is_empty(),
             _ => false,
         }
     }

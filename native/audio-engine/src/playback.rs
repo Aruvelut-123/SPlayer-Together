@@ -1,23 +1,45 @@
+#[cfg(not(target_os = "linux"))]
 use rodio::Player as RodioPlayer;
 
 use crate::audio_output::AudioOutput;
 use crate::source::DecoderSource;
 
 /// 平台输出的播放控制句柄。
-/// 当前由 Rodio 实现；Linux CPAL 后端接入时仅替换本模块的实现。
+/// Linux 使用 CPAL 原生后端；其它平台维持 Rodio 输出。
 pub struct PlaybackHandle {
+    #[cfg(target_os = "linux")]
+    inner: crate::audio_output::LinuxPlayback,
+    #[cfg(not(target_os = "linux"))]
     inner: RodioPlayer,
 }
 
 impl PlaybackHandle {
-    pub fn attach(output: &AudioOutput, source: DecoderSource, volume: f32, paused: bool) -> Self {
+    #[cfg(not(target_os = "linux"))]
+    pub fn attach(
+        output: &AudioOutput,
+        source: DecoderSource,
+        volume: f32,
+        paused: bool,
+    ) -> anyhow::Result<Self> {
         let inner = RodioPlayer::connect_new(output.mixer());
         inner.set_volume(volume);
         if paused {
             inner.pause();
         }
         inner.append(source);
-        Self { inner }
+        Ok(Self { inner })
+    }
+
+    #[cfg(target_os = "linux")]
+    pub fn attach(
+        output: &AudioOutput,
+        source: DecoderSource,
+        volume: f32,
+        paused: bool,
+    ) -> anyhow::Result<Self> {
+        Ok(Self {
+            inner: output.build_playback(source, volume, paused)?,
+        })
     }
 
     pub fn play(&self) {
@@ -37,6 +59,11 @@ impl PlaybackHandle {
     }
 
     pub fn is_empty(&self) -> bool {
+        #[cfg(target_os = "linux")]
+        {
+            true
+        }
+        #[cfg(not(target_os = "linux"))]
         self.inner.empty()
     }
 }
