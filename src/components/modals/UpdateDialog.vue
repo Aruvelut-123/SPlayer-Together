@@ -8,10 +8,13 @@ import { formatFileSize } from "@/utils/format";
 const { t } = useI18n();
 const update = useUpdateStore();
 
-/** release notes 渲染为 HTML：聚合从当前版本到最新版本的全部更新日志 */
+/** release notes 渲染为 HTML：从服务器获取多版本 changelog，聚合显示 */
 const notesHtml = computed(() => {
-  const raw = getChangelogRange(APP_VERSION, update.meta?.version);
-  return raw ? (marked.parse(raw, { async: false }) as string) : "";
+  // 若已缓存了服务器 changelog 则直接解析
+  const raw = update.meta?.releaseNotes;
+  if (!raw) return "";
+  const range = getChangelogRange(raw, APP_VERSION, update.meta?.version);
+  return range ? (marked.parse(range, { async: false }) as string) : "";
 });
 
 /** 发布日期（本地化，空/非法则不显示） */

@@ -82,17 +82,22 @@ WebUI 与所有管理接口都需要管理员登录（session token）后才能�
 
 客户端每次检查更新时请求 `GET /api/update`。发布新版本步骤：
 
-1. 把安装包（如 `SPlayer Together-1.0.2-x64-setup.exe`）放进 `server/downloads/` 目录。
+1. 把安装包（如 `SPlayer Together-1.0.3-x64-setup.exe`）放进 `server/downloads/` 目录。
 2. 编辑 `server/config.yml` 的 `update` 段：
 
    ```yaml
    update:
-     version: 1.0.2   # 必须大于客户端当前版本才会提示更新
-     url: http://47.122.127.107:8000/downloads/SPlayer%20Together-1.0.2-x64-setup.exe
-     notes: |         # 更新日志（changelog），| 表示多行文本
-       1.0.2
-       - 修复房主切歌后成员未同步到同一首歌的问题
-       - 修复弹出列表按钮点击穿透问题
+     version: 1.0.3   # 必须大于客户端当前版本才会提示更新
+     url: http://47.122.127.107:8000/downloads/SPlayer%20Together-1.0.3-x64-setup.exe
+     notes: |         # 更新日志：支持多版本（用 # 版本号 分组），客户端自动按版本筛选
+       # 1.0.3
+       - 更新日志改为由服务器提供，支持多版本聚合显示
+       - 修复一起听切歌同步与登录限制
+       - 修复首次启动显示未知账号问题
+
+       # 1.0.2
+       - 一起听协作模式与权限控制
+       - 弹窗组件点击穿透修复与动画优化
      size: 102760448  # 安装包字节数（可选，用于显示大小）
    ```
 

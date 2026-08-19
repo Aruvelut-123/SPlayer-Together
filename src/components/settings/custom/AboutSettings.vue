@@ -100,12 +100,26 @@ const dependencies: Dependency[] = [
   },
 ];
 
-/** 更新日志弹窗：从 CHANGELOG.md 读取当前版本日志 */
+/** 更新日志弹窗：从服务器获取多版本 changelog 并提取当前版本 */
 const changelogOpen = ref(false);
-const changelogHtml = computed(() => {
-  const raw = getChangelog(APP_VERSION);
-  return raw ? (marked.parse(raw, { async: false }) as string) : "";
-});
+const changelogLoading = ref(false);
+const changelogHtml = ref("");
+
+const openChangelog = async (): Promise<void> => {
+  changelogOpen.value = true;
+  changelogLoading.value = true;
+  try {
+    const remote = await window.api.update.getChangelog();
+    if (remote?.changelog) {
+      const raw = getChangelog(remote.changelog, APP_VERSION);
+      changelogHtml.value = raw ? (marked.parse(raw, { async: false }) as string) : "";
+    }
+  } catch {
+    changelogHtml.value = "";
+  } finally {
+    changelogLoading.value = false;
+  }
+};
 
 const developers = ref<Contributor[]>([]);
 const showAllDevelopers = ref(false);
@@ -166,7 +180,7 @@ onMounted(async () => {
                   : t("settings.about.checkUpdate")
             }}
           </SButton>
-          <SButton variant="secondary" @click="changelogOpen = true">
+          <SButton variant="secondary" @click="openChangelog">
             <template #icon><IconLucideFileText /></template>
             {{ t("settings.about.changelog") }}
           </SButton>
@@ -303,10 +317,16 @@ onMounted(async () => {
     width="520px"
     @update:open="changelogOpen = $event"
   >
+    <div v-if="changelogLoading" class="py-10 flex items-center justify-center">
+      <SLoading class="size-5 text-primary/70" />
+    </div>
     <div
-      v-if="changelogHtml"
+      v-else-if="changelogHtml"
       class="markdown-body max-h-80 overflow-y-auto px-1 py-1"
       v-html="changelogHtml"
     />
+    <div v-else class="py-8 text-center text-sm text-on-surface-variant/60">
+      {{ t("settings.about.changelogEmpty") }}
+    </div>
   </SDialog>
 </template>
