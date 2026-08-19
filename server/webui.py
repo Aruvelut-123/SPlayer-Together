@@ -95,7 +95,10 @@ PAGE_HTML = """<!DOCTYPE html>
         <h1>SPlayer Together 管理后台</h1>
         <div class="sub">管理机器授权密钥与一起听房间</div>
       </div>
-      <button id="logoutBtn" class="ghost hidden">退出登录</button>
+      <div class="row" style="gap: 6px;">
+        <button id="reloadBtn" class="ghost hidden">刷新配置</button>
+        <button id="logoutBtn" class="ghost hidden">退出登录</button>
+      </div>
     </div>
 
     <div id="loginView">
@@ -120,6 +123,10 @@ PAGE_HTML = """<!DOCTYPE html>
 
       <h2>进行中的房间</h2>
       <div id="roomsList" class="list"></div>
+
+      <h2>更新配置</h2>
+      <div id="updateInfo" class="list"></div>
+      <div class="notice">发布新版本时修改 config.yml 的 update 段，然后点「刷新配置」立即生效（无需重启服务器）。</div>
     </div>
   </div>
 
@@ -131,6 +138,7 @@ PAGE_HTML = """<!DOCTYPE html>
     const loginView = $("loginView");
     const adminView = $("adminView");
     const logoutBtn = $("logoutBtn");
+    const reloadBtn = $("reloadBtn");
 
     const api = async (path, options = {}) => {
       const res = await fetch(path, {
@@ -154,14 +162,17 @@ PAGE_HTML = """<!DOCTYPE html>
       loginView.classList.add("hidden");
       adminView.classList.remove("hidden");
       logoutBtn.classList.remove("hidden");
+      reloadBtn.classList.remove("hidden");
       refreshKeys();
       refreshRooms();
+      refreshUpdate();
     };
 
     const showLogin = () => {
       loginView.classList.remove("hidden");
       adminView.classList.add("hidden");
       logoutBtn.classList.add("hidden");
+      reloadBtn.classList.add("hidden");
     };
 
     const esc = (s) => String(s).replace(/[&<>"']/g, (c) =>
@@ -216,6 +227,37 @@ PAGE_HTML = """<!DOCTYPE html>
         });
       } catch (e) { /* 忽略 */ }
     };
+
+    const refreshUpdate = async () => {
+      try {
+        const res = await api("/api/admin/update");
+        const data = await res.json();
+        const el = $("updateInfo");
+        el.innerHTML = `
+          <div class="item">
+            <span class="tag grow">版本</span>
+            <span class="mono">${esc(data.version || "0.0.0")}</span>
+          </div>
+          <div class="item">
+            <span class="tag grow">下载地址</span>
+            <span class="mono" style="font-size:11px;">${esc(data.url || "—")}</span>
+          </div>`;
+      } catch (e) { /* 忽略 */ }
+    };
+
+    const reloadConfig = async () => {
+      try {
+        const res = await api("/api/admin/reload", { method: "POST" });
+        if (res.ok) {
+          refreshKeys();
+          refreshRooms();
+          refreshUpdate();
+          alert("配置已刷新");
+        }
+      } catch (e) { /* 忽略 */ }
+    };
+
+    reloadBtn.addEventListener("click", reloadConfig);
 
     $("loginBtn").addEventListener("click", async () => {
       const username = $("username").value.trim();

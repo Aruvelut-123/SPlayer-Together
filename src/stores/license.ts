@@ -11,11 +11,14 @@ import i18n from "@/i18n";
 /** 授权复核间隔（毫秒） */
 export const LICENSE_CHECK_INTERVAL_MS = 5 * 60 * 1000;
 
+/** 授权 / 更新 / 中继服务器地址（固定） */
+export const RELAY_SERVER_URL = "http://47.122.127.107:8000";
+
 export const useLicenseStore = defineStore(
   "license",
   () => {
-    /** 中继服务器地址 */
-    const serverUrl = ref("http://127.0.0.1:8000");
+    /** 中继服务器地址（固定不可更改） */
+    const serverUrl = ref(RELAY_SERVER_URL);
     /** 机器授权密钥（按机器 ID 生成） */
     const machineKey = ref("");
     /** 是否已通过校验 */
@@ -82,7 +85,7 @@ export const useLicenseStore = defineStore(
   {
     persist: {
       storage: localStorage,
-      pick: ["serverUrl"],
+      pick: [],
     },
   },
 );

@@ -217,7 +217,9 @@
     "cannotPlay": "Cannot play \"{title}\" on this device",
     "createFailed": "Failed to create room",
     "joinFailed": "Failed to join room",
-    "localNotShareable": "Local music is not supported during Listen Together. Paused."
+    "localNotShareable": "Local music is not supported during Listen Together. Paused.",
+    "sharedPlaylist": "Shared Playlist",
+    "emptyPlaylist": "No shared playlist"
   },
   "license": {
     "subtitle": "This app requires authorization. Send your machine key to the administrator, then check authorization.",

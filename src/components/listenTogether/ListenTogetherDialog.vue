@@ -13,7 +13,8 @@ const emit = defineEmits<{ "update:open": [value: boolean] }>();
 
 const { t } = useI18n();
 const store = useListenTogetherStore();
-const { connection, role, code, members, hostId, sharedState, lastError } = storeToRefs(store);
+const { connection, role, code, members, hostId, sharedState, roomQueue, lastError } =
+  storeToRefs(store);
 
 const joinCode = ref("");
 
@@ -95,7 +96,7 @@ const copyCode = async (): Promise<void> => {
       <SDivider class="my-1" />
 
       <div class="flex items-center gap-2">
-        <SButton type="primary" class="flex-1" :loading="busy" @click="handleCreate">
+        <SButton type="primary" class="flex-1" :loading="busy" :disabled="busy" @click="handleCreate">
           <template #icon><IconLucideRadio /></template>
           {{ t("listenTogether.createRoom") }}
         </SButton>
@@ -108,7 +109,7 @@ const copyCode = async (): Promise<void> => {
           clearable
           @keyup.enter="handleJoin"
         />
-        <SButton :loading="busy" :disabled="!joinCode.trim()" @click="handleJoin">
+        <SButton :loading="busy" :disabled="busy || !joinCode.trim()" @click="handleJoin">
           <template #icon><IconLucideUserPlus /></template>
           {{ t("listenTogether.joinRoom") }}
         </SButton>
@@ -165,6 +166,28 @@ const copyCode = async (): Promise<void> => {
             </div>
           </div>
           <span v-else class="text-sm text-on-surface-variant">{{ sharedTrackText }}</span>
+        </SCard>
+      </div>
+
+      <div class="flex flex-col gap-1.5">
+        <span class="text-sm font-medium">{{ t("listenTogether.sharedPlaylist") }}</span>
+        <SCard class="px-3 py-2 flex flex-col gap-1.5 max-h-40 overflow-y-auto">
+          <span v-if="!roomQueue.length" class="text-sm text-on-surface-variant">
+            {{ t("listenTogether.emptyPlaylist") }}
+          </span>
+          <div
+            v-for="(track, index) in roomQueue"
+            :key="`${track.id}-${index}`"
+            class="flex items-center gap-2 text-sm min-w-0"
+          >
+            <span class="text-xs tabular-nums text-on-surface-variant/60 shrink-0">
+              {{ index + 1 }}
+            </span>
+            <span class="truncate">{{ track.title }}</span>
+            <span class="text-xs text-on-surface-variant/60 truncate">
+              {{ track.artists.map((a) => a.name).join(" / ") }}
+            </span>
+          </div>
         </SCard>
       </div>
 

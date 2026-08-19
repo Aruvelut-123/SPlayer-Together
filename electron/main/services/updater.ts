@@ -1,199 +1,173 @@
-import electronUpdater, { type UpdateInfo } from "electron-updater";
-import { shell } from "electron";
+import { app, shell } from "electron";
+import { createWriteStream } from "node:fs";
+import { join } from "node:path";
 import { sendToMain } from "@main/utils/broadcast";
 import { store } from "@main/store";
 import { isDev, isMac, isPortable, isAppX } from "@main/utils/config";
 import { updaterLog } from "@main/utils/logger";
-import type { UpdateEvent, UpdateMeta } from "@shared/types/update";
+import type { UpdateEvent } from "@shared/types/update";
 import type { UpdateChannel } from "@shared/types/settings";
 
-const { autoUpdater } = electronUpdater;
-
 /**
- * 是否支持内置下载安装
- * AppX 由 Store 管理更新，Mac/Portable 无自动安装能力
+ * 更新检查：与授权 / 中继服务器合并，从 ``GET /api/update`` 获取最新版本信息，
+ * 新版本由主进程直接下载安装包（不依赖 GitHub 与 electron-updater）。
  */
+
+/** 更新服务器（与授权 / 中继服务器共用） */
+const UPDATE_SERVER = "http://47.122.127.107:8000";
+const UPDATE_API = `${UPDATE_SERVER}/api/update`;
+
+/** 是否支持内置下载安装（AppX 由商店管理，Mac/Portable 无自动安装能力） */
 const canSelfInstall = !isMac && !isPortable && !isAppX;
-
-/** Releases 页 */
-const RELEASES_URL = "https://github.com/SPlayer-Dev/SPlayer-Next/releases";
-
-/** Microsoft Store 更新页 */
-const STORE_UPDATES_URL = "ms-windows-store://updates";
 
 /** 定时检查间隔（6 小时） */
 const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
+/** 检查请求超时（毫秒） */
+const REQUEST_TIMEOUT_MS = 10_000;
+/** 下载超时（毫秒） */
+const DOWNLOAD_TIMEOUT_MS = 30 * 60 * 1000;
 
-/** 本次检查是否由用户手动触发 */
-let manualCheck = false;
+/** 服务器返回的更新清单 */
+interface UpdateManifest {
+  version: string;
+  url: string;
+  notes: string;
+  size: number;
+}
 
 /** 进行中的检查 Promise */
-let currentCheck: Promise<unknown> | null = null;
-
-/** 当前检查结束后需要执行的检查 */
-let pendingCheck: { manual: boolean; allowDowngrade: boolean } | null = null;
-
+let currentCheck: Promise<void> | null = null;
 /** 最近一次检测到的可用版本 */
 let availableVersion: string | null = null;
+/** 可用版本的下载地址 */
+let availableUrl: string | null = null;
+/** 已下载的安装包路径 */
+let installedFile: string | null = null;
 
 let intervalTimer: ReturnType<typeof setInterval> | null = null;
 
 const emit = (event: UpdateEvent): void => sendToMain("update:event", event);
 
-/**
- * 读取当前更新通道
- * @returns 更新通道
- */
-const getChannel = (): UpdateChannel => {
-  const channel = store.get("update.channel");
-  return channel === "beta" || channel === "alpha" ? channel : "stable";
-};
-
-/**
- * 将当前通道应用到 electron-updater
- * @param allowDowngrade - 是否允许本次检查安装更低版本
- */
-const applyChannel = (allowDowngrade = false): void => {
-  const channel = getChannel();
-  autoUpdater.channel = channel === "stable" ? "latest" : channel;
-  autoUpdater.allowPrerelease = channel !== "stable";
-  autoUpdater.allowDowngrade = allowDowngrade;
-};
-
-/**
- * 规范化更新日志格式
- * @param notes 更新日志，可能是字符串或数组
- * @returns 规范化后的更新日志字符串
- */
-const normalizeNotes = (notes: UpdateInfo["releaseNotes"]): string => {
-  if (!notes) return "";
-  if (typeof notes === "string") return notes;
-  return notes
-    .map((item) => item.note ?? "")
-    .filter(Boolean)
-    .join("\n\n");
-};
-
-/**
- * 将 electron-updater 的 UpdateInfo 转换为 UpdateMeta
- * @param info 更新信息
- * @returns 更新元数据
- */
-const toMeta = (info: UpdateInfo): UpdateMeta => ({
-  version: info.version,
-  releaseNotes: normalizeNotes(info.releaseNotes),
-  releaseDate: info.releaseDate,
-  size: Math.max(0, ...(info.files ?? []).map((file) => file.size ?? 0)),
-});
-
-const bindEvents = (): void => {
-  autoUpdater.on("checking-for-update", () => emit({ type: "checking" }));
-  autoUpdater.on("update-available", (info) => {
-    availableVersion = info.version;
-    emit({
-      type: "available",
-      meta: toMeta(info),
-      manual: manualCheck,
-      canInstall: canSelfInstall,
-    });
-  });
-  autoUpdater.on("update-not-available", () => {
-    availableVersion = null;
-    emit({ type: "notAvailable", manual: manualCheck });
-  });
-  autoUpdater.on("download-progress", (progress) =>
-    emit({ type: "progress", percent: Math.round(progress.percent) }),
-  );
-  autoUpdater.on("update-downloaded", (info) => emit({ type: "downloaded", meta: toMeta(info) }));
-  autoUpdater.on("error", (error) => {
-    updaterLog.error("更新出错", error);
-    emit({ type: "error", message: error?.message ?? String(error), manual: manualCheck });
-  });
-};
-
-/**
- * 执行更新检查
- * @param manual - 是否由用户手动触发
- * @param allowDowngrade - 是否明确允许本次检查安装更低版本
- */
-const runCheck = (manual: boolean, allowDowngrade?: boolean): void => {
-  if (currentCheck) {
-    pendingCheck = {
-      manual: manual || pendingCheck?.manual === true,
-      allowDowngrade: allowDowngrade ?? pendingCheck?.allowDowngrade ?? false,
-    };
-    return;
+/** 版本号比较：返回 >0 表示 a 比 b 新 */
+const compareVersions = (a: string, b: string): number => {
+  const pa = a.split(/[.-]/).map((n) => Number(n) || 0);
+  const pb = b.split(/[.-]/).map((n) => Number(n) || 0);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const diff = (pa[i] ?? 0) - (pb[i] ?? 0);
+    if (diff !== 0) return diff;
   }
-  applyChannel(allowDowngrade ?? false);
-  manualCheck = manual;
-  currentCheck = autoUpdater
-    .checkForUpdates()
-    .catch(() => {})
-    .finally(() => {
-      currentCheck = null;
-      const pending = pendingCheck;
-      pendingCheck = null;
-      if (pending) runCheck(pending.manual, pending.allowDowngrade);
-    });
+  return 0;
+};
+
+const runCheck = async (manual: boolean): Promise<void> => {
+  if (!manual && !store.get("update.autoCheck")) return;
+  emit({ type: "checking" });
+  try {
+    const res = await fetch(UPDATE_API, { signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const manifest = (await res.json()) as UpdateManifest;
+    const current = app.getVersion();
+    updaterLog.info(`更新检查：服务器 ${manifest.version} vs 本地 ${current}`);
+    if (manifest.version && compareVersions(manifest.version, current) > 0) {
+      availableVersion = manifest.version;
+      availableUrl = manifest.url;
+      emit({
+        type: "available",
+        meta: {
+          version: manifest.version,
+          releaseNotes: manifest.notes ?? "",
+          releaseDate: "",
+          size: manifest.size ?? 0,
+        },
+        manual,
+        canInstall: canSelfInstall,
+      });
+    } else {
+      availableVersion = null;
+      availableUrl = null;
+      emit({ type: "notAvailable", manual });
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    updaterLog.error("更新检查失败", error);
+    emit({ type: "error", message, manual });
+  }
 };
 
 /**
  * 检查更新：自动检查受设置开关约束，手动检查始终执行
- * @param manual 是否由用户手动触发
+ * @param manual - 是否由用户手动触发
  */
 export const checkForUpdates = (manual: boolean): void => {
-  if (!manual && !store.get("update.autoCheck")) return;
-  runCheck(manual);
-};
-
-/** 下载更新 */
-export const downloadUpdate = (): void => {
-  if (!canSelfInstall) return;
-  autoUpdater.downloadUpdate().catch((error) => {
-    updaterLog.error("下载更新失败", error);
-    emit({ type: "error", message: error?.message ?? String(error), manual: true });
+  if (currentCheck) return;
+  currentCheck = runCheck(manual).finally(() => {
+    currentCheck = null;
   });
 };
 
-/**
- * 应用更新通道变更并立即重新检查
- * @param previous - 原通道
- * @param channel - 新通道
- */
+/** 下载更新安装包（流式写入并回报进度） */
+export const downloadUpdate = (): void => {
+  if (!canSelfInstall || !availableUrl || !availableVersion) return;
+  const version = availableVersion;
+  const url = availableUrl;
+  void (async () => {
+    try {
+      const target = join(app.getPath("temp"), `splayer-together-${version}-setup.exe`);
+      const res = await fetch(url, { signal: AbortSignal.timeout(DOWNLOAD_TIMEOUT_MS) });
+      if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
+      const total = Number(res.headers.get("content-length") ?? 0);
+      const reader = res.body.getReader();
+      const writer = createWriteStream(target);
+      let received = 0;
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        received += value.byteLength;
+        writer.write(Buffer.from(value));
+        if (total > 0) emit({ type: "progress", percent: Math.round((received / total) * 100) });
+      }
+      await new Promise<void>((resolve, reject) => {
+        writer.end(resolve);
+        writer.on("error", reject);
+      });
+      installedFile = target;
+      updaterLog.info(`更新包已下载：${target}（${received} 字节）`);
+      emit({
+        type: "downloaded",
+        meta: { version, releaseNotes: "", releaseDate: "", size: received },
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      updaterLog.error("下载更新失败", error);
+      emit({ type: "error", message, manual: true });
+    }
+  })();
+};
+
+/** 退出并运行已下载的安装器 */
+export const quitAndInstall = (): void => {
+  if (!installedFile) return;
+  void shell.openPath(installedFile);
+  app.quit();
+};
+
+/** 打开下载页（服务器下载目录） */
+export const openDownloadPage = (): void => {
+  void shell.openExternal(availableUrl || `${UPDATE_SERVER}/downloads/`);
+};
+
+/** 更新通道变更后立即重新检查 */
 export const applyChannelChange = (previous: UpdateChannel, channel: UpdateChannel): void => {
   if (previous === channel) return;
-  updaterLog.info(`切换更新通道: ${previous} -> ${channel}`);
-  const channelPriority: Record<UpdateChannel, number> = { stable: 0, beta: 1, alpha: 2 };
-  runCheck(true, channelPriority[channel] < channelPriority[previous]);
-};
-
-/** 退出并安装 */
-export const quitAndInstall = (): void => {
-  if (!canSelfInstall) return;
-  autoUpdater.quitAndInstall();
-};
-
-/** 打开下载页：AppX 引导 Store 更新，其余跳 Releases */
-export const openDownloadPage = (): void => {
-  const releaseUrl = availableVersion
-    ? `${RELEASES_URL}/tag/v${encodeURIComponent(availableVersion)}`
-    : RELEASES_URL;
-  void shell.openExternal(isAppX ? STORE_UPDATES_URL : releaseUrl);
+  void runCheck(true);
 };
 
 /** 初始化更新器 */
 export const initUpdater = (): void => {
-  autoUpdater.logger = updaterLog;
-  autoUpdater.autoDownload = false;
-  autoUpdater.autoInstallOnAppQuit = true;
-  applyChannel();
-  bindEvents();
   if (isDev) {
-    autoUpdater.forceDevUpdateConfig = true;
     updaterLog.info("开发模式，仅支持手动检查更新");
     return;
   }
-  // 定时检查
   intervalTimer = setInterval(() => checkForUpdates(false), CHECK_INTERVAL_MS);
 };
 

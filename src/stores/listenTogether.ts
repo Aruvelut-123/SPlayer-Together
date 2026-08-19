@@ -85,6 +85,8 @@ export const useListenTogetherStore = defineStore("listenTogether", () => {
   const hostId = ref("");
   /** 服务器上的共享播放状态 */
   const sharedState = ref<ListenTogetherSharedState | null>(null);
+  /** 服务器上的共享播放列表 */
+  const roomQueue = ref<Track[]>([]);
   /** 最近一次错误提示 */
   const lastError = ref("");
 
@@ -189,6 +191,7 @@ export const useListenTogetherStore = defineStore("listenTogether", () => {
     if (snap.queue && role.value === "guest") {
       applyQueue(snap.queue);
     }
+    roomQueue.value = snap.queue ?? [];
     if (snap.state) {
       sharedState.value = { ...snap.state, seq: snap.seq };
     }
@@ -465,6 +468,7 @@ export const useListenTogetherStore = defineStore("listenTogether", () => {
     members,
     hostId,
     sharedState,
+    roomQueue,
     lastError,
     createRoom,
     joinRoom,

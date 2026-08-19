@@ -56,7 +56,12 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "port": 8000,
     "admin": {"username": "admin", "password": "change-me"},
     "keys": [],
+    "update": {"version": "0.0.0", "url": "", "notes": "", "size": 0},
 }
+
+# 更新包静态目录（setup/portable exe 放这里供 /downloads 下载）
+DOWNLOADS_DIR = BASE_DIR / "downloads"
+DOWNLOADS_DIR.mkdir(exist_ok=True)
 
 
 def now_ms() -> int:
@@ -215,6 +220,20 @@ async def handle_auth(request: web.Request) -> web.Response:
     if valid_machine_key(key):
         return web.json_response({"valid": True})
     return web.json_response({"error": "invalid key"}, status=401)
+
+
+async def handle_update(request: web.Request) -> web.Response:
+    """客户端更新检查：返回最新版本信息（来自 config.yml 的 update 段）"""
+    cfg = CONFIG.get("update") or {}
+    log.debug("客户端请求更新信息：%s", cfg.get("version"))
+    return web.json_response(
+        {
+            "version": str(cfg.get("version", "0.0.0")),
+            "url": str(cfg.get("url", "")),
+            "notes": str(cfg.get("notes", "")),
+            "size": int(cfg.get("size", 0) or 0),
+        }
+    )
 
 
 # --------------------------------------------------------------------------
@@ -409,6 +428,27 @@ async def handle_admin_logout(request: web.Request) -> web.Response:
     return web.json_response({"ok": True})
 
 
+async def handle_admin_reload(request: web.Request) -> web.Response:
+    """重新加载 config.yml，无需重启服务器"""
+    if not admin_authed(request):
+        return web.json_response({"error": "unauthorized"}, status=401)
+    global CONFIG, AUTH_KEYS, ADMIN_USERNAME, ADMIN_PASSWORD
+    config = load_config()
+    CONFIG = config
+    AUTH_KEYS = config["keys"]
+    ADMIN_USERNAME = str(config["admin"]["username"])
+    ADMIN_PASSWORD = str(config["admin"]["password"])
+    log.info("管理员刷新配置：密钥 %s 个，更新版本 %s", len(AUTH_KEYS), (config.get("update") or {}).get("version"))
+    return web.json_response({"ok": True})
+
+
+async def handle_admin_update(request: web.Request) -> web.Response:
+    """返回当前更新配置（版本 / 下载地址 / 更新日志）"""
+    if not admin_authed(request):
+        return web.json_response({"error": "unauthorized"}, status=401)
+    return web.json_response(CONFIG.get("update") or {})
+
+
 async def handle_admin_keys_list(request: web.Request) -> web.Response:
     if not admin_authed(request):
         return web.json_response({"error": "unauthorized"}, status=401)
@@ -470,6 +510,8 @@ def build_app() -> web.Application:
     app.router.add_get("/", index)
     app.router.add_get("/admin", handle_admin_page)
     app.router.add_post("/api/auth", handle_auth)
+    app.router.add_get("/api/update", handle_update)
+    app.router.add_static("/downloads", DOWNLOADS_DIR, show_index=True)
     app.router.add_post("/api/rooms", handle_create)
     app.router.add_post("/api/rooms/{code}/join", handle_join)
     app.router.add_post("/api/rooms/{code}/state", handle_push_state)
@@ -479,6 +521,8 @@ def build_app() -> web.Application:
     app.router.add_post("/api/rooms/{code}/leave", handle_leave)
     app.router.add_post("/api/admin/login", handle_admin_login)
     app.router.add_post("/api/admin/logout", handle_admin_logout)
+    app.router.add_post("/api/admin/reload", handle_admin_reload)
+    app.router.add_get("/api/admin/update", handle_admin_update)
     app.router.add_get("/api/admin/keys", handle_admin_keys_list)
     app.router.add_post("/api/admin/keys", handle_admin_keys_add)
     app.router.add_delete("/api/admin/keys/{key}", handle_admin_keys_remove)

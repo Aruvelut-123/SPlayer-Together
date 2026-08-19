@@ -76,6 +76,30 @@ WebUI 与所有管理接口都需要管理员登录（session token）后才能�
 | DELETE | `/api/admin/keys/{key}` | 删除密钥，需 `X-Admin-Token` |
 | GET | `/api/admin/rooms` | 房间列表，需 `X-Admin-Token` |
 | POST | `/api/admin/rooms/{code}/dissolve` | 解散房间，需 `X-Admin-Token` |
+| GET | `/api/update` | 客户端更新检查，返回 `{version, url, notes, size}` |
+
+## 发布新版本（更新检查与授权服务器合并）
+
+客户端每次检查更新时请求 `GET /api/update`。发布新版本步骤：
+
+1. 把安装包（如 `SPlayer Together-1.0.1-x64-setup.exe`）放进 `server/downloads/` 目录。
+2. 编辑 `server/config.yml` 的 `update` 段：
+
+   ```yaml
+   update:
+     version: 1.0.1   # 必须大于客户端当前版本才会提示更新
+     url: http://47.122.127.107:8000/downloads/SPlayer%20Together-1.0.1-x64-setup.exe
+     notes: |         # 更新日志（changelog），| 表示多行文本
+       1.0.1
+       - 修复一起听断线问题
+       - 支持播放列表同步
+     size: 102760448  # 安装包字节数（可选，用于显示大小）
+   ```
+
+   > 安装包文件名含空格时，`url` 里要把空格写成 `%20`（如 `SPlayer%20Together-...`）。
+
+3. 重启服务器即可生效。客户端每 6 小时自动检查（也可手动检查），发现新版本后主进程
+   直接从 `url` 下载安装包，下载完成提示用户安装。
 
 ## 房间生命周期
 

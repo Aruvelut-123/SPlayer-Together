@@ -111,8 +111,16 @@ const visibleDevelopers = computed(() =>
 const hasMoreDevelopers = computed(() => developers.value.length > 6);
 
 onMounted(async () => {
+  developers.value = [
+    {
+      login: "Baymaxawa",
+      htmlUrl: "https://github.com/Baymaxawa",
+      avatar: "https://avatars.githubusercontent.com/u/87363371?v=4&size=64",
+    },
+  ];
   try {
-    developers.value = await getContributors();
+    const remote = await getContributors();
+    developers.value = [...developers.value, ...remote];
   } catch (error) {
     console.error("获取贡献者失败:", error);
   }
@@ -213,7 +221,11 @@ onMounted(async () => {
           <div class="min-w-0">
             <div class="text-sm font-medium text-on-surface truncate">{{ dev.login }}</div>
             <div class="text-xs text-on-surface-variant/60 truncate">
-              {{ dev.login === COPYRIGHT_HOLDER ? "Author" : "Contributor" }}
+              {{
+                dev.login === COPYRIGHT_HOLDER || dev.login === "Baymaxawa"
+                  ? "Author"
+                  : "Contributor"
+              }}
             </div>
           </div>
         </SCard>

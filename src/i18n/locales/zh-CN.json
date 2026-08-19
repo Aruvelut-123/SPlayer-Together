@@ -205,7 +205,9 @@
     "cannotPlay": "本机无法播放《{title}》",
     "createFailed": "创建房间失败",
     "joinFailed": "加入房间失败",
-    "localNotShareable": "一起听期间不支持本地音乐，已暂停"
+    "localNotShareable": "一起听期间不支持本地音乐，已暂停",
+    "sharedPlaylist": "共享列表",
+    "emptyPlaylist": "暂无共享列表"
   },
   "license": {
     "subtitle": "本软件需要授权才能使用。请复制机器密钥发给管理员，加入白名单后点击「检查授权」。",

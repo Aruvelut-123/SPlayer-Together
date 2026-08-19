@@ -65,7 +65,6 @@ const moreMenuItems = computed<DropdownMenuItem[]>(() => [
   { key: "speed", label: t("speed.title"), icon: IconLucideGauge },
   { key: "abLoop", label: t("abLoop.title"), icon: IconLucideRepeat2 },
   { key: "autoClose", label: t("autoClose.title"), icon: IconLucideClock },
-  { key: "listenTogether", label: t("listenTogether.title"), icon: IconLucideRadio },
 ]);
 
 const onMoreMenuSelect = (key: string): void => {
@@ -73,7 +72,6 @@ const onMoreMenuSelect = (key: string): void => {
   else if (key === "speed") speedOpen.value = true;
   else if (key === "abLoop") abLoopOpen.value = true;
   else if (key === "autoClose") autoCloseOpen.value = true;
-  else if (key === "listenTogether") listenTogetherOpen.value = true;
 };
 </script>
 
@@ -81,6 +79,17 @@ const onMoreMenuSelect = (key: string): void => {
   <div class="flex items-center gap-1">
     <!-- 在线音质 -->
     <QualityControl v-if="settings.appearance.showQualitySwitch" :cover="cover" />
+    <!-- 一起听 -->
+    <SButton
+      :type="buttonType"
+      variant="ghost"
+      circle
+      size="large"
+      :class="mutedClass"
+      @click="listenTogetherOpen = true"
+    >
+      <template #icon><IconLucideRadio /></template>
+    </SButton>
     <SPopover trigger="hover" side="top" :cover="cover" content-class="px-3 pb-2 pt-3">
       <template #trigger>
         <SButton

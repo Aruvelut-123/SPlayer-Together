@@ -3,6 +3,7 @@ import { useLicenseStore } from "@/stores/license";
 import { toast } from "@/composables/useToast";
 import IconLucideKeyRound from "~icons/lucide/key-round";
 import IconLucideCopy from "~icons/lucide/copy";
+import IconLucideServer from "~icons/lucide/server";
 import IconLucideRefreshCw from "~icons/lucide/refresh-cw";
 
 const { t } = useI18n();
@@ -43,14 +44,10 @@ onMounted(() => {
       <p class="mb-5 text-sm leading-5 text-white/60">{{ t("license.subtitle") }}</p>
 
       <div class="flex flex-col gap-3">
-        <SFormItem :label="t('license.serverUrl')">
-          <SInput
-            v-model="license.serverUrl"
-            placeholder="http://127.0.0.1:8000"
-            type="url"
-            clearable
-          />
-        </SFormItem>
+        <div class="flex items-center gap-2 text-sm text-white/60">
+          <IconLucideServer class="size-4 shrink-0" />
+          <span class="truncate font-mono">{{ license.serverUrl }}</span>
+        </div>
 
         <SFormItem :label="t('license.machineKey')">
           <div class="flex items-center gap-2">
