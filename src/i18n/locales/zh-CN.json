@@ -17,7 +17,7 @@
     "finish": "完成",
     "footer": "可随时在「设置」中调整本次未配置的内容",
     "welcome": {
-      "title": "欢迎使用 SPlayer-Next",
+      "title": "欢迎使用 SPlayer Together",
       "subtitle": "一个现代化的桌面音乐播放器，完成几步设置即可开始享用",
       "start": "开始设置",
       "features": {
@@ -36,11 +36,11 @@
     },
     "library": {
       "title": "本地音乐库",
-      "subtitle": "添加要扫描的音乐文件夹，SPlayer-Next 会自动建立曲库索引。可以添加多个目录，也可以之后再添加"
+      "subtitle": "添加要扫描的音乐文件夹，SPlayer Together 会自动建立曲库索引。可以添加多个目录，也可以之后再添加"
     },
     "streaming": {
       "title": "流媒体服务器",
-      "subtitle": "SPlayer-Next 支持连接 Subsonic 兼容服务和 Jellyfin / Emby，让你的家庭音乐服务器与播放器无缝集成",
+      "subtitle": "SPlayer Together 支持连接 Subsonic 兼容服务和 Jellyfin / Emby，让你的家庭音乐服务器与播放器无缝集成",
       "hint": "完成引导后，前往「设置 → 媒体源配置 → 流媒体管理」即可添加服务器并测试连接",
       "servers": {
         "subsonic": "Subsonic 兼容",
@@ -58,7 +58,7 @@
     },
     "hotkeys": {
       "title": "快捷键",
-      "subtitle": "SPlayer-Next 内置了完整的播放控制快捷键，需要时随时调用",
+      "subtitle": "SPlayer Together 内置了完整的播放控制快捷键，需要时随时调用",
       "tips": {
         "global": {
           "title": "全局快捷键",
@@ -174,6 +174,50 @@
     "minus": "-{n}s",
     "plus": "+{n}s",
     "warningBLessThanA": "B 点必须晚于 A 点，循环未启用"
+  },
+  "listenTogether": {
+    "title": "一起听",
+    "serverUrl": "中继服务器",
+    "nickname": "昵称",
+    "nicknamePlaceholder": "输入昵称",
+    "createRoom": "创建房间",
+    "roomCodePlaceholder": "输入房间号",
+    "joinRoom": "加入",
+    "hint": "房主创建房间后，成员通过房间号加入；房主的播放状态会实时同步给成员",
+    "host": "房主",
+    "guest": "成员",
+    "leaveRoom": "离开",
+    "connected": "已连接",
+    "connecting": "连接中",
+    "disconnected": "未连接",
+    "nowPlaying": "正在播放",
+    "noSharedTrack": "暂无共享曲目",
+    "syncing": "同步中",
+    "paused": "已暂停",
+    "members": "成员（{count}）",
+    "copied": "房间号已复制",
+    "copyFailed": "复制失败",
+    "me": "我",
+    "memberJoined": "{name} 加入了房间",
+    "memberLeft": "{name} 离开了房间",
+    "memberCannotPlay": "{name} 无法播放《{title}》",
+    "promotedToHost": "你已成为房主",
+    "cannotPlay": "本机无法播放《{title}》",
+    "createFailed": "创建房间失败",
+    "joinFailed": "加入房间失败"
+  },
+  "license": {
+    "subtitle": "本软件需要授权才能使用。请复制机器密钥发给管理员，加入白名单后点击「检查授权」。",
+    "serverUrl": "中继服务器",
+    "machineKey": "机器密钥",
+    "generating": "生成中…",
+    "verify": "检查授权",
+    "copied": "已复制",
+    "copyFailed": "复制失败",
+    "invalidKey": "密钥未授权，请联系管理员",
+    "networkError": "无法连接服务器，请检查地址与网络",
+    "keyRequired": "未获取到机器密钥",
+    "hint": "授权状态每 5 分钟自动复核，密钥失效将立即锁定。"
   },
   "uiZoom": {
     "title": "界面缩放",

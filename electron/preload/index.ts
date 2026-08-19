@@ -164,6 +164,8 @@ const api = {
     relaunch: () => ipcRenderer.invoke("system:relaunch"),
     // 测试当前网络代理
     testNetworkProxy: () => ipcRenderer.invoke("system:testNetworkProxy"),
+    // 获取机器授权密钥
+    getMachineKey: () => ipcRenderer.invoke("system:getMachineKey"),
     // 订阅主进程下发的 orpheus 唤起 URL
     onProtocolUrl: (callback: (url: string) => void) =>
       subscribe<string>("protocol:orpheus", callback),

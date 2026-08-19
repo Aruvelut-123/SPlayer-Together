@@ -14,6 +14,7 @@ import { logsDir } from "@main/utils/paths";
 import { consumePendingOrpheusUrl } from "@main/services/orpheus";
 import { testNetworkProxy } from "@main/utils/proxy";
 import { store } from "@main/store";
+import { getMachineKey } from "@main/utils/machineKey";
 
 /**
  * 注册系统相关的 IPC 事件
@@ -80,6 +81,9 @@ export const registerSystemIpc = (): void => {
 
   // 测试当前网络代理
   ipcMain.handle("system:testNetworkProxy", () => testNetworkProxy());
+
+  // 获取机器授权密钥
+  ipcMain.handle("system:getMachineKey", () => getMachineKey());
 
   // 把封面图 URL 拉成字节回渲染层
   // 用于 canvas 取色等需要绕过跨域 tainted 的场景；限定 image/* 响应

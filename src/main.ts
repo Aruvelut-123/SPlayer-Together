@@ -8,9 +8,6 @@ import i18n from "./i18n";
 
 import { useThemeStore } from "./stores/theme";
 import { useSettingsStore } from "./stores/settings";
-import { useHotkeyStore } from "./stores/hotkey";
-import { initPlayer } from "./core/player";
-import { installHotkeyManager } from "./core/hotkey/manager";
 import { vRipple } from "./directives/ripple";
 
 const pinia = createPinia();
@@ -66,11 +63,4 @@ router.isReady().then(() => {
   if (!splashTimerFired) {
     setTimeout(removeSplash, SPLASH_ANIM_MS + 100);
   }
-  // 初始化播放器
-  initPlayer().catch(console.error);
-  // 初始化快捷键
-  useHotkeyStore()
-    .init()
-    .then(installHotkeyManager)
-    .catch((err) => console.error("[hotkey] init failed", err));
 });

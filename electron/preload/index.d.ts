@@ -63,6 +63,7 @@ declare global {
         ) => Promise<{ success: boolean; path?: string; error?: string }>;
         relaunch: () => Promise<void>;
         testNetworkProxy: () => Promise<boolean>;
+        getMachineKey: () => Promise<string>;
         onProtocolUrl: (callback: (url: string) => void) => () => void;
         consumePendingProtocolUrl: () => Promise<string | null>;
       };

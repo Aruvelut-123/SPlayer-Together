@@ -17,7 +17,7 @@
     "finish": "Finish",
     "footer": "You can adjust anything skipped here anytime in Settings",
     "welcome": {
-      "title": "Welcome to SPlayer-Next",
+      "title": "Welcome to SPlayer Together",
       "subtitle": "A modern desktop music player — a few quick steps and you're ready",
       "start": "Get Started",
       "features": {
@@ -48,7 +48,7 @@
     },
     "library": {
       "title": "Local Music Library",
-      "subtitle": "Add folders to scan and SPlayer-Next will index them automatically. You can add more later."
+      "subtitle": "Add folders to scan and SPlayer Together will index them automatically. You can add more later."
     },
     "streaming": {
       "title": "Streaming Servers",
@@ -70,7 +70,7 @@
     },
     "hotkeys": {
       "title": "Keyboard Shortcuts",
-      "subtitle": "SPlayer-Next ships with complete playback shortcuts you can use whenever you need them.",
+      "subtitle": "SPlayer Together ships with complete playback shortcuts you can use whenever you need them.",
       "tips": {
         "global": {
           "title": "Global shortcuts",
@@ -186,6 +186,50 @@
     "minus": "-{n}s",
     "plus": "+{n}s",
     "warningBLessThanA": "B must be later than A; loop disabled"
+  },
+  "listenTogether": {
+    "title": "Listen Together",
+    "serverUrl": "Relay server",
+    "nickname": "Nickname",
+    "nicknamePlaceholder": "Enter nickname",
+    "createRoom": "Create Room",
+    "roomCodePlaceholder": "Enter room code",
+    "joinRoom": "Join",
+    "hint": "The host creates a room and members join with the code. The host's playback state syncs to members in real time.",
+    "host": "Host",
+    "guest": "Guest",
+    "leaveRoom": "Leave",
+    "connected": "Connected",
+    "connecting": "Connecting",
+    "disconnected": "Disconnected",
+    "nowPlaying": "Now Playing",
+    "noSharedTrack": "No shared track",
+    "syncing": "Syncing",
+    "paused": "Paused",
+    "members": "Members ({count})",
+    "copied": "Room code copied",
+    "copyFailed": "Copy failed",
+    "me": "Me",
+    "memberJoined": "{name} joined the room",
+    "memberLeft": "{name} left the room",
+    "memberCannotPlay": "{name} cannot play \"{title}\"",
+    "promotedToHost": "You are now the host",
+    "cannotPlay": "Cannot play \"{title}\" on this device",
+    "createFailed": "Failed to create room",
+    "joinFailed": "Failed to join room"
+  },
+  "license": {
+    "subtitle": "This app requires authorization. Send your machine key to the administrator, then check authorization.",
+    "serverUrl": "Relay server",
+    "machineKey": "Machine key",
+    "generating": "Generating…",
+    "verify": "Check Authorization",
+    "copied": "Copied",
+    "copyFailed": "Copy failed",
+    "invalidKey": "Key not authorized. Contact the administrator.",
+    "networkError": "Cannot connect to server. Check the address and network.",
+    "keyRequired": "Machine key unavailable",
+    "hint": "Authorization is re-checked every 5 minutes. The app locks immediately when the key is revoked."
   },
   "uiZoom": {
     "title": "Interface Zoom",

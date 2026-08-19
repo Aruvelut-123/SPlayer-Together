@@ -1,0 +1,11 @@
+host: 0.0.0.0
+port: 8000
+
+# WebUI 管理后台登录凭据（请修改默认密码）
+admin:
+  username: admin
+  password: change-me
+
+# 机器授权密钥白名单：客户端按机器 ID 生成的 XXXX-XXXX-XXXX-XXXX
+# 也可通过 WebUI 管理后台增删
+keys: []

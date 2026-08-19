@@ -8,6 +8,7 @@ import IconLucideGauge from "~icons/lucide/gauge";
 import IconLucideMoreVertical from "~icons/lucide/more-vertical";
 import IconLucideClock from "~icons/lucide/clock";
 import IconLucideRepeat2 from "~icons/lucide/repeat-2";
+import IconLucideRadio from "~icons/lucide/radio";
 
 const props = withDefaults(
   defineProps<{
@@ -57,12 +58,14 @@ const equalizerOpen = ref(false);
 const speedOpen = ref(false);
 const autoCloseOpen = ref(false);
 const abLoopOpen = ref(false);
+const listenTogetherOpen = ref(false);
 
 const moreMenuItems = computed<DropdownMenuItem[]>(() => [
   { key: "equalizer", label: t("equalizer.title"), icon: IconLucideSliders },
   { key: "speed", label: t("speed.title"), icon: IconLucideGauge },
   { key: "abLoop", label: t("abLoop.title"), icon: IconLucideRepeat2 },
   { key: "autoClose", label: t("autoClose.title"), icon: IconLucideClock },
+  { key: "listenTogether", label: t("listenTogether.title"), icon: IconLucideRadio },
 ]);
 
 const onMoreMenuSelect = (key: string): void => {
@@ -70,6 +73,7 @@ const onMoreMenuSelect = (key: string): void => {
   else if (key === "speed") speedOpen.value = true;
   else if (key === "abLoop") abLoopOpen.value = true;
   else if (key === "autoClose") autoCloseOpen.value = true;
+  else if (key === "listenTogether") listenTogetherOpen.value = true;
 };
 </script>
 
@@ -171,5 +175,6 @@ const onMoreMenuSelect = (key: string): void => {
     <SpeedDialog v-model:open="speedOpen" />
     <AbLoopDialog v-model:open="abLoopOpen" />
     <AutoCloseDialog v-model:open="autoCloseOpen" />
+    <ListenTogetherDialog v-model:open="listenTogetherOpen" />
   </div>
 </template>
