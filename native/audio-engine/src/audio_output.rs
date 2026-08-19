@@ -134,6 +134,9 @@ pub fn default_device_name() -> Option<String> {
 
 /// 按设备名（`None` 为默认设备）解析设备与输出配置。
 /// 设备支持 `requested_sample_rate` 时按该速率打开，否则使用设备默认配置。
+/// 样本格式优先沿用设备默认格式：PipeWire 等后端上报的 supported 列表包含
+/// 全部合成格式（顺序 I8…F64），首个条目不代表设备真实能力，直接采用会导致
+/// 以 i8 打开输出流而严重劣化音质。
 fn open_device(
     device_name: Option<&str>,
     requested_sample_rate: Option<u32>,
@@ -149,19 +152,40 @@ fn open_device(
             .default_output_device()
             .context("没有可用的输出设备")?,
     };
-    let config = requested_sample_rate
-        .and_then(|rate| {
-            device
+    let config = match requested_sample_rate {
+        Some(rate) => {
+            let default_config = device.default_output_config();
+            let default_format = default_config
+                .as_ref()
+                .ok()
+                .map(|config| config.sample_format());
+            let at_rate = device
                 .supported_output_configs()
-                .ok()?
-                .find(|range| range.min_sample_rate() <= rate && rate <= range.max_sample_rate())
-                .map(|range| range.with_sample_rate(rate))
-        })
-        .unwrap_or(
-            device
-                .default_output_config()
-                .context("读取输出设备配置失败")?,
-        );
+                .ok()
+                .and_then(|configs| {
+                    let configs: Vec<_> = configs.collect();
+                    configs
+                        .iter()
+                        .copied()
+                        .find(|range| {
+                            range.min_sample_rate() <= rate
+                                && rate <= range.max_sample_rate()
+                                && Some(range.sample_format()) == default_format
+                        })
+                        .or_else(|| {
+                            configs.iter().copied().find(|range| {
+                                range.min_sample_rate() <= rate && rate <= range.max_sample_rate()
+                            })
+                        })
+                        .map(|range| range.with_sample_rate(rate))
+                });
+            match at_rate {
+                Some(config) => config,
+                None => default_config.context("读取输出设备配置失败")?,
+            }
+        }
+        None => device.default_output_config().context("读取输出设备配置失败")?,
+    };
     Ok((device, config))
 }
 
