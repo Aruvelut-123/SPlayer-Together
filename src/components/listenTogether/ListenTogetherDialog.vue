@@ -29,8 +29,9 @@ const connectionMeta = computed(() => {
   }
 });
 
-const isBusy = computed(() => connection.value === "connecting");
 const isHost = computed(() => role.value === "host");
+/** 创建 / 加入请求进行中，防止重复点击 */
+const busy = ref(false);
 
 const sharedTrackText = computed(() => {
   const track = sharedState.value?.track;
@@ -39,11 +40,23 @@ const sharedTrackText = computed(() => {
 });
 
 const handleCreate = async (): Promise<void> => {
-  await store.createRoom();
+  if (busy.value) return;
+  busy.value = true;
+  try {
+    await store.createRoom();
+  } finally {
+    busy.value = false;
+  }
 };
 
 const handleJoin = async (): Promise<void> => {
-  await store.joinRoom(joinCode.value);
+  if (busy.value || !joinCode.value.trim()) return;
+  busy.value = true;
+  try {
+    await store.joinRoom(joinCode.value);
+  } finally {
+    busy.value = false;
+  }
 };
 
 const handleLeave = (): void => {
@@ -82,7 +95,7 @@ const copyCode = async (): Promise<void> => {
       <SDivider class="my-1" />
 
       <div class="flex items-center gap-2">
-        <SButton type="primary" class="flex-1" :loading="isBusy" @click="handleCreate">
+        <SButton type="primary" class="flex-1" :loading="busy" @click="handleCreate">
           <template #icon><IconLucideRadio /></template>
           {{ t("listenTogether.createRoom") }}
         </SButton>
@@ -95,7 +108,7 @@ const copyCode = async (): Promise<void> => {
           clearable
           @keyup.enter="handleJoin"
         />
-        <SButton :loading="isBusy" :disabled="!joinCode.trim()" @click="handleJoin">
+        <SButton :loading="busy" :disabled="!joinCode.trim()" @click="handleJoin">
           <template #icon><IconLucideUserPlus /></template>
           {{ t("listenTogether.joinRoom") }}
         </SButton>

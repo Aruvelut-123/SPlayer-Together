@@ -2,6 +2,7 @@ import type { Track } from "@shared/types/player";
 import { useMediaStore } from "@/stores/media";
 import { useStatusStore } from "@/stores/status";
 import { useLicenseStore } from "@/stores/license";
+import { queue as queueStore, setQueue } from "@/stores/queue";
 import * as player from "@/core/player";
 import { toast } from "@/composables/useToast";
 import i18n from "@/i18n";
@@ -9,20 +10,16 @@ import i18n from "@/i18n";
 /**
  * 一起听（Listen Together）
  *
- * 类似网易云「一起听」：房主创建房间，成员通过 WebSocket 连到中继服务器，
- * 房主播放状态（曲目 / 播放态 / 进度）实时推给房间，成员自动跟随播放并做漂移纠正。
- * 本地文件与流媒体曲目无法跨设备共享，房主播放这类曲目时房间状态置空，成员暂停。
+ * 类似网易云「一起听」：房主创建房间，成员通过房间号加入。全部走纯 HTTP 轮询，
+ * 房主周期性推送播放状态与队列，成员周期性拉取并跟随（漂移纠正）。
+ * 本地文件与流媒体曲目无法跨设备共享，一起听期间禁止播放这类曲目。
  */
 
 /** 可跨设备共享的在线平台来源；本地路径与流媒体会话无法在其它设备上播放 */
 const SHAREABLE_SOURCES = new Set(["netease", "qqmusic", "kugou"]);
 
-/** 房主推送进度的最小间隔（毫秒） */
-const PUSH_INTERVAL_MS = 2_000;
-/** 房间内成员 WebSocket 心跳间隔（毫秒） */
-const PING_INTERVAL_MS = 25_000;
-/** 断线重连退避上限（毫秒） */
-const RECONNECT_MAX_DELAY_MS = 15_000;
+/** 房主推送 / 成员拉取的最小间隔（毫秒） */
+const SYNC_INTERVAL_MS = 2_000;
 /** 成员跟随漂移纠正阈值（毫秒），超过则 seek 对齐 */
 const DRIFT_THRESHOLD_MS = 2_000;
 
@@ -45,58 +42,38 @@ export interface ListenTogetherSharedState {
   seq: number;
 }
 
-/** 服务器 → 客户端消息 */
-type ServerMessage =
-  | {
-      type: "welcome";
-      code: string;
-      role: "host" | "guest";
-      members: ListenTogetherMember[];
-      hostId: string;
-      state: ListenTogetherSharedState | null;
-      serverNow: number;
-    }
-  | {
-      type: "state";
-      seq: number;
-      state: {
-        track: Track | null;
-        state: "playing" | "paused" | "stopped";
-        positionMs: number;
-        at: number;
-      };
-      serverNow: number;
-    }
-  | { type: "members"; members: ListenTogetherMember[]; hostId: string }
-  | { type: "event"; kind: "loadFailed"; name: string; trackTitle: string }
-  | { type: "role"; role: "host" | "guest" }
-  | { type: "error"; message: string }
-  | { type: "pong" };
+interface SharedStatePayload {
+  track: Track | null;
+  state: "playing" | "paused" | "stopped";
+  positionMs: number;
+  at: number;
+}
 
-/** 客户端 → 服务器消息 */
-type ClientMessage =
-  | { type: "hello"; memberId: string; token: string }
-  | {
-      type: "state";
-      track: Track | null;
-      state: "playing" | "paused" | "stopped";
-      positionMs: number;
-    }
-  | { type: "report"; kind: "loadFailed"; trackId: string; trackTitle: string }
-  | { type: "ping" }
-  | { type: "leave" };
+interface RoomReport {
+  kind: string;
+  name: string;
+  trackTitle: string;
+}
+
+/** 服务器房间快照 */
+interface RoomSnapshot {
+  seq: number;
+  state: SharedStatePayload | null;
+  members: ListenTogetherMember[];
+  hostId: string;
+  queue: Track[] | null;
+  reports: RoomReport[];
+  serverNow: number;
+}
 
 export const useListenTogetherStore = defineStore("listenTogether", () => {
   const media = useMediaStore();
   const status = useStatusStore();
   const license = useLicenseStore();
 
-  /** 中继服务器地址（复用授权服务器） */
-  const serverUrl = computed(() => license.serverUrl);
   /** 房间内昵称 */
   const nickname = ref("");
-
-  /** WebSocket 连接状态 */
+  /** 轮询连接状态 */
   const connection = ref<ListenTogetherConnection>("idle");
   /** 当前身份 */
   const role = ref<ListenTogetherRole>("none");
@@ -114,185 +91,111 @@ export const useListenTogetherStore = defineStore("listenTogether", () => {
   /** 本机成员凭据（不参与渲染） */
   const memberId = ref("");
   const token = ref("");
-  const ws = shallowRef<WebSocket | null>(null);
-  /** 是否处于房间中（驱动 watcher / 定时器 / 重连） */
+  /** 是否处于房间中（驱动定时器 / watcher） */
   const roomActive = ref(false);
-  /** 用户主动断开标记：置位后不重连 */
-  let manualClose = false;
-  /** 重连退避当前值 */
-  let reconnectDelayMs = 1_000;
+  /** 服务器时钟相对本机时钟的偏移（毫秒），每条快照刷新 */
+  let serverOffsetMs = 0;
+  /** 上次成员 id 快照，用于进出房间提示 */
+  let prevMemberIds: string[] = [];
   /** 上次推送内容，用于变化检测 */
   let lastPushed: { trackId: string | null; state: string; positionMs: number } | null = null;
+  /** 上次推送队列的指纹 */
+  let lastPushedQueueKey = "";
   /** 成员跟随中的曲目（等待加载完成确认） */
   let pendingFollow: { trackId: string; expected: number; playing: boolean } | null = null;
   /** 本机无法播放的曲目 id（房主切歌前不再重试） */
   const lastFailedTrackId = ref("");
-  /** 服务器时钟相对本机时钟的偏移（毫秒），每条消息刷新 */
-  let serverOffsetMs = 0;
-  /** 上次成员 id 快照，用于进出房间提示 */
-  let prevMemberIds: string[] = [];
 
   let pushTimer: number | undefined;
-  let pingTimer: number | undefined;
-  let reconnectTimer: number | undefined;
+  let pollTimer: number | undefined;
 
-  /** 服务器地址去尾斜杠 */
-  const baseUrl = computed(() => serverUrl.value.replace(/\/+$/, ""));
-  /** WebSocket 地址（http→ws，https→wss） */
-  const wsUrl = computed(() => {
-    const base = baseUrl.value.replace(/^http:/, "ws:").replace(/^https:/, "wss:");
-    return `${base}/api/rooms/${code.value}/ws?memberId=${encodeURIComponent(memberId.value)}&token=${encodeURIComponent(token.value)}&key=${encodeURIComponent(license.machineKey)}`;
+  /** 服务器地址去尾斜杠（复用授权服务器） */
+  const baseUrl = computed(() => license.serverUrl.replace(/\/+$/, ""));
+
+  /** 房间成员请求头 */
+  const memberHeaders = (): Record<string, string> => ({
+    "X-Auth-Key": license.machineKey,
+    "X-Member-Id": memberId.value,
+    "X-Token": token.value,
   });
 
-  const stopTimers = (): void => {
-    if (pushTimer !== undefined) window.clearInterval(pushTimer);
-    if (pingTimer !== undefined) window.clearInterval(pingTimer);
-    pushTimer = undefined;
-    pingTimer = undefined;
-  };
-
-  const clearReconnect = (): void => {
-    if (reconnectTimer !== undefined) window.clearTimeout(reconnectTimer);
-    reconnectTimer = undefined;
-  };
-
   /** 封装 REST 请求；非 2xx 抛带服务端文案的错误 */
-  const api = async <T>(path: string, init?: RequestInit): Promise<T> => {
-    const res = await fetch(`${baseUrl.value}${path}`, {
-      headers: { "Content-Type": "application/json", "X-Auth-Key": license.machineKey },
-      ...init,
-    });
-    const body = (await res.json().catch(() => ({}))) as {
-      error?: string;
-      detail?: string;
+  const api = async <T>(path: string, init: RequestInit = {}): Promise<T> => {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      ...memberHeaders(),
+      ...(init.headers as Record<string, string> | undefined),
     };
+    const res = await fetch(`${baseUrl.value}${path}`, { ...init, headers });
+    const body = (await res.json().catch(() => ({}))) as { error?: string };
     if (!res.ok) {
-      throw new Error(body.error ?? body.detail ?? `HTTP ${res.status}`);
+      throw new Error(body.error ?? `HTTP ${res.status}`);
     }
     return body as T;
   };
 
-  /** 发送 JSON 消息（连接未就绪时静默丢弃） */
-  const send = (msg: ClientMessage): void => {
-    if (ws.value?.readyState === WebSocket.OPEN) ws.value.send(JSON.stringify(msg));
+  const stopTimers = (): void => {
+    if (pushTimer !== undefined) window.clearInterval(pushTimer);
+    if (pollTimer !== undefined) window.clearInterval(pollTimer);
+    pushTimer = undefined;
+    pollTimer = undefined;
   };
 
-  const connect = (): void => {
-    if (!code.value || !memberId.value || !token.value) return;
-    roomActive.value = true;
-    manualClose = false;
-    connection.value = "connecting";
-    const socket = new WebSocket(wsUrl.value);
-    ws.value = socket;
-    socket.onopen = () => {
-      send({ type: "hello", memberId: memberId.value, token: token.value });
-    };
-    socket.onmessage = (event) => {
-      try {
-        handleMessage(JSON.parse(event.data as string) as ServerMessage);
-      } catch {
-        /* 忽略坏消息 */
-      }
-    };
-    socket.onerror = () => {
-      connection.value = "error";
-    };
-    socket.onclose = () => {
-      ws.value = null;
-      if (roomActive.value && !manualClose) {
-        // 断线退避重连；重连成功后 welcome 会带最新状态，成员自动重新对齐
-        clearReconnect();
-        reconnectTimer = window.setTimeout(connect, reconnectDelayMs);
-        reconnectDelayMs = Math.min(reconnectDelayMs * 2, RECONNECT_MAX_DELAY_MS);
-        connection.value = "error";
-      } else if (!roomActive.value) {
-        connection.value = "idle";
-      }
-    };
+  /** 按服务器时间换算的目标进度（毫秒） */
+  const expectedPosition = (s: ListenTogetherSharedState): number =>
+    s.state === "playing" ? s.positionMs + (Date.now() + serverOffsetMs - s.at) : s.positionMs;
+
+  /** 成员应用房主队列（内容不一致才替换，避免无谓刷新） */
+  const applyQueue = (tracks: Track[]): void => {
+    const key = tracks.map((t) => t.id).join("\u0000");
+    if (key !== queueStore.value.map((t) => t.id).join("\u0000")) {
+      setQueue(tracks);
+    }
   };
 
-  const handleMessage = (msg: ServerMessage): void => {
-    // 刷新服务器时钟偏移（用于把状态里的服务器时间换算成本机时间）
-    if ("serverNow" in msg) serverOffsetMs = msg.serverNow - Date.now();
-    switch (msg.type) {
-      case "welcome": {
-        connection.value = "connected";
-        reconnectDelayMs = 1_000;
-        clearReconnect();
-        role.value = msg.role;
-        hostId.value = msg.hostId;
-        members.value = msg.members;
-        prevMemberIds = msg.members.map((m) => m.id);
-        sharedState.value = msg.state;
-        stopTimers();
-        pushTimer = window.setInterval(() => pushState(), PUSH_INTERVAL_MS);
-        pingTimer = window.setInterval(() => send({ type: "ping" }), PING_INTERVAL_MS);
-        if (msg.role === "host") {
-          // 房主重连后立即把自己当前状态推上去
-          pushState(true);
-        } else if (msg.state) {
-          void applyState(msg.state);
-        }
-        break;
+  /** 应用房间快照：成员进出提示 / 房主 / 队列 / 报告 / 共享状态 */
+  const applyRoomView = (snap: RoomSnapshot): void => {
+    serverOffsetMs = snap.serverNow - Date.now();
+    const prev = new Set(prevMemberIds);
+    for (const m of snap.members) {
+      if (!prev.has(m.id)) {
+        toast.info(i18n.global.t("listenTogether.memberJoined", { name: m.name }));
       }
-      case "state": {
-        // 房主不处理自己推送的广播（服务器也不会回灌给发送者，这里兜底）
-        if (role.value === "host") break;
-        sharedState.value = { ...msg.state, seq: msg.seq };
-        void applyState(sharedState.value);
-        break;
-      }
-      case "members": {
-        const prev = new Set(prevMemberIds);
-        for (const m of msg.members) {
-          if (!prev.has(m.id)) {
-            toast.info(i18n.global.t("listenTogether.memberJoined", { name: m.name }));
-          }
+    }
+    for (const id of prevMemberIds) {
+      if (!snap.members.some((m) => m.id === id)) {
+        const gone = members.value.find((m) => m.id === id);
+        if (gone) {
+          toast.info(i18n.global.t("listenTogether.memberLeft", { name: gone.name }));
         }
-        for (const id of prevMemberIds) {
-          if (!msg.members.some((m) => m.id === id)) {
-            const gone = members.value.find((m) => m.id === id);
-            if (gone) {
-              toast.info(i18n.global.t("listenTogether.memberLeft", { name: gone.name }));
-            }
-          }
-        }
-        prevMemberIds = msg.members.map((m) => m.id);
-        members.value = msg.members;
-        hostId.value = msg.hostId;
-        break;
       }
-      case "event": {
-        if (msg.kind === "loadFailed" && role.value === "host") {
+    }
+    prevMemberIds = snap.members.map((m) => m.id);
+    members.value = snap.members;
+    hostId.value = snap.hostId;
+    if (snap.reports.length > 0 && role.value === "host") {
+      for (const r of snap.reports) {
+        if (r.kind === "loadFailed") {
           toast.warning(
             i18n.global.t("listenTogether.memberCannotPlay", {
-              name: msg.name,
-              title: msg.trackTitle,
+              name: r.name,
+              title: r.trackTitle,
             }),
             { duration: 5_000 },
           );
         }
-        break;
       }
-      case "role": {
-        role.value = msg.role;
-        if (msg.role === "host") {
-          toast.success(i18n.global.t("listenTogether.promotedToHost"));
-          pushState(true);
-        }
-        break;
-      }
-      case "error":
-        lastError.value = msg.message;
-        toast.error(msg.message);
-        break;
-      case "pong":
-        break;
+    }
+    if (snap.queue && role.value === "guest") {
+      applyQueue(snap.queue);
+    }
+    if (snap.state) {
+      sharedState.value = { ...snap.state, seq: snap.seq };
     }
   };
 
   /** 房主推送当前播放状态；非房主 / 未连接时忽略 */
-  const pushState = (force = false): void => {
+  const pushState = async (force = false): Promise<void> => {
     if (role.value !== "host" || !roomActive.value) return;
     const track = media.track;
     const shareable = !!track && SHAREABLE_SOURCES.has(track.source);
@@ -310,15 +213,63 @@ export const useListenTogetherStore = defineStore("listenTogether", () => {
       !lastPushed ||
       lastPushed.trackId !== trackId ||
       lastPushed.state !== state ||
-      Math.abs(lastPushed.positionMs - positionMs) >= PUSH_INTERVAL_MS;
+      Math.abs(lastPushed.positionMs - positionMs) >= SYNC_INTERVAL_MS;
     if (!changed) return;
     lastPushed = { trackId, state, positionMs };
-    send({ type: "state", track: shareable ? track : null, state, positionMs });
+    try {
+      const snap = await api<RoomSnapshot>(`/api/rooms/${code.value}/state`, {
+        method: "POST",
+        body: JSON.stringify({ track: shareable ? track : null, state, positionMs }),
+      });
+      connection.value = "connected";
+      applyRoomView(snap);
+    } catch {
+      connection.value = "error";
+    }
   };
 
-  /** 按服务器时间换算的目标进度（毫秒） */
-  const expectedPosition = (s: ListenTogetherSharedState): number =>
-    s.state === "playing" ? s.positionMs + (Date.now() + serverOffsetMs - s.at) : s.positionMs;
+  /** 房主推送播放列表（仅内容变化时） */
+  const pushQueue = async (): Promise<void> => {
+    if (role.value !== "host" || !roomActive.value) return;
+    const tracks = queueStore.value;
+    const key = tracks.map((t) => t.id).join("\u0000");
+    if (key === lastPushedQueueKey) return;
+    lastPushedQueueKey = key;
+    try {
+      const snap = await api<RoomSnapshot>(`/api/rooms/${code.value}/queue`, {
+        method: "POST",
+        body: JSON.stringify({ tracks }),
+      });
+      applyRoomView(snap);
+    } catch {
+      /* 队列推送失败，下次轮询重试 */
+    }
+  };
+
+  /** 成员拉取房间状态 */
+  const pollState = async (): Promise<void> => {
+    if (role.value !== "guest" || !roomActive.value) return;
+    try {
+      const snap = await api<RoomSnapshot>(`/api/rooms/${code.value}/state`);
+      connection.value = "connected";
+      applyRoomView(snap);
+      // 房主离开后自动升级
+      if (snap.hostId === memberId.value && role.value === "guest") {
+        role.value = "host";
+        toast.success(i18n.global.t("listenTogether.promotedToHost"));
+        stopTimers();
+        pushTimer = window.setInterval(() => void pushState(), SYNC_INTERVAL_MS);
+        void pushState(true);
+        void pushQueue();
+        return;
+      }
+      if (snap.state) {
+        await applyState(sharedState.value as ListenTogetherSharedState);
+      }
+    } catch {
+      connection.value = "error";
+    }
+  };
 
   /** 成员应用房间状态：切歌跟随 / 播放态对齐 / 漂移纠正 */
   const applyState = async (s: ListenTogetherSharedState): Promise<void> => {
@@ -330,7 +281,6 @@ export const useListenTogetherStore = defineStore("listenTogether", () => {
     if (s.track.id === lastFailedTrackId.value) return;
     const myTrack = media.track;
     if (myTrack?.id !== s.track.id) {
-      // 切歌：走一次完整播放流程，加载成功后 seek 对齐并设置播放态
       if (pendingFollow) return;
       pendingFollow = {
         trackId: s.track.id,
@@ -371,14 +321,29 @@ export const useListenTogetherStore = defineStore("listenTogether", () => {
 
   /** 上报本机无法播放，并提示用户 */
   const reportLoadFailed = (track: Track): void => {
-    send({ type: "report", kind: "loadFailed", trackId: track.id, trackTitle: track.title });
-    toast.warning(
-      i18n.global.t("listenTogether.cannotPlay", { title: track.title }),
-      { duration: 5_000 },
-    );
+    void api<{ ok: boolean }>(`/api/rooms/${code.value}/report`, {
+      method: "POST",
+      body: JSON.stringify({ kind: "loadFailed", trackId: track.id, trackTitle: track.title }),
+    }).catch(() => {});
+    toast.warning(i18n.global.t("listenTogether.cannotPlay", { title: track.title }), {
+      duration: 5_000,
+    });
   };
 
-  /** 创建房间并连接 */
+  /** 启动轮询定时器并立即同步一次 */
+  const startTimers = (): void => {
+    stopTimers();
+    if (role.value === "host") {
+      pushTimer = window.setInterval(() => void pushState(), SYNC_INTERVAL_MS);
+      void pushState(true);
+      void pushQueue();
+    } else {
+      pollTimer = window.setInterval(() => void pollState(), SYNC_INTERVAL_MS);
+      void pollState();
+    }
+  };
+
+  /** 创建房间并开始轮询 */
   const createRoom = async (): Promise<void> => {
     await leaveRoom();
     try {
@@ -390,14 +355,17 @@ export const useListenTogetherStore = defineStore("listenTogether", () => {
       memberId.value = res.memberId;
       token.value = res.token;
       role.value = "host";
-      connect();
+      roomActive.value = true;
+      connection.value = "connecting";
+      startTimers();
     } catch (err) {
       lastError.value = err instanceof Error ? err.message : String(err);
       toast.error(i18n.global.t("listenTogether.createFailed"));
+      connection.value = "error";
     }
   };
 
-  /** 加入房间并连接 */
+  /** 加入房间并开始轮询 */
   const joinRoom = async (roomCode: string): Promise<void> => {
     await leaveRoom();
     const trimmed = roomCode.trim();
@@ -416,28 +384,25 @@ export const useListenTogetherStore = defineStore("listenTogether", () => {
       memberId.value = res.memberId;
       token.value = res.token;
       role.value = "guest";
-      connect();
+      roomActive.value = true;
+      connection.value = "connecting";
+      startTimers();
     } catch (err) {
       lastError.value = err instanceof Error ? err.message : String(err);
       toast.error(i18n.global.t("listenTogether.joinFailed"));
+      connection.value = "error";
     }
   };
 
-  /** 离开房间并断开连接 */
+  /** 离开房间并停止轮询 */
   const leaveRoom = async (): Promise<void> => {
-    manualClose = true;
     roomActive.value = false;
     stopTimers();
-    clearReconnect();
-    if (ws.value) {
-      try {
-        ws.value.send(JSON.stringify({ type: "leave" }));
-      } catch {
-        /* 连接已断则忽略 */
-      }
-      ws.value.close();
+    if (code.value && memberId.value && token.value) {
+      await api<{ ok: boolean }>(`/api/rooms/${encodeURIComponent(code.value)}/leave`, {
+        method: "POST",
+      }).catch(() => {});
     }
-    ws.value = null;
     code.value = "";
     memberId.value = "";
     token.value = "";
@@ -450,6 +415,7 @@ export const useListenTogetherStore = defineStore("listenTogether", () => {
     lastFailedTrackId.value = "";
     pendingFollow = null;
     lastPushed = null;
+    lastPushedQueueKey = "";
     prevMemberIds = [];
   };
 
@@ -457,13 +423,33 @@ export const useListenTogetherStore = defineStore("listenTogether", () => {
   watch(
     () => media.track?.id,
     () => {
-      if (roomActive.value && role.value === "host") pushState(true);
+      if (roomActive.value && role.value === "host") void pushState(true);
     },
   );
   watch(
     () => status.state,
     () => {
-      if (roomActive.value && role.value === "host") pushState(true);
+      if (roomActive.value && role.value === "host") void pushState(true);
+    },
+  );
+
+  // 房主侧：队列变化推送
+  watch(
+    () => queueStore.value.map((t) => t.id).join("\u0000"),
+    () => {
+      if (roomActive.value && role.value === "host") void pushQueue();
+    },
+  );
+
+  // 一起听期间禁止本地音乐：房主播放不可共享曲目时暂停并提示
+  watch(
+    () => media.track,
+    (track) => {
+      if (!roomActive.value || role.value !== "host") return;
+      if (track && !SHAREABLE_SOURCES.has(track.source)) {
+        void player.pause();
+        toast.warning(i18n.global.t("listenTogether.localNotShareable"), { duration: 4_000 });
+      }
     },
   );
 

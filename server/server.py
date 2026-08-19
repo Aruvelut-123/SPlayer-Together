@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
-"""SPlayer Together 中继服务器
+"""SPlayer Together 中继服务器（纯 HTTP 轮询版）
 
 职责：
 1. 应用授权：客户端按机器 ID 生成密钥，携带密钥询问 ``POST /api/auth``，命中白名单才放行。
-2. 一起听中继：房主创建房间，成员加入，房主播放状态经本服务广播给成员实现同步。
-3. WebUI 管理后台：登录后管理密钥白名单与房间，管理接口本身需要管理员认证。
+2. 一起听中继：房主周期性推送播放状态与队列，成员周期性拉取并跟随，全部走纯 HTTP，
+   不使用 WebSocket，部署简单且不易断线。
+3. WebUI 管理后台：登录后管理密钥白名单与房间。
 
-配置在 ``config.yml``（监听地址、端口、管理员凭据、密钥白名单）。运行：
+配置在 ``config.yml``。运行：
 
     pip install -r requirements.txt
     python server.py
@@ -14,6 +15,10 @@
 
 from __future__ import annotations
 
+import asyncio
+import json
+import logging
+import os
 import secrets
 import string
 import time
@@ -21,15 +26,30 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from aiohttp import WSMsgType, web
+from aiohttp import web
 
 from webui import render_admin_page
+
+logging.basicConfig(
+    level=os.environ.get("LOG_LEVEL", "INFO").upper(),
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
+log = logging.getLogger("relay")
 
 BASE_DIR = Path(__file__).parent
 CONFIG_FILE = BASE_DIR / "config.yml"
 
 CODE_ALPHABET = string.ascii_uppercase + string.digits
 ROOM_CODE_LEN = 6
+
+# 成员超过该时长未请求视为离线
+MEMBER_TIMEOUT_MS = 60_000
+# 房主超过该时长未推送状态视为失联，将房主转移给在线成员
+HOST_TIMEOUT_MS = 20_000
+# 无在线成员的房间超过该时长后清理
+ROOM_TTL_MS = 10 * 60 * 1000
+# 后台清理任务间隔
+CLEANUP_INTERVAL_MS = 30_000
 
 DEFAULT_CONFIG: dict[str, Any] = {
     "host": "0.0.0.0",
@@ -40,7 +60,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
 
 
 def now_ms() -> int:
-    """服务器毫秒时间戳，用于成员换算进度"""
+    """服务器毫秒时间戳"""
     return int(time.time() * 1000)
 
 
@@ -66,7 +86,6 @@ AUTH_KEYS: list[str] = CONFIG["keys"]
 ADMIN_USERNAME: str = str(CONFIG["admin"]["username"])
 ADMIN_PASSWORD: str = str(CONFIG["admin"]["password"])
 
-# 管理员会话 token 集合
 admin_tokens: set[str] = set()
 
 # code -> Room
@@ -79,12 +98,20 @@ class Room:
     def __init__(self, code: str, host_id: str):
         self.code = code
         self.host_id = host_id
-        # member_id -> {"name", "token", "ws"}
+        # member_id -> {"name", "token", "last_seen"}
         self.members: dict[str, dict[str, Any]] = {}
         self.state: dict[str, Any] | None = None
+        self.queue: list[Any] = []
+        self.reports: list[dict[str, Any]] = []
         self.seq = 0
+        self.created_at = now_ms()
+        self.host_last_push = now_ms()
+
+    def touch(self, member_id: str) -> None:
+        self.members[member_id]["last_seen"] = now_ms()
 
     def member_view(self) -> list[dict[str, Any]]:
+        now = now_ms()
         return [
             {
                 "id": mid,
@@ -92,43 +119,12 @@ class Room:
                 "role": "host" if mid == self.host_id else "guest",
             }
             for mid, m in self.members.items()
-            if m["ws"] is not None
+            if now - m["last_seen"] <= MEMBER_TIMEOUT_MS
         ]
 
     def online_count(self) -> int:
-        return sum(1 for m in self.members.values() if m["ws"] is not None)
-
-    async def broadcast(self, payload: dict[str, Any], exclude: str | None = None) -> None:
-        text = json.dumps(payload, ensure_ascii=False)
-        for mid, m in self.members.items():
-            if m["ws"] is not None and mid != exclude:
-                await m["ws"].send_str(text)
-
-    async def broadcast_members(self) -> None:
-        await self.broadcast(
-            {"type": "members", "members": self.member_view(), "hostId": self.host_id}
-        )
-
-    async def broadcast_state(self, exclude: str | None = None) -> None:
-        if self.state is None:
-            return
-        await self.broadcast(
-            {
-                "type": "state",
-                "seq": self.seq,
-                "state": self.state,
-                "serverNow": now_ms(),
-            },
-            exclude=exclude,
-        )
-
-    async def transfer_host(self) -> bool:
-        for mid, m in self.members.items():
-            if mid != self.host_id and m["ws"] is not None:
-                self.host_id = mid
-                await m["ws"].send_str(json.dumps({"type": "role", "role": "host"}))
-                return True
-        return False
+        now = now_ms()
+        return sum(1 for m in self.members.values() if now - m["last_seen"] <= MEMBER_TIMEOUT_MS)
 
     def admin_view(self) -> dict[str, Any]:
         return {
@@ -139,6 +135,21 @@ class Room:
             "state": self.state,
             "seq": self.seq,
         }
+
+
+def room_snapshot(room: Room) -> dict[str, Any]:
+    """生成房间快照：状态 / 成员 / 队列 / 报告（取出后清空报告）"""
+    reports = room.reports
+    room.reports = []
+    return {
+        "seq": room.seq,
+        "state": room.state,
+        "members": room.member_view(),
+        "hostId": room.host_id,
+        "queue": room.queue,
+        "reports": reports,
+        "serverNow": now_ms(),
+    }
 
 
 def new_code() -> str:
@@ -153,12 +164,27 @@ def valid_machine_key(key: str) -> bool:
 
 
 def admin_authed(request: web.Request) -> bool:
-    token = request.headers.get("X-Admin-Token", "")
-    return token in admin_tokens
+    return request.headers.get("X-Admin-Token", "") in admin_tokens
+
+
+def room_auth(request: web.Request) -> tuple[Room, str] | None:
+    """校验机器密钥与成员凭据，返回 (room, member_id)"""
+    if not valid_machine_key(request.headers.get("X-Auth-Key", "")):
+        return None
+    code = request.match_info["code"].strip().upper()
+    room = rooms.get(code)
+    if room is None:
+        return None
+    member_id = request.headers.get("X-Member-Id", "")
+    token = request.headers.get("X-Token", "")
+    member = room.members.get(member_id)
+    if member is None or member["token"] != token:
+        return None
+    return room, member_id
 
 
 # --------------------------------------------------------------------------
-# CORS：客户端（Electron）与 WebUI 跨域访问需要
+# CORS
 # --------------------------------------------------------------------------
 
 
@@ -170,7 +196,7 @@ async def cors_middleware(request: web.Request, handler: Any) -> web.StreamRespo
             headers={
                 "Access-Control-Allow-Origin": "*",
                 "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
-                "Access-Control-Allow-Headers": "Content-Type, X-Auth-Key, X-Admin-Token",
+                "Access-Control-Allow-Headers": "Content-Type, X-Auth-Key, X-Admin-Token, X-Member-Id, X-Token",
             },
         )
     response = await handler(request)
@@ -192,7 +218,7 @@ async def handle_auth(request: web.Request) -> web.Response:
 
 
 # --------------------------------------------------------------------------
-# 一起听房间
+# 一起听房间（纯 HTTP）
 # --------------------------------------------------------------------------
 
 
@@ -205,8 +231,9 @@ async def handle_create(request: web.Request) -> web.Response:
     member_id = secrets.token_hex(16)
     token = secrets.token_hex(32)
     room = Room(code, member_id)
-    room.members[member_id] = {"name": name, "token": token, "ws": None}
+    room.members[member_id] = {"name": name, "token": token, "last_seen": now_ms()}
     rooms[code] = room
+    log.info("创建房间 %s（房主 %s）", code, name)
     return web.json_response({"code": code, "memberId": member_id, "token": token})
 
 
@@ -221,110 +248,142 @@ async def handle_join(request: web.Request) -> web.Response:
     name = str(body.get("name", "")).strip() or "我"
     member_id = secrets.token_hex(16)
     token = secrets.token_hex(32)
-    room.members[member_id] = {"name": name, "token": token, "ws": None}
+    room.members[member_id] = {"name": name, "token": token, "last_seen": now_ms()}
+    log.info("成员 %s 加入房间 %s（现有 %s 人）", name, code, len(room.members))
     return web.json_response({"memberId": member_id, "token": token})
 
 
-async def handle_ws(request: web.Request) -> web.StreamResponse:
-    if not valid_machine_key(request.query.get("key", "")):
+async def handle_push_state(request: web.Request) -> web.Response:
+    """房主推送播放状态；任意成员都会刷新活跃时间。返回房间快照。"""
+    auth = room_auth(request)
+    if auth is None:
         return web.json_response({"error": "unauthorized"}, status=401)
+    room, member_id = auth
+    body = await request.json()
+    if member_id == room.host_id:
+        room.seq += 1
+        room.state = {
+            "track": body.get("track"),
+            "state": body.get("state"),
+            "positionMs": int(body.get("positionMs", 0) or 0),
+            "at": now_ms(),
+        }
+        room.host_last_push = now_ms()
+        log.debug(
+            "房主 %s 推送状态：%s，进度 %sms",
+            member_id[:8],
+            room.state.get("state"),
+            room.state.get("positionMs"),
+        )
+    room.touch(member_id)
+    return web.json_response(room_snapshot(room))
 
-    code = request.match_info["code"].strip().upper()
-    room = rooms.get(code)
-    if room is None:
-        return web.json_response({"error": "room not found"}, status=404)
 
-    ws = web.WebSocketResponse(heartbeat=25)
-    await ws.prepare(request)
+async def handle_get_state(request: web.Request) -> web.Response:
+    """成员拉取房间快照（状态 / 成员 / 队列 / 报告）"""
+    auth = room_auth(request)
+    if auth is None:
+        return web.json_response({"error": "unauthorized"}, status=401)
+    room, member_id = auth
+    room.touch(member_id)
+    return web.json_response(room_snapshot(room))
 
-    member_id: str | None = None
-    role = "guest"
 
-    try:
-        async for msg in ws:
-            if msg.type == WSMsgType.TEXT:
-                try:
-                    data = json.loads(msg.data)
-                except json.JSONDecodeError:
-                    continue
-                mtype = data.get("type")
+async def handle_push_queue(request: web.Request) -> web.Response:
+    """房主推送播放列表"""
+    auth = room_auth(request)
+    if auth is None:
+        return web.json_response({"error": "unauthorized"}, status=401)
+    room, member_id = auth
+    if member_id != room.host_id:
+        return web.json_response({"error": "forbidden"}, status=403)
+    body = await request.json()
+    room.queue = body.get("tracks", []) or []
+    room.touch(member_id)
+    log.debug("房主 %s 推送播放列表（%s 首）到房间 %s", member_id[:8], len(room.queue), room.code)
+    return web.json_response(room_snapshot(room))
 
-                if mtype == "hello":
-                    mid = str(data.get("memberId", ""))
-                    token = str(data.get("token", ""))
-                    member = room.members.get(mid)
-                    if member is None or member["token"] != token:
-                        await ws.send_str(json.dumps({"type": "error", "message": "认证失败"}))
-                        await ws.close()
-                        return ws
-                    member_id = mid
-                    member["ws"] = ws
-                    role = "host" if mid == room.host_id else "guest"
-                    await ws.send_str(
-                        json.dumps(
-                            {
-                                "type": "welcome",
-                                "code": room.code,
-                                "role": role,
-                                "members": room.member_view(),
-                                "hostId": room.host_id,
-                                "state": room.state,
-                                "serverNow": now_ms(),
-                            },
-                            ensure_ascii=False,
-                        )
-                    )
-                    await room.broadcast_members()
 
-                elif mtype == "state" and member_id is not None:
-                    if member_id != room.host_id:
-                        continue
-                    room.seq += 1
-                    room.state = {
-                        "track": data.get("track"),
-                        "state": data.get("state"),
-                        "positionMs": int(data.get("positionMs", 0)),
-                        "at": now_ms(),
-                    }
-                    await room.broadcast_state(exclude=member_id)
+async def handle_report(request: web.Request) -> web.Response:
+    """成员上报无法播放，供房主快照时取走"""
+    auth = room_auth(request)
+    if auth is None:
+        return web.json_response({"error": "unauthorized"}, status=401)
+    room, member_id = auth
+    room.touch(member_id)
+    body = await request.json()
+    member_name = room.members.get(member_id, {}).get("name", "成员")
+    track_title = str(body.get("trackTitle", ""))
+    room.reports.append(
+        {
+            "kind": str(body.get("kind", "")),
+            "name": member_name,
+            "trackTitle": track_title,
+        }
+    )
+    log.info("成员 %s 上报无法播放《%s》（房间 %s）", member_name, track_title, room.code)
+    return web.json_response({"ok": True})
 
-                elif mtype == "report" and member_id is not None:
-                    host = room.members.get(room.host_id)
-                    if host is not None and host["ws"] is not None:
-                        await host["ws"].send_str(
-                            json.dumps(
-                                {
-                                    "type": "event",
-                                    "kind": "loadFailed",
-                                    "name": room.members.get(member_id, {}).get("name", "成员"),
-                                    "trackTitle": str(data.get("trackTitle", "")),
-                                },
-                                ensure_ascii=False,
-                            )
-                        )
 
-                elif mtype == "ping":
-                    await ws.send_str(json.dumps({"type": "pong"}))
-
-                elif mtype == "leave":
-                    break
-
-            elif msg.type == WSMsgType.ERROR:
+async def handle_leave(request: web.Request) -> web.Response:
+    auth = room_auth(request)
+    if auth is None:
+        return web.json_response({"error": "unauthorized"}, status=401)
+    room, member_id = auth
+    room.members.pop(member_id, None)
+    if member_id == room.host_id:
+        now = now_ms()
+        for mid, m in room.members.items():
+            if now - m["last_seen"] <= MEMBER_TIMEOUT_MS:
+                room.host_id = mid
+                room.host_last_push = now
+                log.warning("房主离开房间 %s，房主转移给 %s", room.code, mid)
                 break
-    finally:
-        if member_id is not None and member_id in room.members:
-            room.members.pop(member_id, None)
-            if member_id == room.host_id:
-                if await room.transfer_host():
-                    await room.broadcast_members()
-                else:
-                    rooms.pop(room.code, None)
-            else:
-                await room.broadcast_members()
-        if room.code in rooms and not room.members:
+        else:
             rooms.pop(room.code, None)
+            log.info("房主离开，房间 %s 解散", room.code)
+            return web.json_response({"ok": True})
+    log.info("成员离开房间 %s（在线 %s 人）", room.code, room.online_count())
+    return web.json_response({"ok": True})
 
-    return ws
+
+# --------------------------------------------------------------------------
+# 后台清理：房主失联转移 / 僵尸房间回收
+# --------------------------------------------------------------------------
+
+
+async def cleanup_loop() -> None:
+    while True:
+        await asyncio.sleep(CLEANUP_INTERVAL_MS / 1000)
+        now = now_ms()
+        for code, room in list(rooms.items()):
+            if now - room.host_last_push > HOST_TIMEOUT_MS:
+                for mid, m in room.members.items():
+                    if mid != room.host_id and now - m["last_seen"] <= MEMBER_TIMEOUT_MS:
+                        room.host_id = mid
+                        room.host_last_push = now
+                        log.warning(
+                            "房主失联（%s 秒未推送），房间 %s 房主转移给 %s",
+                            HOST_TIMEOUT_MS // 1000,
+                            room.code,
+                            mid,
+                        )
+                        break
+            if room.online_count() == 0 and now - room.created_at > ROOM_TTL_MS:
+                rooms.pop(code, None)
+                log.info("清理空闲房间 %s（创建超过 %s 分钟）", room.code, ROOM_TTL_MS // 60000)
+
+
+async def start_cleanup(app: web.Application) -> None:
+    app["cleanup_task"] = asyncio.create_task(cleanup_loop())
+    log.info("后台清理任务已启动（间隔 %s 秒）", CLEANUP_INTERVAL_MS // 1000)
+
+
+async def stop_cleanup(app: web.Application) -> None:
+    task = app.get("cleanup_task")
+    if task is not None:
+        task.cancel()
+        log.info("后台清理任务已停止")
 
 
 # --------------------------------------------------------------------------
@@ -339,7 +398,9 @@ async def handle_admin_login(request: web.Request) -> web.Response:
     if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
         token = secrets.token_hex(32)
         admin_tokens.add(token)
+        log.info("管理员登录成功：%s", username)
         return web.json_response({"token": token})
+    log.warning("管理员登录失败：%s", username)
     return web.json_response({"error": "invalid credentials"}, status=401)
 
 
@@ -364,6 +425,7 @@ async def handle_admin_keys_add(request: web.Request) -> web.Response:
     if key not in AUTH_KEYS:
         AUTH_KEYS.append(key)
         save_config(CONFIG)
+        log.info("添加授权密钥：%s", key)
     return web.json_response({"keys": list(AUTH_KEYS)})
 
 
@@ -374,6 +436,7 @@ async def handle_admin_keys_remove(request: web.Request) -> web.Response:
     if key in AUTH_KEYS:
         AUTH_KEYS.remove(key)
         save_config(CONFIG)
+        log.info("删除授权密钥：%s", key)
     return web.json_response({"keys": list(AUTH_KEYS)})
 
 
@@ -387,13 +450,10 @@ async def handle_admin_room_dissolve(request: web.Request) -> web.Response:
     if not admin_authed(request):
         return web.json_response({"error": "unauthorized"}, status=401)
     code = request.match_info["code"].strip().upper()
-    room = rooms.get(code)
-    if room is None:
+    if code not in rooms:
         return web.json_response({"error": "room not found"}, status=404)
-    for m in room.members.values():
-        if m["ws"] is not None:
-            await m["ws"].close()
     rooms.pop(code, None)
+    log.warning("管理员解散房间 %s", code)
     return web.json_response({"ok": True})
 
 
@@ -412,7 +472,11 @@ def build_app() -> web.Application:
     app.router.add_post("/api/auth", handle_auth)
     app.router.add_post("/api/rooms", handle_create)
     app.router.add_post("/api/rooms/{code}/join", handle_join)
-    app.router.add_get("/api/rooms/{code}/ws", handle_ws)
+    app.router.add_post("/api/rooms/{code}/state", handle_push_state)
+    app.router.add_get("/api/rooms/{code}/state", handle_get_state)
+    app.router.add_post("/api/rooms/{code}/queue", handle_push_queue)
+    app.router.add_post("/api/rooms/{code}/report", handle_report)
+    app.router.add_post("/api/rooms/{code}/leave", handle_leave)
     app.router.add_post("/api/admin/login", handle_admin_login)
     app.router.add_post("/api/admin/logout", handle_admin_logout)
     app.router.add_get("/api/admin/keys", handle_admin_keys_list)
@@ -420,19 +484,25 @@ def build_app() -> web.Application:
     app.router.add_delete("/api/admin/keys/{key}", handle_admin_keys_remove)
     app.router.add_get("/api/admin/rooms", handle_admin_rooms_list)
     app.router.add_post("/api/admin/rooms/{code}/dissolve", handle_admin_room_dissolve)
+    app.on_startup.append(start_cleanup)
+    app.on_cleanup.append(stop_cleanup)
     return app
 
 
 def main() -> None:
     if not AUTH_KEYS:
-        print("[warn] 密钥白名单为空：请在 config.yml 或 WebUI 中配置，未授权客户端将被拒绝")
+        log.warning("密钥白名单为空：请在 config.yml 或 WebUI 中配置，未授权客户端将被拒绝")
     if ADMIN_PASSWORD == "change-me":
-        print("[warn] 管理后台仍在使用默认密码，请尽快在 config.yml 中修改")
+        log.warning("管理后台仍在使用默认密码，请尽快在 config.yml 中修改")
     host = str(CONFIG["host"])
     port = int(CONFIG["port"])
-    print(f"[info] 已加载 {len(AUTH_KEYS)} 个密钥")
-    print(f"[info] 监听 http://{host}:{port}，管理后台 http://{host}:{port}/admin")
-    web.run_app(build_app(), host=host, port=port)
+    log.info(
+        "SPlayer Together 中继服务器启动：http://%s:%s（密钥 %s 个，管理后台 /admin）",
+        host,
+        port,
+        len(AUTH_KEYS),
+    )
+    web.run_app(build_app(), host=host, port=port, access_log=None)
 
 
 if __name__ == "__main__":

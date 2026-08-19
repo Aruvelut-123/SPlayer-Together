@@ -1,6 +1,7 @@
 # SPlayer Together 中继服务器
 
 一起听与授权认证共用的中继服务器，用 Python + aiohttp 编写，自带 WebUI 管理后台。
+一起听同步全部走**纯 HTTP 轮询**（房主推送、成员拉取），不使用 WebSocket，部署简单且不易断线。
 
 ## 运行
 
@@ -16,6 +17,16 @@ cp config.example.yml config.yml
 ```
 
 默认监听 `0.0.0.0:8000`。
+
+## 日志
+
+服务器使用 Python 标准库 `logging` 输出到标准输出（适合 Docker 用 `docker logs` 查看），
+格式为 `时间 [级别] 模块: 消息`。可用环境变量 `LOG_LEVEL` 调整级别
+（`DEBUG` / `INFO` / `WARNING` / `ERROR`，默认 `INFO`）。
+
+- `INFO`：房间创建 / 加入 / 离开 / 解散、密钥增删、管理员登录等关键事件
+- `DEBUG`：房主状态与队列推送等高频动作（默认关闭，避免刷屏）
+- `WARNING`：房主失联转移、管理员解散房间、仍在使用默认密码等
 
 ## 配置（config.yml）
 
@@ -47,14 +58,27 @@ WebUI 与所有管理接口都需要管理员登录（session token）后才能�
 
 ## 接口
 
+一起听房间操作（创建 / 加入除外）需携带成员请求头：
+`X-Auth-Key`（机器密钥）+ `X-Member-Id` + `X-Token`。
+
 | 方法 | 路径 | 说明 |
 | ---- | ---- | ---- |
 | POST | `/api/auth` | 机器授权校验，body `{"key": "..."}` |
-| POST | `/api/rooms` | 创建一起听房间，需 `X-Auth-Key` |
+| POST | `/api/rooms` | 创建一起听房间（房主），需 `X-Auth-Key` |
 | POST | `/api/rooms/{code}/join` | 加入房间，需 `X-Auth-Key` |
-| GET | `/api/rooms/{code}/ws` | 房间 WebSocket，需 `?key=` |
+| POST | `/api/rooms/{code}/state` | 房主推送播放状态，返回房间快照 |
+| GET | `/api/rooms/{code}/state` | 成员拉取房间快照（状态 / 成员 / 队列 / 报告） |
+| POST | `/api/rooms/{code}/queue` | 房主推送播放列表 |
+| POST | `/api/rooms/{code}/report` | 成员上报无法播放，房主下次拉取时收到 |
+| POST | `/api/rooms/{code}/leave` | 离开房间（房主离开自动转移房主） |
 | POST | `/api/admin/login` | 管理员登录，返回 token |
 | GET/POST | `/api/admin/keys` | 查询 / 添加密钥，需 `X-Admin-Token` |
 | DELETE | `/api/admin/keys/{key}` | 删除密钥，需 `X-Admin-Token` |
 | GET | `/api/admin/rooms` | 房间列表，需 `X-Admin-Token` |
 | POST | `/api/admin/rooms/{code}/dissolve` | 解散房间，需 `X-Admin-Token` |
+
+## 房间生命周期
+
+- 房主每 2 秒推送一次状态，成员每 2 秒拉取一次快照（含漂移纠正）。
+- 房主超过 20 秒未推送视为失联，服务器自动把房主转移给在线成员。
+- 无在线成员且创建超过 10 分钟的房间由后台任务自动清理，不留僵尸房间。
