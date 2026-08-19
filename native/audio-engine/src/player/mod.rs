@@ -5,13 +5,13 @@ use std::thread::JoinHandle;
 use anyhow::Result;
 use ffmpeg_audio::HttpCancelHandle;
 use parking_lot::Mutex;
-use rodio::Player as RodioPlayer;
 use tracing::{debug, info};
 
 use crate::audio_output::{AudioOutput, OutputFailureCallback};
 use crate::decoder;
 use crate::equalizer::{Equalizer, EQ_BAND_COUNT};
 use crate::fft::FftAnalyzer;
+use crate::playback::PlaybackHandle;
 use crate::shared::Shared;
 use crate::tempo::StretchProcessor;
 
@@ -30,7 +30,7 @@ pub struct InnerPlayer {
     /// 此处只持有 Send 的 Mixer，保证 InnerPlayer 整体是 Send 的
     output: Option<AudioOutput>,
     /// 使用 Arc 包装，允许 fade 线程在 Mutex 外操作音量
-    sink: Option<Arc<RodioPlayer>>,
+    playback: Option<Arc<PlaybackHandle>>,
     shared: Option<Arc<Shared>>,
     /// 解码线程句柄，join 后可回收 DecoderData 复用于 seek
     decoder_thread: Option<JoinHandle<decoder::DecoderData>>,
@@ -147,7 +147,7 @@ impl InnerPlayer {
 
         Ok(Self {
             output,
-            sink: None,
+            playback: None,
             shared: None,
             decoder_thread: None,
             fft: Arc::new(FftAnalyzer::new()),
@@ -246,9 +246,9 @@ impl InnerPlayer {
                 // 先取消未完成的渐出：否则其完成回调可能在 sink.play() 之后执行
                 // sink.pause()，导致状态 Playing 但实际无声
                 self.cancel_fade();
-                if let Some(ref sink) = self.sink {
-                    sink.set_volume(0.0);
-                    sink.play();
+                if let Some(ref playback) = self.playback {
+                    playback.set_volume(0.0);
+                    playback.play();
                 }
 
                 self.state = PlayerState::Playing;
@@ -282,14 +282,14 @@ impl InnerPlayer {
         // 立即启动非阻塞渐出，避免被后续 stop_*_timer 的 join 阻塞
         // fade 完成后在回调中执行 sink.pause + 恢复音量
         let target_volume = self.target_volume;
-        let sink_for_callback = self.sink.as_ref().map(Arc::clone);
+        let playback_for_callback = self.playback.as_ref().map(Arc::clone);
         self.start_fade(
             target_volume,
             0.0,
             Some(Box::new(move || {
-                if let Some(sink) = sink_for_callback {
-                    sink.pause();
-                    sink.set_volume(target_volume);
+                if let Some(playback) = playback_for_callback {
+                    playback.pause();
+                    playback.set_volume(target_volume);
                 }
             })),
         );
@@ -339,8 +339,8 @@ impl InnerPlayer {
             shared.stop();
         }
         // 4. 释放 Sink（drop DecoderSource，解除迭代器阻塞）
-        if let Some(sink) = self.sink.take() {
-            sink.stop();
+        if let Some(playback) = self.playback.take() {
+            playback.stop();
         }
         // 5. 等待解码线程退出，回收 DecoderData（FFmpeg 资源在此 drop）
         if let Some(handle) = self.decoder_thread.take() {
@@ -358,8 +358,8 @@ impl InnerPlayer {
     /// 设置音量（0.0 ~ 1.0）
     pub fn set_volume(&mut self, volume: f32) {
         self.target_volume = volume;
-        if let Some(ref sink) = self.sink {
-            sink.set_volume(volume);
+        if let Some(ref playback) = self.playback {
+            playback.set_volume(volume);
         }
     }
 
@@ -408,8 +408,8 @@ impl InnerPlayer {
 
     /// 检查播放是否已结束
     pub fn is_finished(&self) -> bool {
-        match (&self.shared, &self.sink) {
-            (Some(shared), Some(sink)) => shared.is_done() && sink.empty(),
+        match (&self.shared, &self.playback) {
+            (Some(shared), Some(playback)) => shared.is_done() && playback.is_empty(),
             _ => false,
         }
     }

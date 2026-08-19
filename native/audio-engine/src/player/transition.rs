@@ -5,12 +5,11 @@ use std::thread::JoinHandle;
 use anyhow::Result;
 use ffmpeg_audio::HttpCancelHandle;
 use parking_lot::Mutex;
-use rodio::Player as RodioPlayer;
-
 use crate::audio_output::AudioOutput;
 use crate::decoder;
 use crate::equalizer::Equalizer;
 use crate::metadata::AudioMetadata;
+use crate::playback::PlaybackHandle;
 use crate::shared::Shared;
 use crate::source::DecoderSource;
 use crate::tempo::StretchProcessor;
@@ -98,8 +97,8 @@ impl InnerPlayer {
         if let Some(ref shared) = self.shared {
             shared.stop();
         }
-        if let Some(sink) = self.sink.take() {
-            sink.stop();
+        if let Some(playback) = self.playback.take() {
+            playback.stop();
         }
         if let Some(ref shared) = self.shared {
             shared.drain_buffer();
@@ -171,8 +170,8 @@ impl InnerPlayer {
         if let Some(ref shared) = self.shared {
             shared.stop();
         }
-        if let Some(sink) = self.sink.take() {
-            sink.stop();
+        if let Some(playback) = self.playback.take() {
+            playback.stop();
         }
 
         let old_threads = OldThreads {
@@ -233,27 +232,21 @@ impl InnerPlayer {
         if let Some(out) = output {
             self.output = Some(out);
         }
-        let sink = {
-            let output = self.ensure_output(None)?;
-            Arc::new(RodioPlayer::connect_new(output.mixer()))
-        };
-
         let sample_rate = shared.sample_rate();
-        let decoder_source = DecoderSource::new(
+        let reader = DecoderSource::new(
             Arc::clone(&shared),
             Arc::clone(&self.fft),
             sample_rate,
             self.audio_channels,
         );
-
         let was_paused = self.state == PlayerState::Paused;
-        sink.set_volume(self.target_volume);
-        if was_paused {
-            sink.pause();
-        }
-        sink.append(decoder_source);
+        let volume = self.target_volume;
+        let playback = {
+            let output = self.ensure_output(None)?;
+            Arc::new(PlaybackHandle::attach(output, reader, volume, was_paused))
+        };
 
-        self.sink = Some(sink);
+        self.playback = Some(playback);
         self.shared = Some(shared);
         self.decoder_thread = Some(handle);
         self.audio_sample_rate = sample_rate;
@@ -311,25 +304,19 @@ impl InnerPlayer {
         self.pending_load_handle = cancel;
         self.output = Some(output);
 
-        let sink = {
-            let output = self.ensure_output(None)?;
-            Arc::new(RodioPlayer::connect_new(output.mixer()))
-        };
-
-        let decoder_source = DecoderSource::new(
+        let reader = DecoderSource::new(
             Arc::clone(&shared),
             Arc::clone(&self.fft),
             metadata.sample_rate,
             metadata.channels,
         );
+        let volume = self.target_volume;
+        let playback = {
+            let output = self.ensure_output(None)?;
+            Arc::new(PlaybackHandle::attach(output, reader, volume, !auto_play))
+        };
 
-        sink.set_volume(self.target_volume);
-        if !auto_play {
-            sink.pause();
-        }
-        sink.append(decoder_source);
-
-        self.sink = Some(sink);
+        self.playback = Some(playback);
         self.shared = Some(shared);
         self.decoder_thread = Some(decode_handle);
         self.seek_base = 0.0;

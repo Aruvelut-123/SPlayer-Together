@@ -11,6 +11,7 @@ mod fft;
 mod logger;
 mod loudness;
 mod metadata;
+mod playback;
 mod player;
 mod priority;
 mod scanner;
