@@ -132,7 +132,7 @@ onMounted(async () => {
   developers.value = [
     {
       login: "Baymaxawa",
-      htmlUrl: "https://github.com/Baymaxawa",
+      htmlUrl: "https://github.com/Aruvelut-123",
       avatar: "https://avatars.githubusercontent.com/u/87363371?v=4&size=64",
     },
   ];

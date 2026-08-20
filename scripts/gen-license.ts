@@ -13,6 +13,7 @@ const out = path.join(outDir, "license.txt");
 
 const mdToText = (md: string): string => {
   return md
+    .replace(/<!--.*?-->/gs, "")
     .replace(/<br\s*\/?>/gi, "")
     .replace(/^#{1,6}\s+/gm, "")
     .replace(/\*\*(.+?)\*\*/g, "$1")

@@ -21,8 +21,8 @@ const SHAREABLE_SOURCES = new Set(["netease", "qqmusic", "kugou"]);
 
 /** 推送 / 拉取间隔（毫秒），更快的间隔让切歌同步更及时 */
 const SYNC_INTERVAL_MS = 500;
-/** 漂移纠正阈值，超过则 seek 对齐，越小同步越紧 */
-const DRIFT_THRESHOLD_MS = 300;
+/** 漂移纠正阈值，超过则 seek 对齐。越大越不频繁 seek，减少卡顿 */
+const DRIFT_THRESHOLD_MS = 800;
 /** 加载失败冷却期（毫秒），同一首歌在此期间不重复加载 */
 const LOAD_FAIL_COOLDOWN_MS = 8_000;
 
@@ -404,7 +404,7 @@ export const useListenTogetherStore = defineStore("listenTogether", () => {
     if (myTrack?.id === sharedTrack.id) {
       if (s.state === "playing") {
         const target = expectedPosition(s);
-        if (Math.abs(status.position - target) > DRIFT_THRESHOLD_MS) await player.seek(target);
+        if (Math.abs(status.position - target) > DRIFT_THRESHOLD_MS) await player.seek(target, true);
         if (!status.isPlaying) await player.play();
       } else if (status.isPlaying) {
         await player.pause();
@@ -488,7 +488,7 @@ export const useListenTogetherStore = defineStore("listenTogether", () => {
 
     // 进度对齐
     const target = expectedPosition(s);
-    if (target > 500) await player.seek(target);
+    if (target > 500) await player.seek(target, true);
     if (s.state === "playing") {
       if (!status.isPlaying) await player.play();
     } else if (status.isPlaying) {
@@ -510,11 +510,17 @@ export const useListenTogetherStore = defineStore("listenTogether", () => {
   /** 启动同步定时器 */
   const startTimers = (): void => {
     stopTimers();
-    syncTimer = window.setInterval(() => void syncState(), SYNC_INTERVAL_MS);
+    // 周期任务：拉取快照 + host 主动推心跳与位置
+    syncTimer = window.setInterval(() => {
+      void syncState();
+      if (role.value === "host") {
+        void pushState(); // host 周期性推位置（心跳 + 位置同步），服务器据此刷新 host_last_push
+      }
+    }, SYNC_INTERVAL_MS);
     // 首次同步
     void syncState();
-    // 主动推送一次（host 或控制器）
-    if (role.value === "host" || permFor("allowGuestControl")) {
+    // 首次推送（host 立即推，guest 不主动推，跟随后等主动操作推）
+    if (role.value === "host") {
       void pushState(true);
       void pushQueue();
     }
@@ -675,7 +681,16 @@ export const useListenTogetherStore = defineStore("listenTogether", () => {
     },
   );
 
+  // 监听用户主动 seek：有控制权时立即推位置抢权威
+  const onPlayerSeek = (): void => {
+    if (!roomActive.value) return;
+    if (role.value !== "host" && !permFor("allowGuestControl")) return;
+    void pushState(true);
+  };
+  window.addEventListener("player:seek", onPlayerSeek);
+
   onScopeDispose(() => {
+    window.removeEventListener("player:seek", onPlayerSeek);
     void leaveRoom();
   });
 

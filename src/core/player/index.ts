@@ -493,8 +493,9 @@ export const isSeeking = (): boolean => seekTarget !== null;
 /**
  * 跳转到指定播放位置
  * @param posMs - 目标位置（毫秒）
+ * @param suppressNotify - 是否抑制 player:seek 事件（一起听漂移纠正等内部 seek 使用）
  */
-export const seek = async (posMs: number): Promise<void> => {
+export const seek = async (posMs: number, suppressNotify = false): Promise<void> => {
   const status = useStatusStore();
   // 歌曲加载中 seek 无意义：引擎此刻没有可 seek 的解码线程，
   // 且 seekTarget 残留会让加载完成后的 position 推送被持续丢弃
@@ -506,6 +507,11 @@ export const seek = async (posMs: number): Promise<void> => {
 
   // 设置 seek 目标，屏蔽旧 position 推送
   seekTarget = posMs;
+
+  // 通知一起听：用户主动 seek（漂移纠正等内部 seek 不广播，避免回推）
+  if (!suppressNotify) {
+    window.dispatchEvent(new CustomEvent("player:seek", { detail: posMs }));
+  }
 
   const result = await window.api.player.seek(posMs);
   if (result.success) {
