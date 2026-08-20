@@ -11,7 +11,13 @@ use crate::playback::PlaybackHandle;
 const FADE_STEPS: u32 = 20;
 
 /// 可取消的渐变：在独立线程中逐步调整音量，cancel 为 true 时提前退出
-fn fade_volume(playback: &PlaybackHandle, from: f32, to: f32, duration_ms: u64, cancel: &AtomicBool) {
+fn fade_volume(
+    playback: &PlaybackHandle,
+    from: f32,
+    to: f32,
+    duration_ms: u64,
+    cancel: &AtomicBool,
+) {
     if duration_ms == 0 {
         playback.set_volume(to);
         return;

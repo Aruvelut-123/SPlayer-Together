@@ -104,10 +104,7 @@ impl Drop for AudioOutput {
 /// 设备持久化选择键：cpal 0.18 起 `Device::name()` 并入 `description().name()`，
 /// 沿用该值以避免升级后已有配置失效
 fn persisted_device_name(device: &cpal::Device) -> Option<String> {
-    device
-        .description()
-        .ok()
-        .map(|desc| desc.name().to_owned())
+    device.description().ok().map(|desc| desc.name().to_owned())
 }
 
 /// 枚举所有输出设备，返回 `(name, is_default)` 列表
@@ -153,9 +150,7 @@ fn open_device(
             .context("枚举输出设备失败")?
             .find(|device| persisted_device_name(device).as_deref() == Some(name))
             .with_context(|| format!("输出设备 '{name}' 不存在"))?,
-        None => host
-            .default_output_device()
-            .context("没有可用的输出设备")?,
+        None => host.default_output_device().context("没有可用的输出设备")?,
     };
     let config = match requested_sample_rate {
         Some(rate) => {
@@ -165,47 +160,46 @@ fn open_device(
                 .ok()
                 .map(|config| config.sample_format());
             let default_channels = default_config.as_ref().ok().map(|config| config.channels());
-            let at_rate = device
-                .supported_output_configs()
-                .ok()
-                .and_then(|configs| {
-                    let configs: Vec<_> = configs.collect();
-                    configs
-                        .iter()
-                        .copied()
-                        .find(|range| {
+            let at_rate = device.supported_output_configs().ok().and_then(|configs| {
+                let configs: Vec<_> = configs.collect();
+                configs
+                    .iter()
+                    .copied()
+                    .find(|range| {
+                        range.min_sample_rate() <= rate
+                            && rate <= range.max_sample_rate()
+                            && Some(range.sample_format()) == default_format
+                            && Some(range.channels()) == default_channels
+                    })
+                    .or_else(|| {
+                        configs.iter().copied().find(|range| {
                             range.min_sample_rate() <= rate
                                 && rate <= range.max_sample_rate()
                                 && Some(range.sample_format()) == default_format
+                        })
+                    })
+                    .or_else(|| {
+                        configs.iter().copied().find(|range| {
+                            range.min_sample_rate() <= rate
+                                && rate <= range.max_sample_rate()
                                 && Some(range.channels()) == default_channels
                         })
-                        .or_else(|| {
-                            configs.iter().copied().find(|range| {
-                                range.min_sample_rate() <= rate
-                                    && rate <= range.max_sample_rate()
-                                    && Some(range.sample_format()) == default_format
-                            })
+                    })
+                    .or_else(|| {
+                        configs.iter().copied().find(|range| {
+                            range.min_sample_rate() <= rate && rate <= range.max_sample_rate()
                         })
-                        .or_else(|| {
-                            configs.iter().copied().find(|range| {
-                                range.min_sample_rate() <= rate
-                                    && rate <= range.max_sample_rate()
-                                    && Some(range.channels()) == default_channels
-                            })
-                        })
-                        .or_else(|| {
-                            configs.iter().copied().find(|range| {
-                                range.min_sample_rate() <= rate && rate <= range.max_sample_rate()
-                            })
-                        })
-                        .map(|range| range.with_sample_rate(rate))
-                });
+                    })
+                    .map(|range| range.with_sample_rate(rate))
+            });
             match at_rate {
                 Some(config) => config,
                 None => default_config.context("读取输出设备配置失败")?,
             }
         }
-        None => device.default_output_config().context("读取输出设备配置失败")?,
+        None => device
+            .default_output_config()
+            .context("读取输出设备配置失败")?,
     };
     Ok((device, config))
 }

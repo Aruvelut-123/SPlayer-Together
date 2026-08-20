@@ -75,10 +75,7 @@ impl InnerPlayer {
     /// 给 NAPI 绑定层 async load 用：原子地发出停止信号 + take 所有旧线程 handle
     /// 调用方负责在工作线程 join 这些 handle，主线程持锁阶段不阻塞
     /// 返回旧线程集合与本次 load 的 token（token 用于校验本次 load 是否已被取代）
-    pub fn take_for_async_load(
-        &mut self,
-        handle: HttpCancelHandle,
-    ) -> (OldThreads, u64) {
+    pub fn take_for_async_load(&mut self, handle: HttpCancelHandle) -> (OldThreads, u64) {
         // 自增 token：本次 load 的标识；任何并发的更早 commit_loaded 比较时会发现不匹配
         let token = self.load_token.fetch_add(1, Ordering::AcqRel) + 1;
         if let Some(previous) = self.pending_load_handle.replace(handle) {

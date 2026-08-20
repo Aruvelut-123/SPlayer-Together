@@ -8,9 +8,7 @@ use napi_derive::napi;
 use parking_lot::Mutex;
 use tracing::{info, warn};
 
-use crate::player::{
-    self, InnerPlayer, PlayerEvent, PlayerState, SeekTake,
-};
+use crate::player::{self, InnerPlayer, PlayerEvent, PlayerState, SeekTake};
 use crate::{audio_output, decoder, device_watcher};
 
 use super::IntoNapiResult;
