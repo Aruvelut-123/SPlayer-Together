@@ -33,7 +33,7 @@ pub struct Shared {
     decode_eof: AtomicBool,
     output_eof: AtomicBool,
     is_stopping: AtomicBool,
-    /// 已被输出回调消费的交错采样数（含所有声道，即 stereo 时每帧 +2）
+    /// 已被输出回调消费的交错采样数（包含所有声道）
     samples_consumed: AtomicU64,
     /// 输出采样率（创建时确定，不可变）
     sample_rate: u32,
@@ -104,6 +104,11 @@ impl Shared {
     /// 输出采样率
     pub fn sample_rate(&self) -> u32 {
         self.sample_rate
+    }
+
+    /// 播放输出声道数
+    pub fn channels(&self) -> u16 {
+        self.channels
     }
 
     /// 设置归一化开关

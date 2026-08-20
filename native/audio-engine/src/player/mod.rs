@@ -34,10 +34,6 @@ pub struct InnerPlayer {
     /// 解码线程句柄，join 后可回收 DecoderData 复用于 seek
     decoder_thread: Option<JoinHandle<decoder::DecoderData>>,
     fft: Arc<FftAnalyzer>,
-    /// 当前音频的采样率（seek 重建 DecoderSource 时需要）
-    audio_sample_rate: u32,
-    /// 当前音频的声道数
-    audio_channels: u16,
     /// 当前音频的时长（秒）
     audio_duration: f64,
     /// 原始封面数据缓存（load 时提取，getCoverRaw 时返回，避免重复打开文件）
@@ -138,6 +134,14 @@ impl InnerPlayer {
             .unwrap_or(decoder::DEFAULT_TARGET_SAMPLE_RATE)
     }
 
+    /// 当前实际输出流声道数
+    pub fn output_channels(&self) -> u16 {
+        self.output
+            .as_ref()
+            .map(AudioOutput::channels)
+            .unwrap_or(decoder::DEFAULT_OUTPUT_CHANNELS)
+    }
+
     pub fn new() -> Result<Self> {
         // 延迟初始化：构造时不要求有音频设备，load 时再打开
         let output = None;
@@ -150,8 +154,6 @@ impl InnerPlayer {
             shared: None,
             decoder_thread: None,
             fft: Arc::new(FftAnalyzer::new()),
-            audio_sample_rate: 0,
-            audio_channels: 0,
             audio_duration: 0.0,
             cover_raw: None,
             state: PlayerState::Idle,
@@ -170,9 +172,12 @@ impl InnerPlayer {
             fft_timer_handle: None,
             selected_device_name: None,
             normalization_enabled: false,
-            equalizer: Arc::new(Mutex::new(Equalizer::new(initial_rate))),
+            equalizer: Arc::new(Mutex::new(Equalizer::new(
+                initial_rate,
+                decoder::DEFAULT_OUTPUT_CHANNELS,
+            ))),
             tempo: Arc::new(Mutex::new(StretchProcessor::new(
-                decoder::TARGET_CHANNELS,
+                decoder::DEFAULT_OUTPUT_CHANNELS,
                 initial_rate,
             ))),
             load_token: Arc::new(AtomicU64::new(0)),

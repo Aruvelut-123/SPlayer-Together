@@ -53,6 +53,8 @@ pub struct SeekTake {
     pub was_playing: bool,
     /// 当前输出设备采样率（新 Shared 沿用，与复用的重采样器目标一致）
     pub output_sample_rate: u32,
+    /// 当前输出设备声道数
+    pub output_channels: u16,
     /// 本次 seek 的 token，commit_seeked 时比对最新值，不一致说明已被新 load/seek/stop 取代
     pub token: u64,
     /// 解码侧 DSP 共享实例
@@ -198,6 +200,7 @@ impl InnerPlayer {
             current_source: self.current_source.clone(),
             was_playing: self.state == PlayerState::Playing,
             output_sample_rate: self.output_sample_rate(),
+            output_channels: self.output_channels(),
             token,
             equalizer: Arc::clone(&self.equalizer),
             tempo: Arc::clone(&self.tempo),
@@ -227,13 +230,7 @@ impl InnerPlayer {
         if let Some(out) = output {
             self.output = Some(out);
         }
-        let sample_rate = shared.sample_rate();
-        let reader = DecoderSource::new(
-            Arc::clone(&shared),
-            Arc::clone(&self.fft),
-            sample_rate,
-            self.audio_channels,
-        );
+        let reader = DecoderSource::new(Arc::clone(&shared), Arc::clone(&self.fft));
         let was_paused = self.state == PlayerState::Paused;
         let volume = self.target_volume;
         let playback = {
@@ -244,7 +241,6 @@ impl InnerPlayer {
         self.playback = Some(playback);
         self.shared = Some(shared);
         self.decoder_thread = Some(handle);
-        self.audio_sample_rate = sample_rate;
         self.seek_base = position_secs;
 
         if was_paused {
@@ -299,12 +295,7 @@ impl InnerPlayer {
         self.pending_load_handle = cancel;
         self.output = Some(output);
 
-        let reader = DecoderSource::new(
-            Arc::clone(&shared),
-            Arc::clone(&self.fft),
-            metadata.sample_rate,
-            metadata.channels,
-        );
+        let reader = DecoderSource::new(Arc::clone(&shared), Arc::clone(&self.fft));
         let volume = self.target_volume;
         let playback = {
             let output = self.ensure_output(None)?;
@@ -317,8 +308,6 @@ impl InnerPlayer {
         self.seek_base = 0.0;
         self.current_source = Some(source.to_string());
 
-        self.audio_sample_rate = metadata.sample_rate;
-        self.audio_channels = metadata.channels;
         self.audio_duration = metadata.duration_secs;
         self.cover_raw = metadata.cover_raw.take();
 

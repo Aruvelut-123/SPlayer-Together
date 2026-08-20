@@ -20,12 +20,9 @@ pub struct DecoderSampleReader {
 }
 
 impl DecoderSampleReader {
-    pub fn new(
-        shared: Arc<Shared>,
-        fft: Arc<FftAnalyzer>,
-        sample_rate: u32,
-        channels: u16,
-    ) -> Self {
+    pub fn new(shared: Arc<Shared>, fft: Arc<FftAnalyzer>) -> Self {
+        let sample_rate = shared.sample_rate();
+        let channels = shared.channels();
         Self {
             shared,
             fft,
@@ -117,7 +114,7 @@ mod tests {
             source_sample_count: 4,
         });
 
-        let mut source = DecoderSource::new(shared, Arc::new(FftAnalyzer::new()), 48_000, 2);
+        let mut source = DecoderSource::new(shared, Arc::new(FftAnalyzer::new()));
 
         assert!((source.next().unwrap() - 0.1).abs() < 1e-6);
         assert!((source.next().unwrap() + 0.1).abs() < 1e-6);
@@ -133,8 +130,7 @@ mod tests {
             fft_samples: vec![],
             source_sample_count: 8,
         });
-        let mut source =
-            DecoderSource::new(Arc::clone(&shared), Arc::new(FftAnalyzer::new()), 1000, 2);
+        let mut source = DecoderSource::new(Arc::clone(&shared), Arc::new(FftAnalyzer::new()));
 
         assert_eq!(source.next(), Some(0.25));
         assert!((shared.consumed_position() - 0.004).abs() < f64::EPSILON);
@@ -148,8 +144,7 @@ mod tests {
             fft_samples: Vec::new(),
             source_sample_count: 8,
         });
-        let mut source =
-            DecoderSource::new(Arc::clone(&shared), Arc::new(FftAnalyzer::new()), 1000, 2);
+        let mut source = DecoderSource::new(Arc::clone(&shared), Arc::new(FftAnalyzer::new()));
 
         assert_eq!(source.next(), Some(0.0));
         assert!((shared.consumed_position() - 0.004).abs() < f64::EPSILON);
@@ -158,8 +153,7 @@ mod tests {
     #[test]
     fn returns_short_silence_when_decoder_temporarily_underruns() {
         let shared = Shared::new(1000, 2);
-        let mut source =
-            DecoderSource::new(Arc::clone(&shared), Arc::new(FftAnalyzer::new()), 1000, 2);
+        let mut source = DecoderSource::new(Arc::clone(&shared), Arc::new(FftAnalyzer::new()));
 
         assert_eq!(source.next(), Some(0.0));
         shared.push_output(AudioChunk {

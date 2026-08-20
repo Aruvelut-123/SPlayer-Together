@@ -204,6 +204,7 @@ impl AudioPlayer {
                 current_source,
                 was_playing,
                 output_sample_rate,
+                output_channels: _,
                 token,
                 equalizer,
                 tempo,
@@ -217,25 +218,16 @@ impl AudioPlayer {
         let outcome: ReinitOutcome = tokio::task::spawn_blocking(move || {
             let decoder_data = old_threads.join_aux().and_then(|h| h.join().ok());
 
-            // 以原输出采样率重建：DecoderData 的重采样器目标与之一致
-            let output =
-                match audio_output::AudioOutput::new(
-                    device_name.as_deref(),
-                    Some(output_sample_rate),
-                    output_generation,
-                    on_failure,
-                ) {
-                    Ok(output) => output,
-                    Err(error) => return ReinitOutcome::OutputFailed { error },
-                };
-            // 设备配置变化导致实际采样率与重采样目标不一致时无法原地恢复，回退到完整 load
-            if output.sample_rate() != output_sample_rate {
-                return ReinitOutcome::Reload {
-                    source: current_source,
-                    was_playing,
-                };
-            }
-
+            // 优先沿用原输出采样率；设备回退到其它格式时在下方重建播放重采样器
+            let output = match audio_output::AudioOutput::new(
+                device_name.as_deref(),
+                Some(output_sample_rate),
+                output_generation,
+                on_failure,
+            ) {
+                Ok(output) => output,
+                Err(error) => return ReinitOutcome::OutputFailed { error },
+            };
             let Some(mut decoder_data) = decoder_data else {
                 return ReinitOutcome::Reload {
                     source: current_source,
@@ -248,14 +240,26 @@ impl AudioPlayer {
                     was_playing,
                 };
             }
+            if let Err(error) =
+                decoder_data.reconfigure_player_output(output.sample_rate(), output.channels())
+            {
+                warn!(error = %error, "输出格式变化后重建重采样器失败");
+                return ReinitOutcome::Reload {
+                    source: current_source,
+                    was_playing,
+                };
+            }
 
-            let shared =
-                crate::shared::Shared::new(output.sample_rate(), crate::decoder::TARGET_CHANNELS);
+            let shared = crate::shared::Shared::new(output.sample_rate(), output.channels());
             shared.set_normalization_enabled(normalization_enabled);
             shared.set_normalization_gain(normalization_gain);
-            equalizer.lock().set_sample_rate(output.sample_rate());
+            equalizer
+                .lock()
+                .set_output_format(output.sample_rate(), output.channels());
             equalizer.lock().reset_state();
-            tempo.lock().set_sample_rate(output.sample_rate());
+            tempo
+                .lock()
+                .set_output_format(output.sample_rate(), output.channels());
             tempo.lock().reset();
             let handle = match crate::decoder::resume_decode(
                 decoder_data,
@@ -486,11 +490,15 @@ impl AudioPlayer {
                 output_generation,
                 failure_callback,
             )?;
-            let shared = Shared::new(output.sample_rate(), decoder::TARGET_CHANNELS);
+            let shared = Shared::new(output.sample_rate(), output.channels());
             shared.set_normalization_enabled(normalization_enabled);
-            equalizer.lock().set_sample_rate(output.sample_rate());
+            equalizer
+                .lock()
+                .set_output_format(output.sample_rate(), output.channels());
             equalizer.lock().reset_state();
-            tempo.lock().set_sample_rate(output.sample_rate());
+            tempo
+                .lock()
+                .set_output_format(output.sample_rate(), output.channels());
             tempo.lock().reset();
             let (metadata, decode_handle, cancel) =
                 decoder::start_prepared_decode(prepared, Arc::clone(&shared), equalizer, tempo)?;
@@ -625,6 +633,7 @@ impl AudioPlayer {
             current_source,
             was_playing,
             output_sample_rate,
+            output_channels,
             token,
             equalizer,
             tempo,
@@ -640,12 +649,16 @@ impl AudioPlayer {
                 return SeekOutcome::Fallback;
             }
             // 沿用实际输出流采样率，与复用的 DecoderData 重采样器目标一致
-            let shared = Shared::new(output_sample_rate, decoder::TARGET_CHANNELS);
+            let shared = Shared::new(output_sample_rate, output_channels);
             shared.set_normalization_enabled(normalization_enabled);
             shared.set_normalization_gain(normalization_gain);
-            equalizer.lock().set_sample_rate(output_sample_rate);
+            equalizer
+                .lock()
+                .set_output_format(output_sample_rate, output_channels);
             equalizer.lock().reset_state();
-            tempo.lock().set_sample_rate(output_sample_rate);
+            tempo
+                .lock()
+                .set_output_format(output_sample_rate, output_channels);
             tempo.lock().reset();
             let handle =
                 match decoder::resume_decode(decoder_data, Arc::clone(&shared), equalizer, tempo) {

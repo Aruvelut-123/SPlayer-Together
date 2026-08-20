@@ -70,6 +70,11 @@ impl AudioOutput {
         self.config.sample_rate()
     }
 
+    /// 实际输出流声道数
+    pub fn channels(&self) -> u16 {
+        self.config.channels()
+    }
+
     /// 按本配置创建一次播放的输出流，实时回调从 `source` 拉取样本。
     /// 调用方持有返回的 `Stream`，直到本次播放结束。
     pub(crate) fn build_stream(
@@ -159,6 +164,7 @@ fn open_device(
                 .as_ref()
                 .ok()
                 .map(|config| config.sample_format());
+            let default_channels = default_config.as_ref().ok().map(|config| config.channels());
             let at_rate = device
                 .supported_output_configs()
                 .ok()
@@ -171,6 +177,21 @@ fn open_device(
                             range.min_sample_rate() <= rate
                                 && rate <= range.max_sample_rate()
                                 && Some(range.sample_format()) == default_format
+                                && Some(range.channels()) == default_channels
+                        })
+                        .or_else(|| {
+                            configs.iter().copied().find(|range| {
+                                range.min_sample_rate() <= rate
+                                    && rate <= range.max_sample_rate()
+                                    && Some(range.sample_format()) == default_format
+                            })
+                        })
+                        .or_else(|| {
+                            configs.iter().copied().find(|range| {
+                                range.min_sample_rate() <= rate
+                                    && rate <= range.max_sample_rate()
+                                    && Some(range.channels()) == default_channels
+                            })
                         })
                         .or_else(|| {
                             configs.iter().copied().find(|range| {
