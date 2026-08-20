@@ -670,8 +670,8 @@ const api = {
     install: () => ipcRenderer.invoke("update:install"),
     // 打开 Releases 下载页（mac / 兜底）
     openDownloadPage: () => ipcRenderer.invoke("update:openDownloadPage"),
-    // 获取服务器提供的多版本更新日志
-    getChangelog: () => ipcRenderer.invoke("update:changelog"),
+    // 获取服务器提供的按版本更新日志
+    getChangelog: (version: string) => ipcRenderer.invoke("update:changelog", version),
     // 订阅更新事件
     onEvent: (callback: (event: UpdateEvent) => void) => subscribe("update:event", callback),
   },

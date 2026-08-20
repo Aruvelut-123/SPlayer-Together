@@ -62,6 +62,9 @@ DEFAULT_CONFIG: dict[str, Any] = {
 # 更新包静态目录（setup/portable exe 放这里供 /downloads 下载）
 DOWNLOADS_DIR = BASE_DIR / "downloads"
 DOWNLOADS_DIR.mkdir(exist_ok=True)
+# 更新日志按版本文件目录
+CHANGELOGS_DIR = BASE_DIR / "changelogs"
+CHANGELOGS_DIR.mkdir(exist_ok=True)
 
 
 def now_ms() -> int:
@@ -178,7 +181,9 @@ def valid_machine_key(key: str) -> bool:
 
 
 def admin_authed(request: web.Request) -> bool:
-    return request.headers.get("X-Admin-Token", "") in admin_tokens
+    """管理员认证：优先读 X-Admin-Token 请求头，其次读 spt_admin_token Cookie"""
+    token = request.headers.get("X-Admin-Token", "") or request.cookies.get("spt_admin_token", "")
+    return token in admin_tokens
 
 
 def room_auth(request: web.Request) -> tuple[Room, str] | None:
@@ -243,6 +248,23 @@ async def handle_update(request: web.Request) -> web.Response:
             "size": int(cfg.get("size", 0) or 0),
         }
     )
+
+
+# --------------------------------------------------------------------------
+# 更新日志（按版本文件）
+# --------------------------------------------------------------------------
+
+
+async def handle_changelog(request: web.Request) -> web.Response:
+    """客户端按版本获取更新日志：changelogs/<version>.md，找不到返回 404"""
+    version = request.query.get("version", "").strip()
+    if not version or "/" in version or "\\" in version or ".." in version:
+        return web.json_response({"error": "invalid version"}, status=400)
+    path = CHANGELOGS_DIR / f"{version}.md"
+    if not path.is_file():
+        return web.json_response({"error": "changelog not found"}, status=404)
+    content = path.read_text(encoding="utf-8")
+    return web.Response(text=content.rstrip("\n") + "\n", content_type="text/markdown")
 
 
 # --------------------------------------------------------------------------
@@ -477,14 +499,23 @@ async def handle_admin_login(request: web.Request) -> web.Response:
         token = secrets.token_hex(32)
         admin_tokens.add(token)
         log.info("管理员登录成功：%s", username)
-        return web.json_response({"token": token})
+        resp = web.json_response({"token": token})
+        # 设置 cookie（24h 过期），httponly 防止 JS 读取，WebUI 同源请求自动携带
+        resp.set_cookie(
+            "spt_admin_token", token,
+            max_age=86400, httponly=True, samesite="lax", path="/",
+        )
+        return resp
     log.warning("管理员登录失败：%s", username)
     return web.json_response({"error": "invalid credentials"}, status=401)
 
 
 async def handle_admin_logout(request: web.Request) -> web.Response:
-    admin_tokens.discard(request.headers.get("X-Admin-Token", ""))
-    return web.json_response({"ok": True})
+    token = request.headers.get("X-Admin-Token", "") or request.cookies.get("spt_admin_token", "")
+    admin_tokens.discard(token)
+    resp = web.json_response({"ok": True})
+    resp.del_cookie("spt_admin_token", path="/")
+    return resp
 
 
 async def handle_admin_reload(request: web.Request) -> web.Response:
@@ -570,6 +601,7 @@ def build_app() -> web.Application:
     app.router.add_get("/admin", handle_admin_page)
     app.router.add_post("/api/auth", handle_auth)
     app.router.add_get("/api/update", handle_update)
+    app.router.add_get("/api/changelog", handle_changelog)
     app.router.add_static("/downloads", DOWNLOADS_DIR, show_index=True)
     app.router.add_post("/api/rooms", handle_create)
     app.router.add_post("/api/rooms/{code}/join", handle_join)

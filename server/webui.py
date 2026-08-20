@@ -131,27 +131,24 @@ PAGE_HTML = """<!DOCTYPE html>
   </div>
 
   <script>
-    const tokenKey = "spt_admin_token";
-    let token = localStorage.getItem(tokenKey) || "";
-
     const $ = (id) => document.getElementById(id);
     const loginView = $("loginView");
     const adminView = $("adminView");
     const logoutBtn = $("logoutBtn");
     const reloadBtn = $("reloadBtn");
 
+    let loggedIn = false;
+
     const api = async (path, options = {}) => {
       const res = await fetch(path, {
         ...options,
         headers: {
           "Content-Type": "application/json",
-          "X-Admin-Token": token,
           ...(options.headers || {}),
         },
       });
       if (res.status === 401 && path !== "/api/admin/login") {
-        token = "";
-        localStorage.removeItem(tokenKey);
+        loggedIn = false;
         showLogin();
         throw new Error("unauthorized");
       }
@@ -159,6 +156,7 @@ PAGE_HTML = """<!DOCTYPE html>
     };
 
     const showAdmin = () => {
+      loggedIn = true;
       loginView.classList.add("hidden");
       adminView.classList.remove("hidden");
       logoutBtn.classList.remove("hidden");
@@ -169,6 +167,7 @@ PAGE_HTML = """<!DOCTYPE html>
     };
 
     const showLogin = () => {
+      loggedIn = false;
       loginView.classList.remove("hidden");
       adminView.classList.add("hidden");
       logoutBtn.classList.add("hidden");
@@ -264,15 +263,13 @@ PAGE_HTML = """<!DOCTYPE html>
       const password = $("password").value;
       $("loginError").textContent = "";
       try {
+        // same-origin 自动携带 cookie，无需手动保存 token
         const res = await fetch("/api/admin/login", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ username, password }),
         });
         if (res.ok) {
-          const data = await res.json();
-          token = data.token;
-          localStorage.setItem(tokenKey, token);
           $("password").value = "";
           showAdmin();
         } else {
@@ -306,23 +303,18 @@ PAGE_HTML = """<!DOCTYPE html>
 
     logoutBtn.addEventListener("click", async () => {
       try { await api("/api/admin/logout", { method: "POST" }); } catch (e) { /* 忽略 */ }
-      token = "";
-      localStorage.removeItem(tokenKey);
       showLogin();
     });
 
-    if (token) {
-      (async () => {
-        try {
-          const res = await api("/api/admin/keys");
-          if (res.ok) showAdmin();
-        } catch (e) { showLogin(); }
-      })();
-    } else {
-      showLogin();
-    }
+    // 页面加载时用请求头校验 cookie 是否有效（401 会跳转回登录视图）
+    (async () => {
+      try {
+        const res = await api("/api/admin/keys");
+        if (res.ok) showAdmin();
+      } catch (e) { showLogin(); }
+    })();
 
-    setInterval(() => { if (token) { refreshRooms(); } }, 10000);
+    setInterval(() => { if (loggedIn) { refreshRooms(); } }, 10000);
   </script>
 </body>
 </html>

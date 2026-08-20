@@ -7,5 +7,5 @@ export const registerUpdateIpc = (): void => {
   ipcMain.handle("update:download", () => updater.downloadUpdate());
   ipcMain.handle("update:install", () => updater.quitAndInstall());
   ipcMain.handle("update:openDownloadPage", () => updater.openDownloadPage());
-  ipcMain.handle("update:changelog", () => updater.fetchChangelog());
+  ipcMain.handle("update:changelog", (_event, version: string) => updater.fetchChangelog(version));
 };

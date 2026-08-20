@@ -16,6 +16,7 @@ import type { UpdateChannel } from "@shared/types/settings";
 /** 更新服务器（与授权 / 中继服务器共用） */
 const UPDATE_SERVER = "http://47.122.127.107:8000";
 const UPDATE_API = `${UPDATE_SERVER}/api/update`;
+const CHANGELOG_API = `${UPDATE_SERVER}/api/changelog`;
 
 /** 是否支持内置下载安装（AppX 由商店管理，Mac/Portable 无自动安装能力） */
 const canSelfInstall = !isMac && !isPortable && !isAppX;
@@ -94,13 +95,14 @@ const runCheck = async (manual: boolean): Promise<void> => {
   }
 };
 
-/** 获取服务器提供的多版本更新日志（Markdown，按版本分组），失败返回 null */
-export const fetchChangelog = async (): Promise<{ version: string; changelog: string } | null> => {
+/** 获取服务器提供的按版本更新日志，失败返回 null */
+export const fetchChangelog = async (version: string): Promise<{ version: string; changelog: string } | null> => {
   try {
-    const res = await fetch(UPDATE_API, { signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
+    const url = `${CHANGELOG_API}?version=${encodeURIComponent(version)}`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const manifest = (await res.json()) as UpdateManifest;
-    return { version: manifest.version, changelog: manifest.notes ?? "" };
+    const text = await res.text();
+    return { version, changelog: text };
   } catch (error) {
     updaterLog.error("获取更新日志失败", error);
     return null;

@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { getContributors, type Contributor } from "@/apis/github";
 import { marked } from "marked";
-import { getChangelog } from "@/utils/changelog";
 import { useCopyText } from "@/composables/useCopyText";
 import { useUpdateStore } from "@/stores/update";
 import { openExternal } from "@/utils/url";
@@ -109,10 +108,9 @@ const openChangelog = async (): Promise<void> => {
   changelogOpen.value = true;
   changelogLoading.value = true;
   try {
-    const remote = await window.api.update.getChangelog();
+    const remote = await window.api.update.getChangelog(APP_VERSION);
     if (remote?.changelog) {
-      const raw = getChangelog(remote.changelog, APP_VERSION);
-      changelogHtml.value = raw ? (marked.parse(raw, { async: false }) as string) : "";
+      changelogHtml.value = marked.parse(remote.changelog, { async: false }) as string;
     }
   } catch {
     changelogHtml.value = "";
