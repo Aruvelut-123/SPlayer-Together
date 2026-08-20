@@ -618,7 +618,8 @@ async def handle_admin_keys_remove(request: web.Request) -> web.Response:
 async def handle_admin_rooms_list(request: web.Request) -> web.Response:
     if not admin_authed(request):
         return web.json_response({"error": "unauthorized"}, status=401)
-    return web.json_response({"rooms": [r.admin_view() for r in rooms.values()]})
+    # 过滤已关闭的房间，已解散的房间在 WebUI 中立即消失（client 端仍能收到 closed 通知）
+    return web.json_response({"rooms": [r.admin_view() for r in rooms.values() if not r.closed]})
 
 
 async def handle_admin_room_dissolve(request: web.Request) -> web.Response:
