@@ -1,5 +1,5 @@
 use std::cell::{Cell, RefCell};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 use std::sync::mpsc::{self, SyncSender};
 use std::thread::{self, JoinHandle};
@@ -10,6 +10,7 @@ use pipewire::{
     context::ContextRc,
     main_loop::MainLoopRc,
     metadata::{Metadata, MetadataListener},
+    node::{Node, NodeChangeMask, NodeListener},
     registry::RegistryRc,
     types::ObjectType,
 };
@@ -20,11 +21,21 @@ enum WatchCommand {
     Stop,
 }
 
+struct SinkMonitor {
+    _listener: NodeListener,
+    _node: Node,
+}
+
+struct MetadataMonitor {
+    _listener: MetadataListener,
+    _metadata: Metadata,
+}
+
 struct WatchState {
     initialized: bool,
     sink_ids: HashSet<u32>,
-    metadata: Vec<Metadata>,
-    metadata_listeners: Vec<MetadataListener>,
+    sinks: HashMap<u32, SinkMonitor>,
+    metadata: HashMap<u32, MetadataMonitor>,
 }
 
 impl WatchState {
@@ -32,13 +43,15 @@ impl WatchState {
         Self {
             initialized: false,
             sink_ids: HashSet::new(),
-            metadata: Vec::new(),
-            metadata_listeners: Vec::new(),
+            sinks: HashMap::new(),
+            metadata: HashMap::new(),
         }
     }
 }
 
-fn is_audio_sink(global: &pipewire::registry::GlobalObject<&pipewire::spa::utils::dict::DictRef>) -> bool {
+fn is_audio_sink(
+    global: &pipewire::registry::GlobalObject<&pipewire::spa::utils::dict::DictRef>,
+) -> bool {
     global.type_ == ObjectType::Node
         && global
             .props
@@ -48,7 +61,19 @@ fn is_audio_sink(global: &pipewire::registry::GlobalObject<&pipewire::spa::utils
 }
 
 fn is_default_sink_property(key: Option<&str>) -> bool {
-    matches!(key, Some("default.audio.sink") | Some("default.configured.audio.sink"))
+    matches!(
+        key,
+        Some("default.audio.sink") | Some("default.configured.audio.sink")
+    )
+}
+
+fn is_relevant_sink_change(change_mask: NodeChangeMask) -> bool {
+    change_mask.intersects(
+        NodeChangeMask::INPUT_PORTS
+            | NodeChangeMask::OUTPUT_PORTS
+            | NodeChangeMask::PROPS
+            | NodeChangeMask::PARAMS,
+    )
 }
 
 fn notify_if_ready(
@@ -66,22 +91,58 @@ fn bind_metadata_listener(
     global: &pipewire::registry::GlobalObject<&pipewire::spa::utils::dict::DictRef>,
     state: &Rc<RefCell<WatchState>>,
     notifications: &channel::Sender<()>,
-) {
+) -> Option<MetadataMonitor> {
     let Ok(metadata) = registry.bind::<Metadata, _>(global) else {
-        return;
+        return None;
     };
     let state_for_event = Rc::clone(state);
     let notifications = notifications.clone();
     let listener = metadata
         .add_listener_local()
         .property(move |_subject, key, _type, _value| {
-            notify_if_ready(&state_for_event, is_default_sink_property(key), &notifications);
+            notify_if_ready(
+                &state_for_event,
+                is_default_sink_property(key),
+                &notifications,
+            );
             0
         })
         .register();
-    let mut state = state.borrow_mut();
-    state.metadata.push(metadata);
-    state.metadata_listeners.push(listener);
+    Some(MetadataMonitor {
+        _listener: listener,
+        _metadata: metadata,
+    })
+}
+
+fn bind_sink_listener(
+    registry: &RegistryRc,
+    global: &pipewire::registry::GlobalObject<&pipewire::spa::utils::dict::DictRef>,
+    state: &Rc<RefCell<WatchState>>,
+    notifications: &channel::Sender<()>,
+) -> Option<SinkMonitor> {
+    let Ok(node) = registry.bind::<Node, _>(global) else {
+        return None;
+    };
+    let received_initial_info = Rc::new(Cell::new(false));
+    let state_for_event = Rc::clone(state);
+    let notifications = notifications.clone();
+    let listener = node
+        .add_listener_local()
+        .info(move |info| {
+            if !received_initial_info.replace(true) {
+                return;
+            }
+            notify_if_ready(
+                &state_for_event,
+                is_relevant_sink_change(info.change_mask()),
+                &notifications,
+            );
+        })
+        .register();
+    Some(SinkMonitor {
+        _listener: listener,
+        _node: node,
+    })
 }
 
 pub(super) struct Backend {
@@ -159,23 +220,43 @@ fn run_watcher(
         .add_listener_local()
         .global(move |global| {
             if global.type_ == ObjectType::Metadata {
-                bind_metadata_listener(
+                if let Some(monitor) = bind_metadata_listener(
+                    &registry_for_global,
+                    global,
+                    &state_for_global,
+                    &notifications_for_global,
+                ) {
+                    state_for_global
+                        .borrow_mut()
+                        .metadata
+                        .insert(global.id, monitor);
+                }
+                return;
+            }
+            if is_audio_sink(global) {
+                let monitor = bind_sink_listener(
                     &registry_for_global,
                     global,
                     &state_for_global,
                     &notifications_for_global,
                 );
-                return;
-            }
-            if is_audio_sink(global) {
-                let changed = state_for_global.borrow_mut().sink_ids.insert(global.id);
+                let mut state = state_for_global.borrow_mut();
+                let changed = state.sink_ids.insert(global.id);
+                if let Some(monitor) = monitor {
+                    state.sinks.insert(global.id, monitor);
+                }
+                drop(state);
                 notify_if_ready(&state_for_global, changed, &notifications_for_global);
             }
         })
         .global_remove({
             let state = Rc::clone(&state);
             move |id| {
-                let changed = state.borrow_mut().sink_ids.remove(&id);
+                let mut state_mut = state.borrow_mut();
+                state_mut.metadata.remove(&id);
+                state_mut.sinks.remove(&id);
+                let changed = state_mut.sink_ids.remove(&id);
+                drop(state_mut);
                 notify_if_ready(&state, changed, &notifications);
             }
         })
@@ -209,7 +290,16 @@ mod tests {
     #[test]
     fn recognizes_default_sink_metadata_keys() {
         assert!(is_default_sink_property(Some("default.audio.sink")));
-        assert!(is_default_sink_property(Some("default.configured.audio.sink")));
+        assert!(is_default_sink_property(Some(
+            "default.configured.audio.sink"
+        )));
         assert!(!is_default_sink_property(Some("default.audio.source")));
+    }
+
+    #[test]
+    fn ignores_sink_runtime_state_changes() {
+        assert!(is_relevant_sink_change(NodeChangeMask::PROPS));
+        assert!(is_relevant_sink_change(NodeChangeMask::PARAMS));
+        assert!(!is_relevant_sink_change(NodeChangeMask::STATE));
     }
 }
