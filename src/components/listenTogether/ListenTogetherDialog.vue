@@ -49,6 +49,28 @@ const isHost = computed(() => role.value === "host");
 /** 创建 / 加入请求进行中，防止重复点击 */
 const busy = ref(false);
 
+/** 当前网易云账号名（一起听昵称固定使用账号名，不可修改） */
+const accountName = computed(() => user.profile?.nickname ?? "");
+
+/** 单个成员的权限覆盖（无覆盖时回退全局默认） */
+const memberPerms = (memberId: string) => {
+  const p = store.permissions.members?.[memberId];
+  return {
+    control: p?.allowGuestControl ?? store.permissions.allowGuestControl,
+    edit: p?.allowGuestEditPlaylist ?? store.permissions.allowGuestEditPlaylist,
+  } as { control: boolean; edit: boolean };
+};
+
+/** 设置单个成员权限（null 表示清除覆盖恢复全局默认） */
+const setMemberPerm = (memberId: string, key: "control" | "edit", value: boolean): void => {
+  const memberIdTarget = memberId;
+  if (key === "control") {
+    void store.setPermissions({ memberId: memberIdTarget, allowGuestControl: value });
+  } else {
+    void store.setPermissions({ memberId: memberIdTarget, allowGuestEditPlaylist: value });
+  }
+};
+
 const sharedTrackText = computed(() => {
   const track = sharedState.value?.track;
   if (!track) return t("listenTogether.noSharedTrack");
@@ -112,12 +134,7 @@ const copyCode = async (): Promise<void> => {
       </SAlert>
 
       <SFormItem :label="t('listenTogether.nickname')">
-        <SInput
-          v-model="store.nickname"
-          :placeholder="t('listenTogether.nicknamePlaceholder')"
-          :maxlength="24"
-          clearable
-        />
+        <SInput :model-value="accountName" :placeholder="accountName" disabled />
       </SFormItem>
 
       <SDivider class="my-1" />
@@ -227,7 +244,7 @@ const copyCode = async (): Promise<void> => {
         <span class="text-sm font-medium">
           {{ t("listenTogether.members", { count: members.length }) }}
         </span>
-        <SCard class="px-3 py-2 flex flex-col gap-1.5 max-h-56 overflow-y-auto">
+        <SCard class="px-3 py-2 flex flex-col gap-2 max-h-56 overflow-y-auto">
           <div
             v-for="member in members"
             :key="member.id"
@@ -239,6 +256,21 @@ const copyCode = async (): Promise<void> => {
                 {{ t("listenTogether.host") }}
               </span>
             </span>
+            <!-- 房主可单独为每个成员设置权限 -->
+            <template v-if="isHost && member.id !== hostId">
+              <span class="text-xs text-on-surface-variant/60">{{ t("listenTogether.memberControl") }}</span>
+              <SSwitch
+                :size="18"
+                :model-value="memberPerms(member.id).control"
+                @update:model-value="setMemberPerm(member.id, 'control', $event)"
+              />
+              <span class="text-xs text-on-surface-variant/60">{{ t("listenTogether.memberEdit") }}</span>
+              <SSwitch
+                :size="18"
+                :model-value="memberPerms(member.id).edit"
+                @update:model-value="setMemberPerm(member.id, 'edit', $event)"
+              />
+            </template>
             <IconLucideLoaderCircle
               v-if="member.id === hostId && connection === 'connecting'"
               class="size-3.5 animate-spin text-on-surface-variant"

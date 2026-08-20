@@ -114,13 +114,17 @@ class Room:
         self.seq = 0
         self.created_at = now_ms()
         self.host_last_push = now_ms()
-        # 房主控制的成员权限
+        # 房主控制的成员权限（含 per-member 覆盖）
         self.permissions: dict[str, Any] = {
             "allowGuestControl": True,
             "allowGuestEditPlaylist": True,
+            "members": {},
         }
         # 最后推播放状态的成员 id
         self.last_actor: str | None = None
+        # 房间是否已关闭（解散/清理前三秒标记，让客户端 poll 到后优雅退出）
+        self.closed = False
+        self.closed_at = 0
 
     def touch(self, member_id: str) -> None:
         self.members[member_id]["last_seen"] = now_ms()
@@ -166,7 +170,17 @@ def room_snapshot(room: Room) -> dict[str, Any]:
         "permissions": room.permissions,
         "lastActor": room.last_actor,
         "serverNow": now_ms(),
+        "closed": room.closed,
     }
+
+
+def permission_for(room: Room, member_id: str, key: str) -> bool:
+    """查询成员是否有某项权限，per-member 覆盖优先于全局默认"""
+    members = room.permissions.get("members", {}) if isinstance(room.permissions, dict) else {}
+    member = members.get(member_id, {}) if isinstance(members, dict) else {}
+    if key in member:
+        return bool(member[key])
+    return bool(room.permissions.get(key, True))
 
 
 def new_code() -> str:
@@ -304,21 +318,28 @@ async def handle_join(request: web.Request) -> web.Response:
 
 
 async def handle_push_state(request: web.Request) -> web.Response:
-    """成员推送播放状态（房主总是允许，成员需 allowGuestControl 权限）"""
+    """成员推送播放状态（房主总是允许，获权成员也可推；baseSeq 乐观锁防覆盖）"""
     auth = room_auth(request)
     if auth is None:
         return web.json_response({"error": "unauthorized"}, status=401)
     room, member_id = auth
     body = await request.json()
     is_host = member_id == room.host_id
-    if not is_host and not room.permissions.get("allowGuestControl", False):
+    if not is_host and not permission_for(room, member_id, "allowGuestControl"):
         return web.json_response({"error": "forbidden"}, status=403)
+    # 乐观锁：客户端已知 seq 落后于当前（别人已推过）时拒绝覆盖，返回最新快照
+    base_seq = int(body.get("baseSeq", 0) or 0)
+    if base_seq > 0 and base_seq != room.seq and room.last_actor != member_id:
+        return web.json_response({"conflict": True, "snapshot": room_snapshot(room)})
     room.seq += 1
     room.state = {
         "track": body.get("track"),
         "state": body.get("state"),
         "positionMs": int(body.get("positionMs", 0) or 0),
         "at": now_ms(),
+        "playIndex": int(body.get("playIndex", -1) or -1),
+        "repeatMode": str(body.get("repeatMode", "list")),
+        "shuffleMode": str(body.get("shuffleMode", "off")),
     }
     room.last_actor = member_id
     if is_host:
@@ -344,13 +365,13 @@ async def handle_get_state(request: web.Request) -> web.Response:
 
 
 async def handle_push_queue(request: web.Request) -> web.Response:
-    """成员推送播放列表（房主总是允许，成员需 allowGuestEditPlaylist 权限）"""
+    """成员推送播放列表（房主总是允许，获权成员也可推）"""
     auth = room_auth(request)
     if auth is None:
         return web.json_response({"error": "unauthorized"}, status=401)
     room, member_id = auth
     is_host = member_id == room.host_id
-    if not is_host and not room.permissions.get("allowGuestEditPlaylist", False):
+    if not is_host and not permission_for(room, member_id, "allowGuestEditPlaylist"):
         return web.json_response({"error": "forbidden"}, status=403)
     body = await request.json()
     room.queue = body.get("tracks", []) or []
@@ -365,7 +386,7 @@ async def handle_push_queue(request: web.Request) -> web.Response:
 
 
 async def handle_set_permissions(request: web.Request) -> web.Response:
-    """房主设置成员权限"""
+    """房主设置成员权限：不带 memberId 设置全局默认，带 memberId 设置单个成员覆盖"""
     auth = room_auth(request)
     if auth is None:
         return web.json_response({"error": "unauthorized"}, status=401)
@@ -373,15 +394,33 @@ async def handle_set_permissions(request: web.Request) -> web.Response:
     if member_id != room.host_id:
         return web.json_response({"error": "forbidden"}, status=403)
     body = await request.json()
+    target = str(body.get("memberId", "") or "")
     current = room.permissions
-    room.permissions = {
-        "allowGuestControl": bool(body.get("allowGuestControl", current.get("allowGuestControl", True))),
-        "allowGuestEditPlaylist": bool(
-            body.get("allowGuestEditPlaylist", current.get("allowGuestEditPlaylist", True))
-        ),
-    }
+    if target:
+        # per-member 覆盖：字段缺省时清空该成员对应限制（恢复全局默认）
+        members = current.get("members", {}) if isinstance(current, dict) else {}
+        member_cfg = members.get(target, {}) if isinstance(members, dict) else {}
+        updated = dict(member_cfg)
+        if "allowGuestControl" in body:
+            updated["allowGuestControl"] = bool(body.get("allowGuestControl"))
+        if "allowGuestEditPlaylist" in body:
+            updated["allowGuestEditPlaylist"] = bool(body.get("allowGuestEditPlaylist"))
+        if updated:
+            members[target] = updated
+        else:
+            members.pop(target, None)
+        room.permissions = {**current, "members": members}
+        log.info("房间 %s 成员 %s 权限更新：%s", room.code, target[:8], updated)
+    else:
+        room.permissions = {
+            "allowGuestControl": bool(body.get("allowGuestControl", current.get("allowGuestControl", True))),
+            "allowGuestEditPlaylist": bool(
+                body.get("allowGuestEditPlaylist", current.get("allowGuestEditPlaylist", True))
+            ),
+            "members": current.get("members", {}) if isinstance(current, dict) else {},
+        }
+        log.info("房间 %s 权限更新：%s", room.code, room.permissions)
     room.touch(member_id)
-    log.info("房间 %s 权限更新：%s", room.code, room.permissions)
     return web.json_response(room_snapshot(room))
 
 
@@ -440,9 +479,10 @@ async def handle_leave(request: web.Request) -> web.Response:
                 log.warning("房主离开房间 %s，房主转移给 %s", room.code, mid)
                 break
         else:
-            rooms.pop(room.code, None)
-            log.info("房主离开，房间 %s 解散", room.code)
-            return web.json_response({"ok": True})
+            room.closed = True
+            room.closed_at = now_ms()
+            log.info("房主离开，房间 %s 即将解散", room.code)
+            return web.json_response(room_snapshot(room))
     log.info("成员离开房间 %s（在线 %s 人）", room.code, room.online_count())
     return web.json_response({"ok": True})
 
@@ -457,6 +497,11 @@ async def cleanup_loop() -> None:
         await asyncio.sleep(CLEANUP_INTERVAL_MS / 1000)
         now = now_ms()
         for code, room in list(rooms.items()):
+            # 已标记关闭的房间，3 秒后删除
+            if room.closed and room.closed_at > 0 and now - room.closed_at > 3_000:
+                rooms.pop(code, None)
+                log.info("清理已关闭房间 %s", code)
+                continue
             if now - room.host_last_push > HOST_TIMEOUT_MS:
                 for mid, m in room.members.items():
                     if mid != room.host_id and now - m["last_seen"] <= MEMBER_TIMEOUT_MS:
@@ -582,7 +627,9 @@ async def handle_admin_room_dissolve(request: web.Request) -> web.Response:
     code = request.match_info["code"].strip().upper()
     if code not in rooms:
         return web.json_response({"error": "room not found"}, status=404)
-    rooms.pop(code, None)
+    room = rooms[code]
+    room.closed = True
+    room.closed_at = now_ms()
     log.warning("管理员解散房间 %s", code)
     return web.json_response({"ok": True})
 

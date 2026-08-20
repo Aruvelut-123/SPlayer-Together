@@ -206,3 +206,7 @@ Put cross-process types (`LocaleCode / SystemConfig / StreamingServerType`, etc.
 Use Conventional Commits with a Chinese summary: `<type>: <summary>`. Keep the title on one line;
 do not add a body or bullets unless explicitly requested. Use the type that matches the change,
 such as `feat`, `fix`, `refactor`, `perf`, `docs`, `test`, `build`, `ci`, `style`, or `chore`.
+
+### Task List
+
+Always keep the task list (`todo_write`) in sync with the actual work. Update it when starting a new task, marking completion, or when the user changes requirements. A stale task list misleads both the agent and the user.

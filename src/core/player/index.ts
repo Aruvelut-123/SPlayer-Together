@@ -277,8 +277,13 @@ const loadTrackSourceWithFallback = async (
  * 乐观更新：立即显示歌曲信息，快速切歌时只有最后一次 load 生效
  * @param track - 要播放的 Track，为 null 时忽略
  * @param context - 本次播放的来源上下文
+ * @param suppressSkip - 加载失败时不自动跳下一首（一起听跟随场景使用，避免 guest 自切歌曲）
  */
-const loadTrack = async (track: Track | null, context?: PlaybackContext): Promise<void> => {
+export const loadTrack = async (
+  track: Track | null,
+  context?: PlaybackContext,
+  suppressSkip = false,
+): Promise<void> => {
   if (!track) return;
   // Fuck DJ Mode
   const settings = useSettingsStore();
@@ -330,7 +335,7 @@ const loadTrack = async (track: Track | null, context?: PlaybackContext): Promis
       handleError(result.error);
     }
   }
-  if (shouldSkip) await skipOnFailure(myToken, () => trackToken);
+  if (shouldSkip && !suppressSkip) await skipOnFailure(myToken, () => trackToken);
 };
 
 /**
@@ -789,6 +794,19 @@ const onQueueEnded = async (): Promise<void> => {
 const syncPlayMode = (): void => {
   const status = useStatusStore();
   window.api.player.syncPlayMode(status.repeatMode, status.shuffleMode);
+};
+
+/**
+ * 应用远端播放模式（一起听跟随），仅设置标志+同步主进程，不洗队列不弹 toast
+ * @param repeatMode - 循环模式
+ * @param shuffleMode - 随机模式
+ */
+export const applyRemotePlayMode = (repeatMode: RepeatMode, shuffleMode: ShuffleMode): void => {
+  const status = useStatusStore();
+  if (status.repeatMode === repeatMode && status.shuffleMode === shuffleMode) return;
+  status.repeatMode = repeatMode;
+  status.shuffleMode = shuffleMode;
+  syncPlayMode();
 };
 
 /**
