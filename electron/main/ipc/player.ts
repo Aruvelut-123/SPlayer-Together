@@ -11,7 +11,12 @@ import * as lastfm from "@main/services/lastfm";
 import * as neteaseScrobble from "@main/services/neteaseScrobble";
 import { fetchBytes } from "@main/utils/fetchBytes";
 import { getPlayer, resetPlayer, onPlayerCreated } from "@main/services/engine";
-import { startDeviceMonitoring, stopDeviceMonitoring } from "@main/services/device";
+import {
+  cancelPendingReinit,
+  startDeviceMonitoring,
+  stopDeviceMonitoring,
+  requestReinit,
+} from "@main/services/device";
 import { getThumbar } from "@main/services/thumbar";
 import {
   setTraySongName,
@@ -69,14 +74,15 @@ const fail = (code: ErrorCode, error?: unknown) => {
   return { success: false as const, error: code };
 };
 
+/** NAPI 已在原生边界将设备错误标记为 `[Device]`，主进程据此返回稳定 IPC 错误码。 */
+const isNativeDeviceError = (error: unknown): boolean =>
+  String(error).includes("[Device]");
+
 /**
  * 播放器原生事件回调
  * @param inst 播放器实例
  */
 const registerNativeEvents = (inst: InstanceType<AudioEngineModule["AudioPlayer"]>): void => {
-  // 自动重建输出的冷却时间戳
-  let lastReinitAt = 0;
-  const REINIT_COOLDOWN_MS = 5000;
   inst.onEvent((event: JsPlayerEvent) => {
     switch (event.type) {
       case "stateChanged": {
@@ -154,14 +160,16 @@ const registerNativeEvents = (inst: InstanceType<AudioEngineModule["AudioPlayer"
         wsBroadcast(fftEvent);
         break;
       }
+      case "outputFailed": {
+        // 运行期流错误（CPAL/Rodio），重建输出流恢复播放
+        playerLog.warn("检测到音频输出流错误，触发恢复");
+        requestReinit(inst);
+        break;
+      }
       case "outputStalled": {
-        const now = Date.now();
-        if (now - lastReinitAt < REINIT_COOLDOWN_MS) break;
-        lastReinitAt = now;
-        playerLog.warn("检测到音频输出停滞，自动重建");
-        inst.reinitOutput().catch((error) => {
-          playerLog.error("自动重建音频输出失败:", error);
-        });
+        // 看门狗：无流错误但长期未消费样本
+        playerLog.warn("检测到音频输出停滞，触发恢复");
+        requestReinit(inst);
         break;
       }
     }
@@ -178,6 +186,7 @@ export const registerPlayerIpc = (): void => {
   onPlayerCreated(startDeviceMonitoring);
   // 加载音频文件
   ipcMain.handle("player:load", async (_event, source: string, options: LoadOptions = {}) => {
+    cancelPendingReinit();
     const autoPlay = options.autoPlay ?? true;
     const authoritative = options.meta ?? null;
     const cueRange = cueRangeFromTrack(authoritative);
@@ -312,7 +321,7 @@ export const registerPlayerIpc = (): void => {
       if (msg.includes("已被更新的 load 取代")) {
         return fail(ErrorCode.LOAD_SUPERSEDED);
       }
-      const isDeviceError = /output device|NoDevice|DeviceNotAvailable/i.test(msg);
+      const isDeviceError = isNativeDeviceError(error) || /output device|NoDevice|DeviceNotAvailable/i.test(msg);
       const isNetwork = source.startsWith("http://") || source.startsWith("https://");
       const code = isDeviceError
         ? ErrorCode.DEVICE_NOT_FOUND
@@ -350,6 +359,7 @@ export const registerPlayerIpc = (): void => {
   // 停止播放并释放资源
   ipcMain.handle("player:stop", () => {
     try {
+      cancelPendingReinit();
       activeCueRange = null;
       getPlayer().stop();
       return { success: true };
@@ -427,7 +437,7 @@ export const registerPlayerIpc = (): void => {
       await getPlayer().reinitOutput();
       return { success: true };
     } catch (error) {
-      return fail(ErrorCode.UNKNOWN, error);
+      return fail(isNativeDeviceError(error) ? ErrorCode.DEVICE_INIT_FAILED : ErrorCode.UNKNOWN, error);
     }
   });
 
@@ -579,10 +589,11 @@ export const registerPlayerIpc = (): void => {
   // 切换输出设备（传 null 使用系统默认）
   ipcMain.handle("player:setOutputDevice", async (_event, deviceName: string | null) => {
     try {
+      cancelPendingReinit();
       await getPlayer().setOutputDevice(deviceName ?? undefined);
       return { success: true };
     } catch (error) {
-      return fail(ErrorCode.UNKNOWN, error);
+      return fail(isNativeDeviceError(error) ? ErrorCode.DEVICE_INIT_FAILED : ErrorCode.UNKNOWN, error);
     }
   });
 
