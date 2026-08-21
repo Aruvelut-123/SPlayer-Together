@@ -75,8 +75,7 @@ const fail = (code: ErrorCode, error?: unknown) => {
 };
 
 /** NAPI 已在原生边界将设备错误标记为 `[Device]`，主进程据此返回稳定 IPC 错误码。 */
-const isNativeDeviceError = (error: unknown): boolean =>
-  String(error).includes("[Device]");
+const isNativeDeviceError = (error: unknown): boolean => String(error).includes("[Device]");
 
 /**
  * 播放器原生事件回调
@@ -321,7 +320,8 @@ export const registerPlayerIpc = (): void => {
       if (msg.includes("已被更新的 load 取代")) {
         return fail(ErrorCode.LOAD_SUPERSEDED);
       }
-      const isDeviceError = isNativeDeviceError(error) || /output device|NoDevice|DeviceNotAvailable/i.test(msg);
+      const isDeviceError =
+        isNativeDeviceError(error) || /output device|NoDevice|DeviceNotAvailable/i.test(msg);
       const isNetwork = source.startsWith("http://") || source.startsWith("https://");
       const code = isDeviceError
         ? ErrorCode.DEVICE_NOT_FOUND
@@ -437,7 +437,10 @@ export const registerPlayerIpc = (): void => {
       await getPlayer().reinitOutput();
       return { success: true };
     } catch (error) {
-      return fail(isNativeDeviceError(error) ? ErrorCode.DEVICE_INIT_FAILED : ErrorCode.UNKNOWN, error);
+      return fail(
+        isNativeDeviceError(error) ? ErrorCode.DEVICE_INIT_FAILED : ErrorCode.UNKNOWN,
+        error,
+      );
     }
   });
 
@@ -593,7 +596,10 @@ export const registerPlayerIpc = (): void => {
       await getPlayer().setOutputDevice(deviceName ?? undefined);
       return { success: true };
     } catch (error) {
-      return fail(isNativeDeviceError(error) ? ErrorCode.DEVICE_INIT_FAILED : ErrorCode.UNKNOWN, error);
+      return fail(
+        isNativeDeviceError(error) ? ErrorCode.DEVICE_INIT_FAILED : ErrorCode.UNKNOWN,
+        error,
+      );
     }
   });
 
