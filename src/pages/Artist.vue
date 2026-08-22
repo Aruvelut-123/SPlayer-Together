@@ -37,6 +37,8 @@ const id = route.params.id as string;
 const artist = shallowRef<ArtistProfile | null>(null);
 /** 正在加载 */
 const loading = ref(false);
+/** 错误信息 */
+const error = ref("");
 /** 取消当次加载 */
 let loadAbort: AbortController | null = null;
 /** 是否还有更多 */
@@ -65,6 +67,7 @@ const loadArtist = async (): Promise<void> => {
   const myAbort = new AbortController();
   loadAbort = myAbort;
   loading.value = true;
+  error.value = "";
   hasMoreSongs.value = false;
 
   try {
@@ -79,6 +82,9 @@ const loadArtist = async (): Promise<void> => {
         }
       },
     });
+  } catch (err) {
+    if (myAbort.signal.aborted) return;
+    error.value = err instanceof Error ? err.message : String(err);
   } finally {
     if (!myAbort.signal.aborted) loading.value = false;
   }
@@ -367,6 +373,18 @@ const albumItems = computed<CoverItem[]>(() => {
         <div class="text-center text-on-surface-variant/60">
           <SLoading class="text-4xl text-primary/70 mb-4 mx-auto block" />
           <div class="text-sm">{{ t("common.loading") }}</div>
+        </div>
+      </div>
+      <!-- 错误态 -->
+      <div v-else-if="error" key="error" class="flex-1 flex items-center justify-center px-6">
+        <div class="text-center text-red-500/85">
+          <IconLucideTriangleAlert class="size-14 mx-auto mb-4 opacity-50" />
+          <div class="text-sm font-medium mb-1">{{ t("search.errorTitle") }}</div>
+          <div class="text-xs opacity-80 break-all max-w-xs mb-4">{{ error }}</div>
+          <SButton type="primary" variant="secondary" @click="loadArtist">
+            <template #icon><IconLucideRefreshCw /></template>
+            {{ t("common.retry") }}
+          </SButton>
         </div>
       </div>
       <!-- 空状态 -->

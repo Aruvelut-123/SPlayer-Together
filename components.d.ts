@@ -161,6 +161,7 @@ declare module 'vue' {
     IconMaterialSymbolsCheckCircleRounded: typeof import('~icons/material-symbols/check-circle-rounded')['default']
     IconMaterialSymbolsErrorRounded: typeof import('~icons/material-symbols/error-rounded')['default']
     IconMaterialSymbolsFavoriteOutlineRounded: typeof import('~icons/material-symbols/favorite-outline-rounded')['default']
+    IconMaterialSymbolsFavoriteRounded: typeof import('~icons/material-symbols/favorite-rounded')['default']
     IconMaterialSymbolsInfoRounded: typeof import('~icons/material-symbols/info-rounded')['default']
     IconSpHeartMode: typeof import('~icons/sp/heart-mode')['default']
     IconSpLossless: typeof import('~icons/sp/lossless')['default']

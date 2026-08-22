@@ -1,4 +1,6 @@
 <script setup lang="ts">
+defineOptions({ name: "SearchPage" });
+
 import type { Track } from "@shared/types/player";
 import { ALL_PLATFORMS, PLATFORM_SHORT_NAME, type Platform } from "@shared/types/platform";
 import type { CoverItem } from "@/types/artist";
@@ -17,21 +19,13 @@ type TabKey = "songs" | "albums" | "artists" | "playlists";
 
 const TAB_KEYS: readonly TabKey[] = ["songs", "albums", "artists", "playlists"];
 
-/** 当前 tab */
-const activeTab = computed<TabKey>(() => {
-  const tab = route.query.tab;
-  return typeof tab === "string" && (TAB_KEYS as readonly string[]).includes(tab)
-    ? (tab as TabKey)
-    : "songs";
-});
-
 const PAGE_SIZE = 50;
 
-/** URL query 中的关键词 */
-const keyword = computed(() => {
-  const q = route.query.q;
-  return typeof q === "string" ? q.trim() : "";
-});
+/** 当前生效的 tab */
+const activeTab = ref<TabKey>("songs");
+
+/** 当前生效的关键词 */
+const keyword = ref("");
 
 const tabs = computed(() => [
   { key: "songs", label: t("search.tabs.songs") },
@@ -130,29 +124,39 @@ const resetStates = (): void => {
   error.value = "";
 };
 
-/** 关键词变化：清空状态并拉当前 tab */
-watch(
-  keyword,
-  () => {
+let lastLoadedKeyword = "";
+let lastLoadedPlatform = status.searchPlatform;
+
+/** 仅在当前处于搜索路由时同步路由参数，避免离开到其他页面时因 query 为空而误清空状态 */
+const syncFromRoute = (): void => {
+  if (route.name !== "search") return;
+  const q = typeof route.query.q === "string" ? route.query.q.trim() : "";
+  const tab =
+    typeof route.query.tab === "string" && (TAB_KEYS as readonly string[]).includes(route.query.tab)
+      ? (route.query.tab as TabKey)
+      : "songs";
+
+  activeTab.value = tab;
+  keyword.value = q;
+
+  const keywordChanged = q !== lastLoadedKeyword;
+  const platformChanged = status.searchPlatform !== lastLoadedPlatform;
+
+  if (keywordChanged || platformChanged) {
+    lastLoadedKeyword = q;
+    lastLoadedPlatform = status.searchPlatform;
     resetStates();
-    if (keyword.value) fetchTab(activeTab.value, false);
-  },
+    if (q) fetchTab(tab, false);
+  } else if (q && !states[tab].loaded) {
+    fetchTab(tab, false);
+  }
+};
+
+watch(
+  () => [route.name, route.query.q, route.query.tab, status.searchPlatform],
+  syncFromRoute,
   { immediate: true },
 );
-
-/** 平台切换：清空状态并按当前关键词重拉 */
-watch(
-  () => status.searchPlatform,
-  () => {
-    resetStates();
-    if (keyword.value) fetchTab(activeTab.value, false);
-  },
-);
-
-/** 切换 tab：未拉过则按需请求 */
-watch(activeTab, (tab) => {
-  if (keyword.value && !states[tab].loaded) fetchTab(tab, false);
-});
 
 const onTabSwitch = (key: string): void => {
   router.replace({ query: { ...route.query, tab: key } });

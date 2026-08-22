@@ -1,4 +1,6 @@
 <script setup lang="ts">
+defineOptions({ name: "Download" });
+
 import type { DownloadTask, DownloadStatus } from "@shared/types/download";
 import type { TabItem } from "@/components/ui/STabs.vue";
 import { useDownloadStore } from "@/stores/download";
