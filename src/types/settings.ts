@@ -32,13 +32,7 @@ export type RouteTransition = "none" | "fade" | "slide" | "zoom";
 
 /** 弹簧动画预设 */
 export type SpringPreset =
-  | "default"
-  | "smooth"
-  | "responsive"
-  | "jello"
-  | "heavy"
-  | "noBounce"
-  | "custom";
+  "default" | "smooth" | "responsive" | "jello" | "heavy" | "noBounce" | "custom";
 
 /** 歌词混合模式 */
 export type LyricBlendMode = "normal" | "screen" | "plus-lighter";
@@ -99,7 +93,7 @@ export const DEFAULT_SIDEBAR_NAV_GROUPS: SidebarNavGroup[] = [
   {
     name: "",
     showName: false,
-    keys: ["/", "/library", "/artists/local", "/albums/local", "/folders"],
+    keys: ["/", "/library", "/artists/local", "/albums/local", "/folders", "/stats"],
   },
   {
     name: "",
@@ -130,6 +124,14 @@ export interface LyricSettings {
   lyricBlendMode: LyricBlendMode;
   /** 歌词字体 */
   fontFamily: string;
+  /** 拉丁文字歌词字体（为空时跟随歌词字体） */
+  fontFamilyLatin: string;
+  /** 日文歌词字体（为空时跟随歌词字体） */
+  fontFamilyJapanese: string;
+  /** 韩文歌词字体（为空时跟随歌词字体） */
+  fontFamilyKorean: string;
+  /** 中文歌词字体（为空时跟随歌词字体） */
+  fontFamilyChinese: string;
   /** 是否显示翻译歌词 */
   showTranslation: boolean;
   /** 是否显示音译歌词 */
@@ -202,6 +204,8 @@ export interface PlayerSettings {
   coverLayout: CoverLayout;
   /** 无歌词时自动居中封面并隐藏歌词区域 */
   autoCenterCover: boolean;
+  /** 全屏播放器显示当前播放来源 */
+  showPlaybackSource: boolean;
   /** 颜色是否跟随封面 */
   followCoverColor: boolean;
   /** 全屏播放器自动进入沉浸模式（隐藏顶/底栏与鼠标） */
@@ -214,6 +218,8 @@ export interface PlayerSettings {
   enableSpectrum: boolean;
   /** 频谱单条宽度（px） */
   spectrumBarWidth: number;
+  /** 是否反转频谱方向（启用后低频位于频谱两端） */
+  reverseSpectrum: boolean;
   /** 在线歌曲音质偏好；实际可用级别取决于账号权限 */
   songLevel: QualityLevel;
   /** 允许完整音源不可用时播放试听片段 */
@@ -228,6 +234,8 @@ export interface PlayerSettings {
   snapToLyric: boolean;
   /** 播放时底部显示歌词而非歌手名 */
   showLyricInBar: boolean;
+  /** 播放时提前获取下一首的播放数据 */
+  preloadNextTrack: boolean;
 }
 
 /** 外观设置 */
@@ -250,6 +258,8 @@ export interface AppearanceSettings {
   sidebarNameWithDivider: boolean;
   /** 侧边栏歌单显示顺序 */
   sidebarPlaylistOrder: SidebarPlaylistOrder;
+  /** 侧边栏显示播放统计入口 */
+  showStatsInSidebar: boolean;
   /** 播放栏显示快捷音质切换 */
   showQualitySwitch: boolean;
   /** 点击关闭按钮的行为 */

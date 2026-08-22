@@ -14,6 +14,8 @@ import { pickPrimaryIndex } from "@shared/utils/lyricSync";
 import { useNowPlayingSync } from "@windows/shared/composables/useNowPlayingSync";
 import { useDragWindow } from "./composables/useDragWindow";
 import { useHoverState } from "./composables/useHoverState";
+import { formatArtists } from "@shared/utils/track";
+import { isLinux } from "@/utils/config";
 
 const config = reactive<DesktopLyricSettings>({
   fontSize: 24,
@@ -34,15 +36,17 @@ const config = reactive<DesktopLyricSettings>({
   animation: true,
   alwaysOnTop: true,
   locked: false,
-  useCSSDrag: true,
+  useCSSDrag: false,
 });
 
 const { track, lyric, playing, primaryIndex } = useNowPlayingSync({
   pickIndex: pickPrimaryIndex,
   logTag: "desktop-lyric",
 });
-const { onRootPointerDown } = useDragWindow(() => config.locked);
+const cssDragEnabled = computed(() => config.useCSSDrag && isLinux);
+const { onRootPointerDown } = useDragWindow(() => config.locked || cssDragEnabled.value);
 const { isHovered } = useHoverState();
+const lockButton = ref<HTMLButtonElement | null>(null);
 
 /**
  * 占位行
@@ -76,9 +80,7 @@ const placeholder = (key: string, mainText: string, subText?: string): DisplayIt
 };
 
 /** 艺术家显示文本 */
-const artistsText = computed<string>(
-  () => track.value?.artists?.map((a) => a.name).join(" / ") ?? "",
-);
+const artistsText = computed<string>(() => formatArtists(track.value?.artists) || "未知艺术家");
 
 /** 实际渲染的歌词列表 */
 const displayItems = computed<DisplayItem[]>(() => {
@@ -104,6 +106,7 @@ const displayItems = computed<DisplayItem[]>(() => {
       index: primary,
       line: lines[primary],
       align: resolveAlign(primary, config.align),
+      scrollEnabled: true,
     },
   ];
   // 显示翻译行
@@ -112,8 +115,13 @@ const displayItems = computed<DisplayItem[]>(() => {
     items.push({
       key: `t-${primary}`,
       index: primary,
-      line: makePlaceholderLine(current.translatedLyric),
+      line: {
+        ...makePlaceholderLine(current.translatedLyric),
+        startTime: current.startTime,
+        endTime: current.endTime,
+      },
       align: resolveAlign(primary, config.align),
+      scrollEnabled: true,
       isPlaceholder: true,
       isNext: true,
     });
@@ -128,6 +136,7 @@ const displayItems = computed<DisplayItem[]>(() => {
         index: nextIdx,
         line: lines[nextIdx],
         align: resolveAlign(nextIdx, config.align),
+        scrollEnabled: true,
         isNext: true,
       });
     }
@@ -141,9 +150,10 @@ const rootStyle = computed(() => ({
   "--dl-unplayed": config.unplayedColor,
   "--dl-stroke": config.strokeColor,
   "--dl-mask": config.backgroundMaskColor,
+  "--dl-mask-pad-x": `${config.fontSize * 0.4}px`,
   "--dl-anim": config.animation ? "0.4s" : "0s",
   fontFamily: config.fontFamily || undefined,
-  "-webkit-app-region": !config.locked && config.useCSSDrag ? "drag" : "no-drag",
+  "-webkit-app-region": !config.locked && cssDragEnabled.value ? "drag" : "no-drag",
 }));
 
 /** 常驻信息文字对齐 */
@@ -165,13 +175,7 @@ watch(() => config.fontSize, pushWindowHeight);
 /** 顶栏按钮 */
 const onHeaderAction = (
   action:
-    | "focus-main"
-    | "prev"
-    | "next"
-    | "toggle-play"
-    | "open-settings"
-    | "toggle-locked"
-    | "close",
+    "focus-main" | "prev" | "next" | "toggle-play" | "open-settings" | "toggle-locked" | "close",
 ): void => {
   switch (action) {
     case "focus-main":
@@ -196,14 +200,17 @@ const onHeaderAction = (
   }
 };
 
-// 锁定按钮鼠标进入事件：临时放开穿透以允许点击
-const onLockBtnEnter = (): void => {
-  if (config.locked) window.api.desktopLyric.setMouseIgnore(false);
-};
-
-// 锁定按钮鼠标离开事件：恢复穿透
-const onLockBtnLeave = (): void => {
-  if (config.locked) window.api.desktopLyric.setMouseIgnore(true);
+/** 向主进程上报解锁按钮命中区域，避免穿透窗口依赖 DOM 悬停事件自救 */
+const reportUnlockButtonBounds = (): void => {
+  const button = lockButton.value;
+  if (!button) return;
+  const bounds = button.getBoundingClientRect();
+  window.api.desktopLyric.setUnlockButtonBounds({
+    x: bounds.x,
+    y: bounds.y,
+    width: bounds.width,
+    height: bounds.height,
+  });
 };
 
 /** 配置变更订阅取消器 */
@@ -218,11 +225,15 @@ onMounted(async () => {
   }
   pushWindowHeight();
   unsubConfig = window.api.desktopLyric.onConfigChange((next) => Object.assign(config, next));
+  await nextTick();
+  reportUnlockButtonBounds();
+  window.addEventListener("resize", reportUnlockButtonBounds);
 });
 
 onBeforeUnmount(() => {
   unsubConfig?.();
   unsubConfig = null;
+  window.removeEventListener("resize", reportUnlockButtonBounds);
 });
 </script>
 
@@ -292,11 +303,10 @@ onBeforeUnmount(() => {
           <IconLucideSettings />
         </button>
         <button
+          ref="lockButton"
           class="header-btn lock-btn"
           :title="config.locked ? '解锁窗口' : '锁定窗口'"
           @click="onHeaderAction('toggle-locked')"
-          @mouseenter="onLockBtnEnter"
-          @mouseleave="onLockBtnLeave"
         >
           <IconLucideUnlock v-if="config.locked" />
           <IconLucideLock v-else />
@@ -320,6 +330,7 @@ onBeforeUnmount(() => {
         :font-weight="config.fontWeight"
         :align="item.align"
         :word-by-word="resolveWordByWord(config, item)"
+        :scroll-enabled="!!item.scrollEnabled"
         :is-next="!!item.isNext"
         :background-mask="config.backgroundMask"
         :style="{
@@ -397,10 +408,11 @@ onBeforeUnmount(() => {
   vertical-align: middle;
   max-width: 100%;
   min-width: 0;
+  box-sizing: border-box;
   line-height: 1.2;
 }
 .info-box.has-mask {
-  padding: 4px 10px;
+  padding: 4px var(--dl-mask-pad-x, 10px);
   border-radius: 6px;
   background-color: var(--dl-mask, transparent);
 }
@@ -485,6 +497,11 @@ onBeforeUnmount(() => {
 }
 .header-btn:active {
   background-color: rgba(255, 255, 255, 0.3);
+}
+.lock-btn {
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
 }
 .song-info {
   flex: 1 1 auto;

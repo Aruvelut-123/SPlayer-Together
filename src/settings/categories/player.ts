@@ -56,6 +56,11 @@ const playerCategory: SettingCategory = {
           defaultValue: false,
           tag: { text: "Beta" },
         },
+      ],
+    },
+    {
+      id: "audioSource",
+      items: [
         {
           key: "songLevel",
           type: "select",
@@ -73,6 +78,12 @@ const playerCategory: SettingCategory = {
           key: "allowTrialPlay",
           type: "switch",
           binding: { store: "settings", path: "player.allowTrialPlay" },
+          defaultValue: false,
+        },
+        {
+          key: "preloadNextTrack",
+          type: "switch",
+          binding: { store: "settings", path: "player.preloadNextTrack" },
           defaultValue: false,
         },
       ],
@@ -184,6 +195,12 @@ const playerCategory: SettingCategory = {
           defaultValue: true,
         },
         {
+          key: "showPlaybackSource",
+          type: "switch",
+          binding: { store: "settings", path: "player.showPlaybackSource" },
+          defaultValue: false,
+        },
+        {
           key: "followCoverColor",
           type: "switch",
           binding: { store: "settings", path: "player.followCoverColor" },
@@ -248,6 +265,12 @@ const playerCategory: SettingCategory = {
               step: 1,
               defaultValue: 4,
               marks: { 1: "1", 4: "4", 8: "8", 12: "12" },
+            },
+            {
+              key: "reverseSpectrum",
+              type: "switch",
+              binding: { store: "settings", path: "player.reverseSpectrum" },
+              defaultValue: false,
             },
           ],
         },

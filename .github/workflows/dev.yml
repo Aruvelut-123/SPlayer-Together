@@ -11,12 +11,14 @@ on:
       - "native/**"
       - "shared/**"
       - "public/**"
+      - "resources/**"
+      - "scripts/**"
       - "package.json"
       - "pnpm-lock.yaml"
       - "electron-builder.config.ts"
       - "electron.vite.config.ts"
       - "tsconfig*.json"
-      - ".github/**"
+      - ".github/workflows/dev.yml"
   workflow_dispatch:
 
 env:
@@ -72,7 +74,7 @@ jobs:
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
         with:
-          workspaces: "native/audio-engine -> target\nnative/media-ctrl -> target"
+          workspaces: "native/audio-engine -> target\nnative/audio-capture -> target\nnative/media-ctrl -> target"
 
       # Linux: 安装系统构建/打包依赖
       - name: 安装系统依赖 (Linux)
@@ -80,7 +82,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install --no-install-recommends -y \
-            libasound2-dev libdbus-1-dev pkg-config clang \
+            libasound2-dev libdbus-1-dev libpipewire-0.3-dev libpulse-dev pkg-config clang \
             rpm libarchive-tools
 
       # 清理旧构建产物
@@ -161,3 +163,10 @@ jobs:
         with:
           name: SPlayer-Next-Linux-tar-${{ matrix.arch }}
           path: dist/*.tar.gz
+
+      - name: Upload Linux Pacman
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v7
+        with:
+          name: SPlayer-Next-Linux-pacman-${{ matrix.arch }}
+          path: dist/*.pacman

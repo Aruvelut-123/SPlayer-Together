@@ -4,20 +4,31 @@
 export declare class AudioPlayer {
   /** 创建新的播放器实例 */
   constructor()
-  /** 重新初始化音频输出设备（系统休眠唤醒后调用） */
-  reinitOutput(): void
+  /**
+   * 重新初始化音频输出设备（系统休眠唤醒、设备热插拔或输出流错误后调用）
+   *
+   * 恢复为全成全败：新输出创建失败时不启动解码、不提交状态，保留当前曲目与位置，
+   * 播放器进入暂停态并返回设备错误；在线音源不会因设备错误触发 URL 重取或 sourceError。
+   */
+  reinitOutput(): Promise<void>
   /** 设置封面缓存目录（在 load 前调用一次即可） */
   setCoverCacheDir(dir: string): void
   /** 注册事件回调，Rust 侧会在状态变化、位置更新、播放结束时主动调用 */
   onEvent(callback: (event: JsPlayerEvent) => void): void
+  /** 当前平台是否支持原生音频设备监听 */
+  supportsDeviceWatcher(): boolean
+  /** 注册系统音频设备变化回调，不支持的平台由主进程轮询 */
+  onDeviceChange(callback: () => void): void
+  /** 停止系统音频设备变化监听 */
+  stopDeviceWatcher(): void
   /**
    * 加载音频源，返回完整元信息（含封面路径和歌词）
    * @param auto_play - 是否自动播放，false 时加载后立即暂停
    *
    * 异步三段式：
    * 1. 主线程持锁瞬间（微秒级）：take 旧解码线程 handle + 拿参数（cover_dir / 归一化开关）
-   * 2. spawn_blocking 工作线程（**不持有 inner 引用**）：join 旧线程 + ffmpeg 打开 URL（耗时大头）
-   * 3. 主线程持锁瞬间：构造 sink + attach + emit stateChanged
+   * 2. spawn_blocking 工作线程（**不持有 inner 引用**）：读取音源采样率、协商输出流并启动解码
+   * 3. 主线程持锁瞬间：提交输出流、构造 sink + attach + emit stateChanged
    * 持锁阶段都是纯内存操作，主线程其它同步 NAPI 调用最多等几微秒，不会被 IO 卡住
    */
   load(source: string, autoPlay?: boolean): Promise<JsMusicMetadata>
@@ -72,7 +83,7 @@ export declare class AudioPlayer {
   /** 获取前级增益（dB） */
   getPreampGain(): number
   /** 获取 FFT 频谱数据（128 个频段，值域 0.0 ~ 1.0） */
-  getFftData(): Array<number>
+  getFftData(): JsFftData
   /**
    * 返回 load 时缓存的原始封面数据（用于 SMTC / 全屏播放器）。
    * 封面在 load 阶段从已打开的 FFmpeg 上下文一次性提取，不再重复打开文件。
@@ -83,7 +94,7 @@ export declare class AudioPlayer {
   /** 获取系统默认输出设备名称 */
   getDefaultDeviceName(): string | null
   /** 切换输出设备（传 None/undefined 使用系统默认） */
-  setOutputDevice(deviceName?: string | undefined | null): void
+  setOutputDevice(deviceName?: string | undefined | null): Promise<void>
   /** 获取当前选择的输出设备名称（None = 系统默认） */
   getSelectedDeviceName(): string | null
   /** 设置播放速度（自动 clamp 到 [0.5, 2.0]） */
@@ -128,6 +139,12 @@ export interface JsExternalLyric {
   path: string
 }
 
+/** FFT 双声道频谱数据 */
+export interface JsFftData {
+  ldata: Array<number>
+  rdata: Array<number>
+}
+
 /** 歌曲完整元信息，返回给 JS 侧（load 时一次性返回） */
 export interface JsMusicMetadata {
   title?: string
@@ -159,7 +176,7 @@ export interface JsMusicMetadata {
 
 /** 播放器事件，推送给 JS 侧 */
 export interface JsPlayerEvent {
-  /** 事件类型："stateChanged" | "ended" | "sourceError" | "position" | "fftData" | "outputStalled" */
+  /** 事件类型："stateChanged" | "ended" | "sourceError" | "position" | "fftData" | "outputStalled" | "outputFailed" */
   type: string
   /** 状态（仅 stateChanged 时有值） */
   state?: string
@@ -168,7 +185,7 @@ export interface JsPlayerEvent {
   /** 时长（秒，仅 position 时有值） */
   duration?: number
   /** FFT 频谱数据（仅 fftData 时有值，128 个频段，值域 0.0 ~ 1.0） */
-  fftData?: Array<number>
+  fftData?: JsFftData
 }
 
 /** 播放器状态快照 */

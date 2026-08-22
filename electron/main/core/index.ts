@@ -24,6 +24,7 @@ import {
 } from "@main/plugins/playbackBridge";
 import { registerCacheScheme, handleCacheProtocol } from "@main/utils/protocol";
 import { startServer, stopServer } from "@main/server";
+import { startMcpServer, stopMcpServer } from "@main/services/mcp/http";
 import { initUpdater, disposeUpdater } from "@main/services/updater";
 import { coreLog, initLogger } from "@main/utils/logger";
 import {
@@ -81,11 +82,7 @@ export const initApp = (): void => {
     return;
   }
   app.on("second-instance", (_event, commandLine) => {
-    const win = BrowserWindow.getAllWindows()[0];
-    if (win) {
-      if (win.isMinimized()) win.restore();
-      win.focus();
-    }
+    focusMainWindow();
     const url = extractOrpheusUrl(commandLine);
     if (url) captureOrpheusUrl(url);
   });
@@ -106,14 +103,14 @@ export const initApp = (): void => {
     });
     // 注册 IPC
     registerIpcHandlers();
+    // 初始化数据库
+    initDatabase();
     // 创建主窗口
     createMainWindow();
     // 注册 orpheus 协议并处理冷启动唤起
     initOrpheusRegistration();
     const coldOrpheusUrl = extractOrpheusUrl(process.argv);
     if (coldOrpheusUrl) captureOrpheusUrl(coldOrpheusUrl);
-    // 初始化数据库
-    initDatabase();
     // 启动歌曲缓存
     void initSongCache();
     // 启动下载服务
@@ -131,6 +128,8 @@ export const initApp = (): void => {
     initGlobalHotkey();
     // 启动外部 API 服务
     void startServer();
+    // 启动 AI 集成 MCP 服务
+    void startMcpServer();
     // 初始化自动更新
     initUpdater();
     // 周期记录各进程内存
@@ -158,6 +157,7 @@ export const initApp = (): void => {
     shutdownMedia();
     closeDatabase();
     void stopServer();
+    void stopMcpServer();
     void pluginRegistry.shutdown();
     disposePlaybackBridge();
     disposeUpdater();

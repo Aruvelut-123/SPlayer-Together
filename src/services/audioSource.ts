@@ -4,6 +4,7 @@ import type { QualityLevel } from "@/utils/quality";
 import { useStreamingStore } from "@/stores/streaming";
 import { useSettingsStore } from "@/stores/settings";
 import { usePluginsStore } from "@/stores/plugins";
+import { useUserStore } from "@/stores/user";
 import { resolveNeteaseUrl } from "@/apis/song/netease";
 import { ErrorCode } from "@shared/types/errors";
 import { handleError } from "@/utils/errors";
@@ -21,6 +22,10 @@ export interface ResolveTrackSourceOptions {
   skipPluginIds?: readonly string[];
   /** 是否跳过官方在线接口，直接进入插件兜底 */
   skipOfficialOnline?: boolean;
+  /** 是否静默解析 */
+  silent?: boolean;
+  /** 流媒体 PlaySessionId，用于预载时隔离当前播放会话 */
+  streamingPlaySessionId?: string;
 }
 
 /**
@@ -64,7 +69,7 @@ export type OnlineResolveResult =
 /**
  * 经插件解析在线音频源 URL
  * @param track - 要解析的 track
- * @param quality - 音质档位（播放默认 hq，下载传下载档位）
+ * @param quality - 音质档位（由调用方传入，默认 hq）
  * @returns 解析结果，失败时带原因码
  */
 export const resolveByPlugin = async (
@@ -137,7 +142,7 @@ export const resolveByPlugin = async (
 /**
  * 解析在线音频源 URL
  * @param track - 要解析的 track
- * @param songLevel - 在线歌曲音质档位（仅网易云官方接口生效）
+ * @param songLevel - 在线歌曲音质档位（仅内置官方接口生效）
  */
 const resolveOnlineUrl = async (
   track: Track,
@@ -146,20 +151,34 @@ const resolveOnlineUrl = async (
 ): Promise<OnlineResolveResult> => {
   const settings = useSettingsStore();
   let trialUrl: string | null = null;
-  try {
-    if (track.source === "netease" && !options.skipOfficialOnline) {
-      const resolved = await resolveNeteaseUrl(track, songLevel);
-      if (resolved && !resolved.isTrial) {
+  let officialErrorCode: ErrorCode | null = null;
+  if (track.source === "netease" && !options.skipOfficialOnline) {
+    const user = useUserStore();
+    try {
+      const resolved = await resolveNeteaseUrl(track, songLevel, {
+        authenticated: user.isLoggedIn,
+        validate: () => user.fetchStatus(),
+      });
+      if (!resolved.available) {
+        officialErrorCode = resolved.errorCode;
+      } else if (!resolved.isTrial) {
         return { ok: true, url: resolved.url, isTrial: false, provider: "official" };
+      } else {
+        trialUrl = resolved.url;
       }
-      if (resolved?.isTrial) trialUrl = resolved.url;
+    } catch (err) {
+      console.warn("[audio-source] official URL resolve failed:", err);
+      officialErrorCode = ErrorCode.URL_RESOLVE_FAILED;
     }
-  } catch {
-    // 官方 API 异常回落插件
   }
-  const pluginResolved = await resolveByPlugin(track, "hq", options.skipPluginIds ?? []);
-  if (pluginResolved.ok || !trialUrl || !settings.player.allowTrialPlay) return pluginResolved;
-  return { ok: true, url: trialUrl, isTrial: true, provider: "trial" };
+  const pluginResolved = await resolveByPlugin(track, songLevel, options.skipPluginIds ?? []);
+  if (pluginResolved.ok) return pluginResolved;
+  if (trialUrl && settings.player.allowTrialPlay) {
+    return { ok: true, url: trialUrl, isTrial: true, provider: "trial" };
+  }
+  if (trialUrl) return { ok: false, errorCode: ErrorCode.NETEASE_TRIAL_DISABLED };
+  if (officialErrorCode) return { ok: false, errorCode: officialErrorCode };
+  return pluginResolved;
 };
 
 /**
@@ -174,6 +193,15 @@ export interface ResolvedTrackSource {
   pluginId?: string;
   cacheRequest?: () => Promise<void>;
 }
+
+/**
+ * 记录解析错误，支持静默模式抑制
+ * @param err - 错误信息或错误码
+ * @param silent - 是否开启静默模式
+ */
+const reportLoadError = (err: ErrorCode | string, silent?: boolean): void => {
+  if (!silent) handleError(err);
+};
 
 /**
  * 根据 track 信息解析出最终的音频源 URL
@@ -200,13 +228,18 @@ export const resolveTrackSource = async (
   if (track.source === "streaming") {
     try {
       const store = useStreamingStore();
-      const streamUrl = await store.getStreamUrl(track);
+      const streamUrl = await store.getStreamUrl(
+        track,
+        options.streamingPlaySessionId
+          ? { playSessionId: options.streamingPlaySessionId }
+          : undefined,
+      );
       const result: ResolvedTrackSource = {
         source: streamUrl,
         fromCache: false,
         provider: "streaming",
       };
-      if (cacheEnabled) {
+      if (cacheEnabled && settings.system.cache.songCache.cacheStreaming) {
         // 缓存下载用独立 PlaySessionId
         result.cacheRequest = async () => {
           try {
@@ -221,7 +254,7 @@ export const resolveTrackSource = async (
       }
       return result;
     } catch (err) {
-      handleError(err instanceof Error ? err.message : String(err));
+      reportLoadError(err instanceof Error ? err.message : String(err), options.silent);
       return null;
     }
   }
@@ -230,7 +263,7 @@ export const resolveTrackSource = async (
     try {
       const resolved = await resolveOnlineUrl(track, songLevel, options);
       if (!resolved.ok) {
-        handleError(resolved.errorCode);
+        reportLoadError(resolved.errorCode, options.silent);
         return null;
       }
       const url = resolved.url;
@@ -247,7 +280,7 @@ export const resolveTrackSource = async (
       }
       return result;
     } catch (err) {
-      handleError(err instanceof Error ? err.message : String(err));
+      reportLoadError(err instanceof Error ? err.message : String(err), options.silent);
       return null;
     }
   }

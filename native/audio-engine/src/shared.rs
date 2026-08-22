@@ -2,16 +2,17 @@ use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
 use std::sync::Arc;
 
+use ffmpeg_audio::HttpCancelHandle;
 use parking_lot::{Condvar, Mutex};
-
-use crate::metadata::ExternalLyric;
 
 /// 解码后的 PCM 音频数据块
 pub struct AudioChunk {
     /// 交错排列的 f32 播放样本（L R L R ...）
     pub player_samples: Vec<f32>,
-    /// 单声道 f32 样本，用于 FFT 频谱分析
+    /// 交错排列的 f32 FFT 样本（L R L R ...）
     pub fft_samples: Vec<f32>,
+    /// tempo 处理前的源样本数，用于保持变速时播放位置准确
+    pub source_sample_count: u64,
 }
 
 /// 非阻塞弹出缓冲区的结果
@@ -23,18 +24,23 @@ pub enum PopResult {
 
 /// 解码线程与播放迭代器之间的共享状态
 pub struct Shared {
-    buffer: Mutex<VecDeque<AudioChunk>>,
-    condvar: Condvar,
-    is_eof: AtomicBool,
+    decoded_buffer: Mutex<VecDeque<AudioChunk>>,
+    decoded_condvar: Condvar,
+    output_buffer: Mutex<VecDeque<AudioChunk>>,
+    output_condvar: Condvar,
+    player_buffer_pool: Mutex<Vec<Vec<f32>>>,
+    fft_buffer_pool: Mutex<Vec<Vec<f32>>>,
+    decode_eof: AtomicBool,
+    output_eof: AtomicBool,
     is_stopping: AtomicBool,
-    /// 已被 rodio 消费的交错采样数（含所有声道，即 stereo 时每帧 +2）
+    /// 已被输出回调消费的交错采样数（包含所有声道）
     samples_consumed: AtomicU64,
     /// 输出采样率（创建时确定，不可变）
     sample_rate: u32,
     /// 输出声道数（创建时确定，不可变）
     channels: u16,
     /// 所有数据已被消费完毕（DecoderSource 返回 None 时设置）
-    /// 比 is_done() 更准确：is_done 只表示缓冲区空，all_consumed 表示 rodio 侧已消费完
+    /// 比 is_done() 更准确：is_done 只表示缓冲区空，all_consumed 表示输出回调已消费完
     all_consumed: AtomicBool,
     /// 解码线程因读取失败（网络中断 / URL 失效）中止，区别于正常 EOF
     decode_failed: AtomicBool,
@@ -43,14 +49,19 @@ pub struct Shared {
     normalization_gain: AtomicU32,
     /// 音量归一化开关
     normalization_enabled: AtomicBool,
-    /// 关联的 ffmpeg 中断标志（由 decoder::start_decode 在打开输入后注入）
-    /// stop() 触发时一并设为 true，让正在阻塞的 ffmpeg IO 立即返回 AVERROR_EXIT
-    /// 否则 packets().next() 这种同步调用要等到 rw_timeout（15s）才能感知 stop
-    interrupt_flag: Mutex<Option<Arc<AtomicBool>>>,
+    /// 关联的网络中断句柄（由 decoder 在启动解码前注入）
+    /// stop() 触发时中断读取和重试等待，seek 前可重置
+    cancel_handle: Mutex<Option<HttpCancelHandle>>,
 }
 
 /// 共享缓冲区最大容量（背压阈值）
 pub const FRAME_BUFFER_CAPACITY: usize = 192;
+
+/// DSP 后缓冲只保留少量块，保证 EQ/tempo 参数更新能快速生效
+const OUTPUT_BUFFER_CAPACITY: usize = 4;
+
+/// 复用池上限覆盖解码队列、输出队列和两个线程的在手缓冲
+const BUFFER_POOL_CAPACITY: usize = FRAME_BUFFER_CAPACITY + OUTPUT_BUFFER_CAPACITY + 4;
 
 impl Shared {
     pub fn new(sample_rate: u32, channels: u16) -> Arc<Self> {
@@ -59,9 +70,14 @@ impl Shared {
             "sample_rate/channels 必须为正"
         );
         Arc::new(Self {
-            buffer: Mutex::new(VecDeque::with_capacity(FRAME_BUFFER_CAPACITY)),
-            condvar: Condvar::new(),
-            is_eof: AtomicBool::new(false),
+            decoded_buffer: Mutex::new(VecDeque::with_capacity(FRAME_BUFFER_CAPACITY)),
+            decoded_condvar: Condvar::new(),
+            output_buffer: Mutex::new(VecDeque::with_capacity(OUTPUT_BUFFER_CAPACITY)),
+            output_condvar: Condvar::new(),
+            player_buffer_pool: Mutex::new(Vec::with_capacity(BUFFER_POOL_CAPACITY)),
+            fft_buffer_pool: Mutex::new(Vec::with_capacity(BUFFER_POOL_CAPACITY)),
+            decode_eof: AtomicBool::new(false),
+            output_eof: AtomicBool::new(false),
             is_stopping: AtomicBool::new(false),
             samples_consumed: AtomicU64::new(0),
             sample_rate,
@@ -70,14 +86,13 @@ impl Shared {
             decode_failed: AtomicBool::new(false),
             normalization_gain: AtomicU32::new(1.0_f32.to_bits()),
             normalization_enabled: AtomicBool::new(false),
-            interrupt_flag: Mutex::new(None),
+            cancel_handle: Mutex::new(None),
         })
     }
 
-    /// 绑定 ffmpeg 中断标志：start_decode 在打开输入后调用一次
-    /// 之后任意线程调用 stop() 都会一并 set 这个标志，触发 ffmpeg 中断回调
-    pub fn bind_interrupt(&self, flag: Arc<AtomicBool>) {
-        *self.interrupt_flag.lock() = Some(flag);
+    /// 绑定网络中断句柄，之后调用 stop() 会中断 HTTP IO
+    pub fn bind_cancel_handle(&self, cancel_handle: HttpCancelHandle) {
+        *self.cancel_handle.lock() = Some(cancel_handle);
     }
 
     /// 设置归一化增益因子（线性值）
@@ -89,6 +104,11 @@ impl Shared {
     /// 输出采样率
     pub fn sample_rate(&self) -> u32 {
         self.sample_rate
+    }
+
+    /// 播放输出声道数
+    pub fn channels(&self) -> u16 {
+        self.channels
     }
 
     /// 设置归一化开关
@@ -106,6 +126,34 @@ impl Shared {
         f32::from_bits(self.normalization_gain.load(Ordering::Relaxed))
     }
 
+    /// 获取可复用的播放样本缓冲
+    pub fn take_player_buffer(&self) -> Vec<f32> {
+        self.player_buffer_pool.lock().pop().unwrap_or_default()
+    }
+
+    /// 归还播放样本缓冲；池满时直接释放以保持内存有界
+    pub fn recycle_player_buffer(&self, mut buffer: Vec<f32>) {
+        buffer.clear();
+        let mut pool = self.player_buffer_pool.lock();
+        if pool.len() < BUFFER_POOL_CAPACITY {
+            pool.push(buffer);
+        }
+    }
+
+    /// 获取可复用的 FFT 样本缓冲
+    pub fn take_fft_buffer(&self) -> Vec<f32> {
+        self.fft_buffer_pool.lock().pop().unwrap_or_default()
+    }
+
+    /// 归还 FFT 样本缓冲；池满时直接释放以保持内存有界
+    pub fn recycle_fft_buffer(&self, mut buffer: Vec<f32>) {
+        buffer.clear();
+        let mut pool = self.fft_buffer_pool.lock();
+        if pool.len() < BUFFER_POOL_CAPACITY {
+            pool.push(buffer);
+        }
+    }
+
     /// 批量累加已消费的采样数（由 DecoderSource 按 chunk 调用）
     pub fn advance_consumed(&self, count: u64) {
         self.samples_consumed.fetch_add(count, Ordering::Relaxed);
@@ -118,7 +166,7 @@ impl Shared {
 
     /// 缓冲区是否为空（true 表示解码 underrun，sink 不消费可能是正常等待数据）
     pub fn is_buffer_empty(&self) -> bool {
-        self.buffer.lock().is_empty()
+        self.output_buffer.lock().is_empty()
     }
 
     /// 标记所有数据已被消费完毕（DecoderSource 迭代结束时调用）
@@ -136,7 +184,7 @@ impl Shared {
         self.is_stopping.load(Ordering::Acquire)
     }
 
-    /// 检查是否所有数据已被 rodio 消费完毕
+    /// 检查是否所有数据已被输出回调消费完毕
     pub fn is_all_consumed(&self) -> bool {
         self.all_consumed.load(Ordering::Acquire)
     }
@@ -159,34 +207,70 @@ impl Shared {
 
     /// 阻塞等待缓冲区有空间或收到停止信号，返回 false 表示应停止
     pub fn wait_for_space(&self) -> bool {
-        let mut buf = self.buffer.lock();
-        while buf.len() >= FRAME_BUFFER_CAPACITY && !self.is_stopping.load(Ordering::Acquire) {
-            self.condvar.wait(&mut buf);
+        let mut buffer = self.decoded_buffer.lock();
+        while buffer.len() >= FRAME_BUFFER_CAPACITY
+            && !self.is_stopping.load(Ordering::Acquire)
+            && !self.output_eof.load(Ordering::Acquire)
+        {
+            self.decoded_condvar.wait(&mut buffer);
         }
-        !self.is_stopping.load(Ordering::Acquire)
+        !self.is_stopping.load(Ordering::Acquire) && !self.output_eof.load(Ordering::Acquire)
     }
 
     /// 推入数据块，缓冲区满时阻塞等待（背压）
     pub fn push(&self, chunk: AudioChunk) {
-        let mut buf = self.buffer.lock();
-        while buf.len() >= FRAME_BUFFER_CAPACITY && !self.is_stopping.load(Ordering::Acquire) {
-            self.condvar.wait(&mut buf);
+        let mut buffer = self.decoded_buffer.lock();
+        while buffer.len() >= FRAME_BUFFER_CAPACITY
+            && !self.is_stopping.load(Ordering::Acquire)
+            && !self.output_eof.load(Ordering::Acquire)
+        {
+            self.decoded_condvar.wait(&mut buffer);
+        }
+        if self.is_stopping.load(Ordering::Acquire) || self.output_eof.load(Ordering::Acquire) {
+            return;
+        }
+        buffer.push_back(chunk);
+        self.decoded_condvar.notify_one();
+    }
+
+    /// 阻塞获取待处理块；解码结束且缓冲耗尽时返回 None
+    pub fn pop_decoded(&self) -> Option<AudioChunk> {
+        let mut buffer = self.decoded_buffer.lock();
+        while buffer.is_empty()
+            && !self.decode_eof.load(Ordering::Acquire)
+            && !self.is_stopping.load(Ordering::Acquire)
+            && !self.output_eof.load(Ordering::Acquire)
+        {
+            self.decoded_condvar.wait(&mut buffer);
+        }
+        let chunk = buffer.pop_front();
+        if chunk.is_some() {
+            self.decoded_condvar.notify_one();
+        }
+        chunk
+    }
+
+    /// 推入 DSP 后的数据块，保持小容量背压
+    pub fn push_output(&self, chunk: AudioChunk) {
+        let mut buffer = self.output_buffer.lock();
+        while buffer.len() >= OUTPUT_BUFFER_CAPACITY && !self.is_stopping.load(Ordering::Acquire) {
+            self.output_condvar.wait(&mut buffer);
         }
         if self.is_stopping.load(Ordering::Acquire) {
             return;
         }
-        buf.push_back(chunk);
-        self.condvar.notify_one();
+        buffer.push_back(chunk);
+        self.output_condvar.notify_one();
     }
 
     /// 非阻塞弹出数据块，供实时输出线程避免在音频回调链路里等待解码线程
     pub fn try_pop(&self) -> PopResult {
-        let mut buf = self.buffer.lock();
-        if let Some(chunk) = buf.pop_front() {
-            self.condvar.notify_one();
+        let mut buffer = self.output_buffer.lock();
+        if let Some(chunk) = buffer.pop_front() {
+            self.output_condvar.notify_one();
             return PopResult::Chunk(chunk);
         }
-        if self.is_eof.load(Ordering::Acquire) || self.is_stopping.load(Ordering::Acquire) {
+        if self.output_eof.load(Ordering::Acquire) || self.is_stopping.load(Ordering::Acquire) {
             PopResult::Finished
         } else {
             PopResult::Pending
@@ -195,60 +279,59 @@ impl Shared {
 
     /// 标记解码完成
     pub fn mark_eof(&self) {
-        self.is_eof.store(true, Ordering::Release);
-        self.condvar.notify_all();
+        self.decode_eof.store(true, Ordering::Release);
+        self.decoded_condvar.notify_all();
+    }
+
+    /// 标记 DSP 已处理完全部输出
+    pub fn mark_output_eof(&self) {
+        self.output_eof.store(true, Ordering::Release);
+        self.decoded_condvar.notify_all();
+        self.output_condvar.notify_all();
     }
 
     /// 发出停止信号，唤醒双方
-    /// 同时设置 ffmpeg 中断标志，让阻塞中的 IO（HTTP read 等）立即返回 AVERROR_EXIT
+    /// 同时取消网络请求，让阻塞中的 HTTP IO 尽快返回
     pub fn stop(&self) {
         self.is_stopping.store(true, Ordering::Release);
-        if let Some(flag) = self.interrupt_flag.lock().as_ref() {
-            flag.store(true, Ordering::Release);
+        if let Some(handle) = self.cancel_handle.lock().as_ref() {
+            handle.cancel();
         }
-        self.condvar.notify_all();
+        self.decoded_condvar.notify_all();
+        self.output_condvar.notify_all();
     }
 
     /// 清空缓冲区并释放内存（stop 后调用，避免 AudioChunk 在 Arc 引用存活期间持续占用内存）
     pub fn drain_buffer(&self) {
-        let mut buf = self.buffer.lock();
-        buf.clear();
-        buf.shrink_to_fit();
-    }
-
-    /// 检查播放是否已结束（EOF 且缓冲区为空）
-    pub fn is_done(&self) -> bool {
-        let buf = self.buffer.lock();
-        self.is_eof.load(Ordering::Acquire) && buf.is_empty()
+        let mut decoded = self.decoded_buffer.lock();
+        let decoded_chunks = std::mem::take(&mut *decoded);
+        decoded.shrink_to_fit();
+        drop(decoded);
+        let mut output = self.output_buffer.lock();
+        let output_chunks = std::mem::take(&mut *output);
+        output.shrink_to_fit();
+        drop(output);
+        for chunk in decoded_chunks.into_iter().chain(output_chunks) {
+            self.recycle_player_buffer(chunk.player_samples);
+            self.recycle_fft_buffer(chunk.fft_samples);
+        }
     }
 }
 
-/// 音频元数据（包含封面路径和歌词）
-#[derive(Clone, Default)]
-pub struct AudioMetadata {
-    pub title: Option<String>,
-    pub artist: Option<String>,
-    pub album: Option<String>,
-    /// 注释/副标题
-    pub comment: Option<String>,
-    pub duration_secs: f64,
-    /// 播放采样率（重采样后，用于音频输出）
-    pub sample_rate: u32,
-    pub channels: u16,
-    /// 原始采样率（解码前，用于前端显示）
-    pub original_sample_rate: u32,
-    /// 位深（bits per sample）
-    pub bits_per_sample: u32,
-    /// 比特率（bps）
-    pub bit_rate: i64,
-    /// 编码格式名称（如 "flac", "mp3", "aac"）
-    pub codec: String,
-    /// 内嵌歌词
-    pub embedded_lyric: Option<String>,
-    /// 同目录所有歌词文件
-    pub external_lyrics: Vec<ExternalLyric>,
-    /// 封面缩略图缓存路径（用于前端日常显示）
-    pub cover: Option<String>,
-    /// 原始封面数据（load 时一次性提取，供 SMTC 等使用，避免重复打开文件）
-    pub cover_raw: Option<Vec<u8>>,
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn sample_buffer_pools_are_bounded() {
+        let shared = Shared::new(48_000, 2);
+
+        for _ in 0..(BUFFER_POOL_CAPACITY + 20) {
+            shared.recycle_player_buffer(Vec::with_capacity(16));
+            shared.recycle_fft_buffer(Vec::with_capacity(16));
+        }
+
+        assert_eq!(shared.player_buffer_pool.lock().len(), BUFFER_POOL_CAPACITY);
+        assert_eq!(shared.fft_buffer_pool.lock().len(), BUFFER_POOL_CAPACITY);
+    }
 }

@@ -4,6 +4,7 @@ import IconLucideMusic from "~icons/lucide/music";
 import IconLucideUser from "~icons/lucide/user";
 import IconLucideDisc3 from "~icons/lucide/disc-3";
 import IconLucideFolder from "~icons/lucide/folder";
+import IconLucideChartPie from "~icons/lucide/chart-pie";
 import IconLucideServer from "~icons/lucide/server";
 import IconMaterialSymbolsFavoriteOutline from "~icons/material-symbols/favorite-outline-rounded";
 import IconLucideStar from "~icons/lucide/star";
@@ -28,6 +29,7 @@ const SIDEBAR_NAV_ENTRIES: SidebarNavEntry[] = [
   { key: "/artists/local", labelKey: "artist.label", icon: IconLucideUser, hideable: true },
   { key: "/albums/local", labelKey: "album.label", icon: IconLucideDisc3, hideable: true },
   { key: "/folders", labelKey: "folder.label", icon: IconLucideFolder, hideable: true },
+  { key: "/stats", labelKey: "stats.label", icon: IconLucideChartPie, hideable: true },
   {
     key: "/liked",
     labelKey: "nav.liked",

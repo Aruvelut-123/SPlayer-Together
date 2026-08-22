@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { TrackSource } from "@shared/types/player";
+import type { PlaybackContext, TrackSource } from "@shared/types/player";
 import type { ArtistProfile, CoverItem } from "@/types/artist";
 import { useSettingsStore } from "@/stores/settings";
 import { useUserStore } from "@/stores/user";
@@ -120,9 +120,16 @@ const totalDuration = computed(() => {
   return total > 0 ? formatTime(total) : "";
 });
 
+const playbackContext = computed<PlaybackContext>(() => ({
+  provider: source,
+  originId: decodeURIComponent(id),
+  originType: "artist",
+  originName: artist.value?.name,
+}));
+
 const handlePlayAll = () => {
   if (!artist.value?.tracks.length) return;
-  player.playFrom(artist.value.tracks, 0);
+  player.playFrom(artist.value.tracks, 0, playbackContext.value);
 };
 
 /** 收藏歌手仅支持网易云 */
@@ -302,6 +309,7 @@ const albumItems = computed<CoverItem[]>(() => {
               clearable
               round
               class="w-40 focus-within:w-56"
+              data-search-input
             >
               <template #prefix>
                 <IconLucideSearch class="size-4 text-on-surface-variant/40 shrink-0" />
@@ -333,6 +341,7 @@ const albumItems = computed<CoverItem[]>(() => {
               :items="artist.tracks"
               :search-query="searchQuery"
               :source="source"
+              :playback-context="playbackContext"
               :show-size="source === 'local'"
               :has-more="hasMoreSongs"
               :loading-more="loadingMore"

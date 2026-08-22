@@ -54,6 +54,7 @@ const handleCreate = (): void => {
 
 /** 新建成功后跳转到该歌单 */
 const handleCreated = (playlistId: string, scope: ContentScope): void => {
+  status.myPlaylistSource = scope;
   router.push(`/collection/${scope === "local" ? "local" : "netease"}/playlist/${playlistId}`);
 };
 
@@ -67,7 +68,7 @@ const renderMyHeader = () =>
         options: sourceOptions.value,
         side: "bottom",
         align: "start",
-        "onUpdate:modelValue": (v) => (status.myPlaylistSource = v as ContentScope),
+        "onUpdate:modelValue": (value) => (status.myPlaylistSource = value as ContentScope),
       },
       {
         trigger: () =>
@@ -184,6 +185,7 @@ const navItems = computed<SMenuItem[]>(() => {
       if (!entry) continue;
       if (key === "/download" && !systemSettings.download.enabled) continue;
       if (key === "/streaming" && !systemSettings.streaming.enabled) continue;
+      if (key === "/stats" && !appearance.showStatsInSidebar) continue;
       const item: SMenuItem = { key, label: t(entry.labelKey), icon: markRaw(entry.icon) };
       if (key === "/liked") item.trailing = renderHeartModeTrailing;
       if (key === "/download" && downloadStore.activeCount > 0)
@@ -274,7 +276,7 @@ const onContextMenuSelect = (key: string): void => {
 };
 
 const activeKey = computed(() => {
-  // 流媒体
+  // 媒体源
   if (route.path.startsWith("/streaming")) return "/streaming";
   if (route.path.startsWith("/collection/streaming/")) return "/streaming";
   if (route.path.startsWith("/artist/streaming/")) return "/streaming";

@@ -99,7 +99,7 @@ const reconcilePlaylistOrder = (stored: unknown): SidebarPlaylistOrder => {
 export const useSettingsStore = defineStore(
   "settings",
   () => {
-    /** 界面语言（持久化，由 main.ts 同步到 vue-i18n） */
+    /** 界面语言 */
     const locale = ref<LocaleCode>("zh-CN");
 
     /** 外观 */
@@ -116,6 +116,7 @@ export const useSettingsStore = defineStore(
       sidebarKeepEmptyDivider: false,
       sidebarNameWithDivider: false,
       sidebarPlaylistOrder: { myLocal: [], myOnline: [], subscribed: [] },
+      showStatsInSidebar: true,
       showQualitySwitch: false,
       closeAction: "hide",
       rememberCloseChoice: false,
@@ -133,12 +134,14 @@ export const useSettingsStore = defineStore(
       playerBgBeat: false,
       coverLayout: "default",
       autoCenterCover: true,
+      showPlaybackSource: false,
       followCoverColor: true,
       autoImmersive: true,
       outputDevice: null,
       pauseOnDeviceSwitch: false,
       enableSpectrum: false,
       spectrumBarWidth: 4,
+      reverseSpectrum: false,
       songLevel: "hq",
       allowTrialPlay: false,
       timeFormat: "current-total",
@@ -146,6 +149,7 @@ export const useSettingsStore = defineStore(
       showProgressLyric: false,
       snapToLyric: false,
       showLyricInBar: true,
+      preloadNextTrack: false,
     });
 
     /** 强迫症设置 */
@@ -169,6 +173,10 @@ export const useSettingsStore = defineStore(
       fontWeight: 700,
       lyricBlendMode: "normal",
       fontFamily: "",
+      fontFamilyLatin: "",
+      fontFamilyJapanese: "",
+      fontFamilyKorean: "",
+      fontFamilyChinese: "",
       showTranslation: true,
       showRomanization: true,
       amllShowLineRomanization: true,
@@ -300,9 +308,11 @@ export const useSettingsStore = defineStore(
      */
     const setSystem = async (keyPath: string, value: unknown): Promise<void> => {
       setByPath(system, keyPath, value);
-      window.api.config.set(keyPath, value).catch((err) => {
+      try {
+        await window.api.config.set(keyPath, value);
+      } catch (err) {
         console.error("[settings] config.set failed", keyPath, err);
-      });
+      }
       if (keyPath === "player.fadeEnabled" || keyPath === "player.fadeDuration") {
         await window.api.player.setFadeDuration(
           system.player.fadeEnabled ? system.player.fadeDuration : 0,

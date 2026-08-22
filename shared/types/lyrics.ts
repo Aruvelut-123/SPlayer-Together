@@ -19,6 +19,9 @@ export const DEFAULT_LYRIC_FORMAT_ORDER: readonly LyricFormat[] = [
 /** 歌词来源 */
 export type LyricSource = "external" | "embedded" | "online";
 
+/** 歌词行语言；und-Latn 表示语言未知的拉丁文字 */
+export type LyricLanguage = "ja" | "ko" | "zh-CN" | "und-Latn";
+
 /** 歌词数据 */
 export type LyricData = {
   source: LyricSource;
@@ -49,6 +52,8 @@ export interface LyricWord extends LyricSpan {
 
 /** 一行歌词 */
 export interface LyricLine {
+  /** 主歌词语言，用于字形选择与 HTML lang */
+  language?: LyricLanguage;
   /**
    * 该行的所有单词
    * 如果是 LyRiC 等只能表达一行歌词的格式，这里就只会有一个单词且通常其始末时间和本结构的 `startTime` 和 `endTime` 相同
@@ -99,8 +104,7 @@ export interface LyricMatchResult extends LyricInput {
 
 /** 歌词匹配 IPC 响应 */
 export type LyricMatchResponse =
-  | { ok: true; data: LyricMatchResult | null }
-  | { ok: false; error: string };
+  { ok: true; data: LyricMatchResult | null } | { ok: false; error: string };
 
 /** TTML 抓取 IPC 响应 */
 export type LyricTTMLResponse = { ok: true; data: string | null } | { ok: false; error: string };

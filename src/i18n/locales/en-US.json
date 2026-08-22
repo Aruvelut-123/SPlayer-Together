@@ -6,6 +6,7 @@
     "downloading": "Downloading",
     "installNow": "Restart & Install",
     "goDownload": "Go to Download",
+    "goStore": "Update in Store",
     "upToDate": "You're on the latest version",
     "readyToast": "Update ready — restart to install",
     "failed": "Update failed, please try again later"
@@ -87,17 +88,25 @@
     }
   },
   "agreementUpdate": {
-    "title": "User Agreement Updated",
+    "title": "User Agreement & Disclaimer Updated",
     "subtitle": "The agreement has changed. Please re-read and accept to continue",
-    "accept": "I've read and agree, continue"
+    "accept": "I've read and agree, continue",
+    "reject": "Decline & Exit"
   },
   "common": {
+    "back": "Back",
     "confirm": "Confirm",
     "cancel": "Cancel",
     "close": "Close",
     "configure": "Configure",
     "more": "More",
     "save": "Save",
+    "add": "Add",
+    "edit": "Edit",
+    "delete": "Delete",
+    "enable": "Enable",
+    "enabled": "Enabled",
+    "active": "Active",
     "saveAndRelaunch": "Save & Relaunch",
     "reset": "Reset",
     "retry": "Retry",
@@ -108,6 +117,7 @@
     "noData": "No data",
     "noMore": "No more ~",
     "refreshCache": "Refresh cache",
+    "success": "Success",
     "copied": "Copied",
     "copyFailed": "Copy failed",
     "playAll": "Play All",
@@ -190,7 +200,8 @@
     "download": "Downloads",
     "favorites": "Favorites",
     "cloud": "My Cloud",
-    "streaming": "Streaming",
+    "streaming": "Media Sources",
+    "stats": "Stats",
     "reload": "Reload",
     "devtools": "Developer Tools",
     "globalSettings": "Global Settings",
@@ -216,6 +227,42 @@
       "album": "Go to album [{id}]",
       "artist": "Go to artist [{id}]",
       "playlist": "Go to playlist [{id}]"
+    }
+  },
+  "recognition": {
+    "title": "Music Recognition",
+    "entry": "Recognize",
+    "description": "Identify the music currently playing",
+    "start": "Start Recognition",
+    "sourceLabel": "Audio source",
+    "hint": {
+      "system": "We will capture a short audio sample from your system to identify the music",
+      "microphone": "Move closer to the source and keep the room quiet for better results"
+    },
+    "source": {
+      "system": "System Audio",
+      "microphone": "Microphone"
+    },
+    "phase": {
+      "capturing": "Listening…",
+      "fingerprinting": "Generating fingerprint…",
+      "matching": "Matching library…"
+    },
+    "empty": "No song identified, move closer to the sound source and retry",
+    "retry": "Try Again",
+    "cancel": "Cancel",
+    "play": "Play",
+    "unavailable": "Music recognition is not supported on this device",
+    "searching": "Search this song",
+    "error": {
+      "unsupported": "System audio capture is not supported on this platform",
+      "no-device": "No audio input device found",
+      "permission-denied": "Microphone permission denied, please grant access in system settings",
+      "capture-failed": "Audio capture failed",
+      "silent-input": "No sound detected, please check audio output",
+      "network": "Matching service unavailable, please try again later",
+      "afp-unavailable": "Audio fingerprint library unavailable",
+      "unknown": "Recognition failed, please try again"
     }
   },
   "home": {
@@ -357,8 +404,8 @@
     }
   },
   "streaming": {
-    "hint": "Connect to a streaming platform",
-    "hintDetail": "Server credentials are encrypted by the OS and stored locally; nothing is uploaded",
+    "hint": "Connect to Media Source",
+    "hintDetail": "Add a personal streaming server with encrypted configuration",
     "errorCode": {
       "auth": "Authentication failed",
       "network": "Network error",
@@ -379,8 +426,8 @@
       "noResults": "No results"
     },
     "server": {
-      "type": "Server type",
-      "name": "Server name",
+      "type": "Type",
+      "name": "Name",
       "namePlaceholder": "Friendly name for this server",
       "url": "Server URL",
       "username": "Username",
@@ -388,11 +435,10 @@
       "test": "Test connection",
       "testOk": "Connection succeeded",
       "testFail": "Connection failed",
-      "add": "Add server",
-      "added": "Server added",
+      "add": "Add media source",
       "edit": "Edit server",
+      "added": "Server added",
       "updated": "Server updated",
-      "delete": "Delete",
       "removed": "Server removed",
       "deleteConfirmTitle": "Delete server",
       "deleteConfirm": "Delete server \"{name}\"? This cannot be undone.",
@@ -459,8 +505,7 @@
     },
     "repeatMode": {
       "list": "Repeat all",
-      "one": "Repeat one",
-      "off": "Repeat off"
+      "one": "Repeat one"
     },
     "shuffleMode": {
       "on": "Shuffle on",
@@ -680,6 +725,7 @@
       "appearance": "Appearance",
       "hotkeys": "Hotkey Settings",
       "services": "Services",
+      "aiIntegration": "AI Integration",
       "mediaSource": "Media Sources",
       "download": "Downloads",
       "localCache": "Local & Cache",
@@ -697,6 +743,7 @@
       "language": "Language",
       "playback": "Player",
       "playControl": "Playback Control",
+      "audioSource": "Audio Source",
       "scrobble": "Scrobble",
       "lyricContent": "Lyric Content",
       "lyricTTML": "TTML Lyrics",
@@ -719,19 +766,23 @@
       "discord": "Discord RPC",
       "lastfm": "Last.fm",
       "externalApi": "External API",
+      "mcp": "MCP",
+      "aiModel": "AI Models",
       "systemConfig": "System",
       "pluginManage": "Import Plugins",
       "pluginsList": "Plugin Management",
-      "streaming": "Streaming",
+      "streaming": "Media Source Config",
+      "mediaServerManagement": "Media Source Management",
       "songCache": "Song Cache",
       "downloadLocation": "Download Settings",
       "downloadGeneral": "Download Options",
       "downloadTags": "What to Write",
-      "cache": "Caches",
-      "database": "Database",
+      "cache": "Cache Management",
+      "database": "Database Management",
       "backupReset": "Backup & Reset",
       "debug": "Debug",
-      "preset": "OCD Settings"
+      "preset": "OCD Settings",
+      "envInfo": "Environment Info"
     },
     "about": {
       "checkUpdate": "Check for Updates",
@@ -740,8 +791,11 @@
       "openLogs": "Open Logs",
       "officialSite": "Official Site",
       "showMore": "More Contributors",
-      "collapse": "Collapse"
+      "collapse": "Collapse",
+      "commit": "Commit",
+      "date": "Date"
     },
+    "storeVersion": "Store",
     "language": {
       "label": "Language",
       "description": "Switch the display language"
@@ -778,6 +832,10 @@
       "label": "Show Lyric While Playing",
       "description": "Replace artist name with current lyric in the bottom player bar"
     },
+    "showPlaybackSource": {
+      "label": "Show Playback Source",
+      "description": "Show the current source in the full player and open its page when clicked"
+    },
     "fadeEnabled": {
       "label": "Fade In/Out",
       "description": "Audio fade on play and pause"
@@ -805,6 +863,10 @@
     "allowTrialPlay": {
       "label": "Allow Trial Playback",
       "description": "Play trial clips returned by the platform only when full sources and plugins are unavailable"
+    },
+    "preloadNextTrack": {
+      "label": "Preload next track",
+      "description": "Fetch the next track's playback info in advance, which may increase network usage"
     },
     "outputDevice": {
       "label": "Output Device",
@@ -841,6 +903,10 @@
     "spectrumBarWidth": {
       "label": "Bar Width",
       "description": "Smaller values give thinner, denser bars"
+    },
+    "reverseSpectrum": {
+      "label": "Reverse Spectrum",
+      "description": "When enabled, the frequency of the bars decreases from the center toward the sides; otherwise it increases."
     },
     "lyricSourcePreference": {
       "label": "Lyric Source Preference",
@@ -946,7 +1012,8 @@
         "openPlayer": "Open player view",
         "closePlayer": "Close player view",
         "togglePlaylist": "Show / hide playlist",
-        "openSearch": "Open search"
+        "openSearch": "Open search",
+        "searchInPage": "Search in page"
       }
     },
     "engine": {
@@ -961,7 +1028,9 @@
       "highResourceTitle": "Resource-Intensive Feature",
       "highResourceContent": "Enabling it may noticeably increase memory and CPU usage, and could cause stuttering on lower-end devices. Enable it anyway?",
       "restartRequiredTitle": "Restart Required",
-      "restartRequiredContent": "This setting requires an app restart. Save and relaunch now?"
+      "restartRequiredContent": "This setting requires an app restart. Save and relaunch now?",
+      "testChannelTitle": "Switch to a Test Channel",
+      "testChannelContent": "Beta and Alpha channels receive test releases early. Alpha releases may be highly unstable. Switch anyway?"
     },
     "useAMSpring": {
       "label": "Spring Animation Debug Switch",
@@ -1197,6 +1266,12 @@
       "label": "Word Highlight",
       "description": "Render progressive word-by-word highlight"
     },
+    "dynamicIslandTransition": {
+      "label": "Transition",
+      "description": "Choose how the island width and lyric lines transition",
+      "bounce": "Dynamic Bounce",
+      "smooth": "Smooth Transition"
+    },
     "dynamicIslandDoubleLine": {
       "label": "Always Two Lines",
       "description": "Keep two-line layout even when no translation is available"
@@ -1250,7 +1325,11 @@
     },
     "taskbarLyricAutoMaxWidth": {
       "label": "Auto Width",
-      "description": "When enabled, fill the available taskbar space; otherwise limit to Max Width below"
+      "description": "Use the available taskbar area as the maximum width; disable to set it manually"
+    },
+    "taskbarLyricAutoAdjustOccupiedSpace": {
+      "label": "Shrink Window to Content",
+      "description": "Within the automatic width, shrink the actual window to the primary lyric and hover controls"
     },
     "taskbarLyricMaxWidth": {
       "label": "Max Width",
@@ -1272,9 +1351,17 @@
       "light": "Light",
       "dark": "Dark"
     },
+    "taskbarLyricShowBackground": {
+      "label": "Show Background",
+      "description": "Show a translucent background while focused"
+    },
     "taskbarLyricFontSize": {
       "label": "Font Size",
       "description": "Taskbar lyric text size (px)"
+    },
+    "taskbarLyricFontWeight": {
+      "label": "Font Weight",
+      "description": "Taskbar lyric text weight"
     },
     "taskbarLyricShowCover": {
       "label": "Show Cover",
@@ -1413,6 +1500,10 @@
       "confirmResetDesc": "Groups, names, order and visibility will be reset to defaults!",
       "featureDisabled": "Feature disabled"
     },
+    "showStatsInSidebar": {
+      "label": "Show Play Stats Entry",
+      "description": "Show the play statistics page entry in the sidebar"
+    },
     "showQualitySwitch": {
       "label": "Show Quick Quality Switch",
       "description": "Show the online audio quality tag in the player bar for quick switching"
@@ -1425,6 +1516,7 @@
       "placeholder": "Enter a font name",
       "useSystem": "System default",
       "useGlobal": "Follow global",
+      "useLyric": "Follow lyric",
       "modeLabel": "Input method",
       "modeHint": "All fields below use this method",
       "modeSelect": "Manual pick",
@@ -1439,6 +1531,10 @@
       "fields": {
         "global": "global",
         "lyric": "lyrics",
+        "lyricChinese": "Chinese lyrics",
+        "lyricJapanese": "Japanese lyrics",
+        "lyricKorean": "Korean lyrics",
+        "lyricLatin": "English / Latin-script lyrics",
         "desktopLyric": "desktop lyric",
         "dynamicIsland": "dynamic island lyric",
         "taskbarLyric": "taskbar lyric"
@@ -1507,6 +1603,13 @@
       "label": "Auto Check for Updates",
       "description": "Check for new versions in the background on launch and periodically"
     },
+    "updateChannel": {
+      "label": "Update Channel",
+      "description": "Choose Stable, Beta preview, or Alpha experimental updates",
+      "stable": "Stable",
+      "beta": "Beta Preview",
+      "alpha": "Alpha Experimental"
+    },
     "checkUpdate": {
       "label": "Check for Updates",
       "description": "Check for a new version now"
@@ -1566,7 +1669,7 @@
     },
     "streamingEnabled": {
       "label": "Enable streaming",
-      "description": "When disabled, the streaming entry is hidden from the sidebar"
+      "description": "When disabled, the media sources entry is hidden from the sidebar"
     },
     "externalApiEnabled": {
       "label": "Allow external control",
@@ -1584,19 +1687,68 @@
       "label": "Listen port",
       "description": "TCP port for the external API (1024–65535)"
     },
-    "externalApiPanel": {
-      "label": "",
-      "description": ""
-    },
     "externalApi": {
       "restart": "Restart server",
-      "restartHint": "Restart required after changing the port or LAN access",
       "restarted": "Server restarted",
       "portInUse": "Port {port} is already in use, pick another",
-      "pendingChange": "Pending restart",
-      "pendingChangeHint": "Settings changed, restart the server to apply",
-      "endpoint": "Address",
+      "running": "Server is running",
       "stopped": "Server not running"
+    },
+    "mcpEnabled": {
+      "label": "Enable MCP server",
+      "description": "Enable the local MCP server so AI Agents can join the app ecosystem and extend capabilities on demand"
+    },
+    "aiModelConfig": {
+      "label": "AI Models",
+      "description": "Configure AI models used by the app"
+    },
+    "aiModel": {
+      "hint": "AI Model Configuration",
+      "hintDetail": "Provides model support for selected AI features in the app",
+      "add": "Add model",
+      "editModel": "Edit model",
+      "empty": "No AI models configured",
+      "emptyHint": "Add an AI model configuration for the app to use",
+      "protocol": "Protocol",
+      "name": "Configuration name",
+      "namePlaceholder": "For example: OpenAI",
+      "baseUrl": "API URL",
+      "apiKey": "API Key",
+      "apiKeyPlaceholder": "Enter API Key",
+      "apiKeySavedPlaceholder": "Saved; leave blank to keep unchanged",
+      "model": "Model ID",
+      "added": "Model added",
+      "updated": "Model updated",
+      "removed": "Model deleted",
+      "activated": "Active model changed",
+      "deleteConfirmTitle": "Delete AI model?",
+      "deleteConfirm": "Delete “{name}”? Its saved API key will also be removed.",
+      "errors": {
+        "nameEmpty": "Enter a configuration name",
+        "urlInvalid": "Enter an API URL starting with http:// or https://",
+        "modelEmpty": "Enter a model ID",
+        "apiKeyEmpty": "Enter an API Key"
+      }
+    },
+    "mcpPort": {
+      "label": "Listen port",
+      "description": "After changing the port, click Restart server to apply it (1024–65535)"
+    },
+    "mcpConfigDetails": {
+      "label": "MCP configuration",
+      "description": "View and copy the MCP configuration required to connect an AI Agent"
+    },
+    "mcp": {
+      "restart": "Restart server",
+      "restarted": "MCP server restarted",
+      "portInUse": "Port {port} is already in use, pick another",
+      "running": "MCP server is running",
+      "stopped": "MCP server is not running",
+      "detectHint": "Detected the following AI Agents. Supported apps can be configured automatically.",
+      "inject": "Configure",
+      "notSupported": "Not supported yet",
+      "injected": "Configured",
+      "injectSuccess": "Configured successfully"
     },
     "closeAction": {
       "label": "Close Button Action",
@@ -1674,8 +1826,6 @@
       "importFailed": "Failed to import plugin",
       "empty": "No plugins installed",
       "emptyHint": "Install a plugin from local file or URL to enable extended features",
-      "enable": "Enable",
-      "enabled": "Enabled",
       "uninstall": "Uninstall",
       "configSubtitle": "Plugin settings",
       "uninstallConfirmTitle": "Uninstall Plugin",
@@ -1786,6 +1936,10 @@
       "label": "Song Cache",
       "description": "Cache online tracks locally to improve loading speed"
     },
+    "cacheStreaming": {
+      "label": "Cache Streaming Tracks",
+      "description": "Cache tracks from personal media servers locally during playback"
+    },
     "songCacheSizeLimit": {
       "label": "Size Limit",
       "description": "When the limit is reached, entries are evicted automatically; ∞ means unlimited"
@@ -1877,13 +2031,20 @@
     "unknownAlbum": "Unknown Album",
     "empty": "No songs",
     "noDescription": "No description yet~",
+    "introduction": "{type} Description",
+    "viewIntroduction": "View full description",
     "album": "Album",
     "playlist": "Playlist",
     "radio": "Radio",
+    "scope": {
+      "local": "Local",
+      "online": "Online"
+    },
     "my": "My {type}s",
     "subscribed": "Subscribed {type}s",
     "localPlaylist": "Local Playlists",
     "onlinePlaylist": "Online Playlists",
+    "playlistNamePlaceholder": "Enter a playlist name",
     "create": "New {type}",
     "name": "{type} Name",
     "description": "Description",
@@ -1898,6 +2059,29 @@
     "unsubscribe": "Unsubscribe",
     "privacy": {
       "private": "Make private"
+    },
+    "context": {
+      "more": "More",
+      "album": {
+        "copyTitle": "Copy Album Title",
+        "copyId": "Copy Album ID",
+        "copyUrl": "Share Album Link"
+      },
+      "playlist": {
+        "copyTitle": "Copy Playlist Title",
+        "copyId": "Copy Playlist ID",
+        "copyUrl": "Share Playlist Link"
+      },
+      "radio": {
+        "copyTitle": "Copy Radio Title",
+        "copyId": "Copy Radio ID",
+        "copyUrl": "Share Radio Link"
+      },
+      "cloud": {
+        "copyTitle": "Copy Cloud Title",
+        "copyId": "Copy Cloud ID",
+        "copyUrl": "Share Cloud Link"
+      }
     }
   },
   "artist": {
@@ -1913,6 +2097,34 @@
     "label": "Folders",
     "totalFolders": "{count} folders"
   },
+  "stats": {
+    "label": "Stats",
+    "songs": "Songs",
+    "albums": "Albums",
+    "artists": "Artists",
+    "totalDuration": "Total Duration",
+    "totalSize": "Total Size",
+    "topSongs": "Most Played Songs",
+    "topAlbums": "Most Played Albums",
+    "topArtists": "Most Played Artists",
+    "plays": "{count} plays",
+    "playsUnit": "plays",
+    "noData": "No play data yet",
+    "noDataHint": "No data yet, go listen to some songs",
+    "unknown": "Unknown",
+    "less": "Less",
+    "more": "More",
+    "audioQuality": "Audio Formats",
+    "formatCount": "{count} formats",
+    "losslessRatio": "Lossless",
+    "trackUnit": "tracks",
+    "listeningHours": "Listening Hours",
+    "peakListening": "Most played",
+    "favoriteHour": "You listen most often at {hour}:00, with {count} tracks in total",
+    "noPlayHistory": "No listening-hour data yet",
+    "listeningActivity": "Listening Activity",
+    "last90Days": "Last 90 days"
+  },
   "errors": {
     "dialogTitle": "Something went wrong",
     "deviceHint": "No audio output device detected. Please connect headphones or speakers and try again.",
@@ -1926,6 +2138,10 @@
     "NETWORK_TIMEOUT": "Audio source timed out, check network or try another",
     "URL_RESOLVE_FAILED": "Failed to get playback URL",
     "NO_PLUGIN_AVAILABLE": "No plugin available for this platform",
+    "NETEASE_LOGIN_EXPIRED": "Login expired; switched to guest mode",
+    "NETEASE_VIP_REQUIRED": "This track requires a membership or separate purchase",
+    "NETEASE_TRIAL_DISABLED": "Only a trial is available; enable trial playback in settings",
+    "NETEASE_UNAVAILABLE": "No source is currently available for this track",
     "SCAN_NO_DIRS": "No scan directories configured",
     "SCAN_DIR_EXISTS": "Directory already exists",
     "SCAN_DIR_NOT_FOUND": "Directory not found",
