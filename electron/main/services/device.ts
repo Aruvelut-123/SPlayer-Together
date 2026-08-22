@@ -65,7 +65,15 @@ export const requestReinit = (player: PlayerInstance): void => {
     pendingReinitPlayer = player;
     return;
   }
-  runReinit(player, 0);
+  const initialDelay = recoveryRetryDelay(0) ?? 0;
+  if (initialDelay > 0) {
+    retryTimer = setTimeout(() => {
+      retryTimer = null;
+      if (activePlayer === player) runReinit(player, 0);
+    }, initialDelay);
+  } else {
+    runReinit(player, 0);
+  }
 };
 
 /** 处理一次设备变化信号 */

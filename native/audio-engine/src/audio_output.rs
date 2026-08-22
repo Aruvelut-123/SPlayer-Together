@@ -83,14 +83,19 @@ impl AudioOutput {
         volume: Arc<AtomicU32>,
         stopped: Arc<AtomicBool>,
     ) -> Result<cpal::Stream> {
-        build_typed_stream_for_format(
-            &self.device,
-            &self.config,
-            source,
-            volume,
-            stopped,
-            Arc::clone(&self.on_failure),
-        )
+        let device = self.device.clone();
+        let config = self.config.clone();
+        let on_failure = Arc::clone(&self.on_failure);
+        run_in_clean_mta(move || {
+            build_typed_stream_for_format(
+                &device,
+                &config,
+                source,
+                volume,
+                stopped,
+                on_failure,
+            )
+        })
         .with_audio_kind(AudioErrorKind::Device)
     }
 }
@@ -99,6 +104,28 @@ impl Drop for AudioOutput {
     fn drop(&mut self) {
         debug!(generation = self.generation, "释放音频输出配置");
     }
+}
+
+/// 在干净的 COM MTA 线程环境中运行任务（Windows 特需，防止 Node.js STA 或线程池残留的 COM 冲突）
+#[cfg(target_os = "windows")]
+fn run_in_clean_mta<T: Send + 'static, F: FnOnce() -> Result<T> + Send + 'static>(f: F) -> Result<T> {
+    use windows::Win32::System::Com::{CoInitializeEx, CoUninitialize, COINIT_MULTITHREADED};
+    std::thread::Builder::new()
+        .name("audio-mta-worker".into())
+        .spawn(move || {
+            let _ = unsafe { CoInitializeEx(None, COINIT_MULTITHREADED) };
+            let result = f();
+            unsafe { CoUninitialize() };
+            result
+        })
+        .map_err(|e| anyhow!("启动 MTA 线程失败: {e}"))?
+        .join()
+        .map_err(|_| anyhow!("MTA 线程发生 panic"))?
+}
+
+#[cfg(not(target_os = "windows"))]
+fn run_in_clean_mta<T, F: FnOnce() -> Result<T>>(f: F) -> Result<T> {
+    f()
 }
 
 /// 设备持久化选择键：cpal 0.18 起 `Device::name()` 并入 `description().name()`，
@@ -110,28 +137,37 @@ fn persisted_device_name(device: &cpal::Device) -> Option<String> {
 /// 枚举所有输出设备，返回 `(name, is_default)` 列表
 /// 纯查询，不涉及流状态，调用方任意线程都能用
 pub fn list_output_devices() -> Vec<(String, bool)> {
-    let host = cpal::default_host();
-    let default_name = host
-        .default_output_device()
-        .and_then(|device| persisted_device_name(&device));
-    host.output_devices()
-        .map(|devices| {
-            devices
-                .filter_map(|device| {
-                    let name = persisted_device_name(&device)?;
-                    let is_default = default_name.as_deref() == Some(name.as_str());
-                    Some((name, is_default))
-                })
-                .collect()
-        })
-        .unwrap_or_default()
+    run_in_clean_mta(|| {
+        let host = cpal::default_host();
+        let default_name = host
+            .default_output_device()
+            .and_then(|device| persisted_device_name(&device));
+        let list = host
+            .output_devices()
+            .map(|devices| {
+                devices
+                    .filter_map(|device| {
+                        let name = persisted_device_name(&device)?;
+                        let is_default = default_name.as_deref() == Some(name.as_str());
+                        Some((name, is_default))
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+        Ok(list)
+    })
+    .unwrap_or_default()
 }
 
 /// 取系统默认输出设备名
 pub fn default_device_name() -> Option<String> {
-    cpal::default_host()
-        .default_output_device()
-        .and_then(|device| persisted_device_name(&device))
+    run_in_clean_mta(|| {
+        let name = cpal::default_host()
+            .default_output_device()
+            .and_then(|device| persisted_device_name(&device));
+        Ok(name)
+    })
+    .unwrap_or_default()
 }
 
 /// 按设备名（`None` 为默认设备）解析设备与输出配置。
@@ -139,7 +175,7 @@ pub fn default_device_name() -> Option<String> {
 /// 样本格式优先沿用设备默认格式：PipeWire 等后端上报的 supported 列表包含
 /// 全部合成格式（顺序 I8…F64），首个条目不代表设备真实能力，直接采用会导致
 /// 以 i8 打开输出流而严重劣化音质。
-fn open_device(
+fn open_device_internal(
     device_name: Option<&str>,
     requested_sample_rate: Option<u32>,
 ) -> Result<(cpal::Device, SupportedStreamConfig)> {
@@ -202,6 +238,16 @@ fn open_device(
             .context("读取输出设备配置失败")?,
     };
     Ok((device, config))
+}
+
+fn open_device(
+    device_name: Option<&str>,
+    requested_sample_rate: Option<u32>,
+) -> Result<(cpal::Device, SupportedStreamConfig)> {
+    let name_owned = device_name.map(String::from);
+    run_in_clean_mta(move || {
+        open_device_internal(name_owned.as_deref(), requested_sample_rate)
+    })
 }
 
 /// 按样本格式分发到类型化构建

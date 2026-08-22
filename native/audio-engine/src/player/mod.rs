@@ -232,6 +232,11 @@ impl InnerPlayer {
         self.normalization_enabled
     }
 
+    /// 当前音频源路径/地址
+    pub fn current_source(&self) -> Option<&str> {
+        self.current_source.as_deref()
+    }
+
     /// 恢复播放。Paused 时渐入恢复；Stopped/Idle/已播完时返回 Some(source)，
     /// 由 NAPI 绑定层走 async load 复活——网络源的打开可达数秒，不能在锁内同步执行
     pub fn play(&mut self) -> Result<Option<String>> {
@@ -247,6 +252,11 @@ impl InnerPlayer {
             PlayerState::Playing => Ok(None),
             // 暂停状态：渐入恢复
             PlayerState::Paused => {
+                // 如果没有有效的播放链路或解码线程，交给调用方从当前音源重载复活
+                if self.playback.is_none() || self.decoder_thread.is_none() {
+                    return Ok(self.current_source.clone());
+                }
+
                 // 先取消未完成的渐出：否则其完成回调可能在 sink.play() 之后执行
                 // sink.pause()，导致状态 Playing 但实际无声
                 self.cancel_fade();
@@ -284,16 +294,14 @@ impl InnerPlayer {
         });
 
         // 立即启动非阻塞渐出，避免被后续 stop_*_timer 的 join 阻塞
-        // fade 完成后在回调中执行 sink.pause + 恢复音量
-        let target_volume = self.target_volume;
+        // fade 完成后在回调中执行 sink.pause（保持静音，不恢复音量以免串音或爆音）
         let playback_for_callback = self.playback.as_ref().map(Arc::clone);
         self.start_fade(
-            target_volume,
+            self.target_volume,
             0.0,
             Some(Box::new(move || {
                 if let Some(playback) = playback_for_callback {
                     playback.pause();
-                    playback.set_volume(target_volume);
                 }
             })),
         );

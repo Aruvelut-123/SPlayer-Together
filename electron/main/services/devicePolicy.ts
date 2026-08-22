@@ -3,7 +3,7 @@ export interface DeviceChangeDecision {
   shouldReinit: boolean;
 }
 
-const RECOVERY_RETRY_DELAYS_MS = [0, 250, 1000] as const;
+const RECOVERY_RETRY_DELAYS_MS = [100, 300, 1000] as const;
 
 /** 返回指定恢复尝试前的等待时间；超过最大次数时不再重试。 */
 export const recoveryRetryDelay = (attempt: number): number | null =>

@@ -75,8 +75,31 @@ const fail = (code: ErrorCode, error?: unknown) => {
   return { success: false as const, error: code };
 };
 
-/** NAPI 已在原生边界将设备错误标记为 `[Device]`，主进程据此返回稳定 IPC 错误码。 */
+/** 判断原生错误是否为设备错误 */
 const isNativeDeviceError = (error: unknown): boolean => String(error).includes("[Device]");
+const isNativeSourceNotFoundError = (error: unknown): boolean =>
+  String(error).includes("[SourceNotFound]");
+const isNativeNetworkError = (error: unknown): boolean =>
+  String(error).includes("[NetworkUnreachable]");
+const isNativeCancelledError = (error: unknown): boolean => String(error).includes("[Cancelled]");
+
+/** 根据原生错误特征和音源类型，将异常分类为标准 ErrorCode */
+const classifyLoadError = (error: unknown, source: string): ErrorCode => {
+  const msg = error instanceof Error ? error.message : String(error);
+  if (isNativeCancelledError(error)) {
+    return ErrorCode.LOAD_SUPERSEDED;
+  }
+  if (isNativeDeviceError(error) || /output device|NoDevice|DeviceNotAvailable/i.test(msg)) {
+    return ErrorCode.DEVICE_NOT_FOUND;
+  }
+  if (isNativeSourceNotFoundError(error)) {
+    return ErrorCode.FILE_NOT_FOUND;
+  }
+  if (isNativeNetworkError(error) || /^https?:\/\//i.test(source)) {
+    return ErrorCode.NETWORK_ERROR;
+  }
+  return ErrorCode.FILE_DECODE_ERROR;
+};
 
 /**
  * 播放器原生事件回调
@@ -315,20 +338,7 @@ export const registerPlayerIpc = (): void => {
       return { success: true, data };
     } catch (error) {
       if (seq === loadSeq) activeCueRange = null;
-      const msg = error instanceof Error ? error.message : String(error);
-      // 被更新的 load/stop 取代是正常竞态结果，不能按源类型误判为网络/解码错误
-      //（那两类是可跳曲错误，会让用户的停止操作变成自动跳下一曲）
-      if (msg.includes("已被更新的 load 取代")) {
-        return fail(ErrorCode.LOAD_SUPERSEDED);
-      }
-      const isDeviceError =
-        isNativeDeviceError(error) || /output device|NoDevice|DeviceNotAvailable/i.test(msg);
-      const isNetwork = source.startsWith("http://") || source.startsWith("https://");
-      const code = isDeviceError
-        ? ErrorCode.DEVICE_NOT_FOUND
-        : isNetwork
-          ? ErrorCode.NETWORK_ERROR
-          : ErrorCode.FILE_DECODE_ERROR;
+      const code = classifyLoadError(error, source);
       // 解码失败的源指向歌曲缓存目录 → 文件已损坏，把这条缓存项作废
       if (code === ErrorCode.FILE_DECODE_ERROR && source.startsWith(getSongCacheDir())) {
         void songCache.invalidate(source);
