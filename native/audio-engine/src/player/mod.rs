@@ -303,6 +303,23 @@ impl InnerPlayer {
         self.stop_fft_timer();
     }
 
+    /// 立即暂停播放，用于切换输出设备前阻止短暂串音
+    pub fn pause_immediately(&mut self) {
+        if self.state != PlayerState::Playing {
+            return;
+        }
+        self.cancel_fade();
+        if let Some(ref playback) = self.playback {
+            playback.pause();
+        }
+        self.state = PlayerState::Paused;
+        self.emit(PlayerEvent::StateChanged {
+            state: PlayerState::Paused,
+        });
+        self.stop_position_timer();
+        self.stop_fft_timer();
+    }
+
     /// 恢复失败后保留当前曲目与位置，播放器进入暂停态
     ///
     /// 不转 Stopped（避免 JS 按"播放结束"自动切歌），等待有限重试或用户手动操作。

@@ -36,6 +36,8 @@ export declare class AudioPlayer {
   play(): Promise<void>
   /** 暂停播放 */
   pause(): void
+  /** 立即暂停播放，用于输出设备切换前阻止短暂串音 */
+  pauseImmediately(): void
   /** 停止播放并释放资源 */
   stop(): void
   /**

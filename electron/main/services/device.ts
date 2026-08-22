@@ -13,6 +13,12 @@ let lastDefaultDevice: string | null | undefined;
 let reinitPromise: Promise<void> | null = null;
 let pendingReinitPlayer: PlayerInstance | null = null;
 let retryTimer: NodeJS.Timeout | null = null;
+let pauseOnDeviceSwitch = false;
+
+/** 设置默认输出设备切换前是否立即暂停 */
+export const setPauseOnDeviceSwitch = (enabled: boolean): void => {
+  pauseOnDeviceSwitch = enabled;
+};
 
 /** 取消尚未开始的恢复重试；正在执行的原生重建由新的 load token / 输出代次接管。 */
 export const cancelPendingReinit = (): void => {
@@ -98,6 +104,7 @@ const handleDeviceChange = (notifyListChange: boolean): void => {
       });
     }
     if (decision.shouldReinit) {
+      if (pauseOnDeviceSwitch) player.pauseImmediately();
       requestReinit(player);
     }
   } catch (error) {

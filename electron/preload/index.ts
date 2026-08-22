@@ -75,6 +75,9 @@ const api = {
     seek: (position: number) => ipcRenderer.invoke("player:seek", position),
     // 设置音量（0.0 ~ 1.0）
     setVolume: (volume: number) => ipcRenderer.invoke("player:setVolume", volume),
+    // 设置输出设备切换时暂停播放
+    setPauseOnDeviceSwitch: (enabled: boolean) =>
+      ipcRenderer.invoke("player:setPauseOnDeviceSwitch", enabled),
     // 获取当前音量
     getVolume: () => ipcRenderer.invoke("player:getVolume"),
     // 设置暂停/恢复时的渐变时长（毫秒），0 表示禁用
@@ -111,8 +114,8 @@ const api = {
     // 获取系统默认输出设备名称
     getDefaultDeviceName: () => ipcRenderer.invoke("player:getDefaultDeviceName"),
     // 切换输出设备（传 null 使用系统默认）
-    setOutputDevice: (deviceName: string | null) =>
-      ipcRenderer.invoke("player:setOutputDevice", deviceName),
+    setOutputDevice: (deviceName: string | null, pauseBeforeSwitch = false) =>
+      ipcRenderer.invoke("player:setOutputDevice", deviceName, pauseBeforeSwitch),
     // 获取当前选择的输出设备名称
     getSelectedDeviceName: () => ipcRenderer.invoke("player:getSelectedDeviceName"),
     // 获取当前歌曲的原始高清封面（base64 data URL）

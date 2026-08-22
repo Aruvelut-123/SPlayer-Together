@@ -596,6 +596,12 @@ impl AudioPlayer {
         self.inner.lock().pause();
     }
 
+    /// 立即暂停播放，用于输出设备切换前阻止短暂串音
+    #[napi]
+    pub fn pause_immediately(&self) {
+        self.inner.lock().pause_immediately();
+    }
+
     /// 停止播放并释放资源
     #[napi]
     pub fn stop(&self) {

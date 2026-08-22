@@ -13,6 +13,7 @@ import { fetchBytes } from "@main/utils/fetchBytes";
 import { getPlayer, resetPlayer, onPlayerCreated } from "@main/services/engine";
 import {
   cancelPendingReinit,
+  setPauseOnDeviceSwitch,
   startDeviceMonitoring,
   stopDeviceMonitoring,
   requestReinit,
@@ -396,6 +397,11 @@ export const registerPlayerIpc = (): void => {
     }
   });
 
+  ipcMain.handle("player:setPauseOnDeviceSwitch", (_event, enabled: boolean) => {
+    setPauseOnDeviceSwitch(enabled);
+    return { success: true };
+  });
+
   // 获取当前音量
   ipcMain.handle("player:getVolume", () => {
     return { success: true, data: getPlayer().getVolume() };
@@ -590,18 +596,22 @@ export const registerPlayerIpc = (): void => {
   });
 
   // 切换输出设备（传 null 使用系统默认）
-  ipcMain.handle("player:setOutputDevice", async (_event, deviceName: string | null) => {
-    try {
-      cancelPendingReinit();
-      await getPlayer().setOutputDevice(deviceName ?? undefined);
-      return { success: true };
-    } catch (error) {
-      return fail(
-        isNativeDeviceError(error) ? ErrorCode.DEVICE_INIT_FAILED : ErrorCode.UNKNOWN,
-        error,
-      );
-    }
-  });
+  ipcMain.handle(
+    "player:setOutputDevice",
+    async (_event, deviceName: string | null, pauseBeforeSwitch = false) => {
+      try {
+        cancelPendingReinit();
+        if (pauseBeforeSwitch) getPlayer().pauseImmediately();
+        await getPlayer().setOutputDevice(deviceName ?? undefined);
+        return { success: true };
+      } catch (error) {
+        return fail(
+          isNativeDeviceError(error) ? ErrorCode.DEVICE_INIT_FAILED : ErrorCode.UNKNOWN,
+          error,
+        );
+      }
+    },
+  );
 
   // 获取当前选择的输出设备名称
   ipcMain.handle("player:getSelectedDeviceName", () => {
