@@ -420,10 +420,17 @@ const api = {
   download: {
     // 入队下载
     start: (req: unknown) => ipcRenderer.invoke("download:start", req),
+    // 批量入队下载
+    startMany: (reqs: unknown[]) => ipcRenderer.invoke("download:startMany", reqs),
     // 取消任务
     cancel: (taskId: string) => ipcRenderer.invoke("download:cancel", taskId),
-    // 重试（携带重新解析的 URL）
+    // 重试（复用 taskId 重新入队）
     retry: (req: unknown) => ipcRenderer.invoke("download:retry", req),
+    // 回传即时解析结果
+    submitResolution: (taskId: string, res: unknown) =>
+      ipcRenderer.invoke("download:resolution", taskId, res),
+    // 上报即时解析失败
+    failResolution: (taskId: string) => ipcRenderer.invoke("download:resolveFailed", taskId),
     // 删除一条任务记录
     remove: (taskId: string) => ipcRenderer.invoke("download:remove", taskId),
     // 清空已结束任务
@@ -440,6 +447,11 @@ const api = {
     onProgress: (callback: (data: unknown) => void) => subscribe("download:progress", callback),
     // 订阅状态变更
     onState: (callback: (task: unknown) => void) => subscribe("download:state", callback),
+    // 订阅解析请求
+    onResolve: (callback: (payload: unknown) => void) => {
+      ipcRenderer.removeAllListeners("download:resolve");
+      return subscribe("download:resolve", callback);
+    },
   },
   nowPlaying: {
     // 渲染进程同步当前播放状态到主进程

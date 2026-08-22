@@ -552,7 +552,7 @@
       "selected": "{count} selected",
       "invert": "Invert",
       "addToQueue": "Add to Queue",
-      "download": "Download",
+      "download": "Batch Download",
       "exit": "Exit"
     },
     "delete": {
@@ -643,8 +643,7 @@
     "clearFinished": "Clear finished",
     "clearConfirmTitle": "Clear finished tasks",
     "clearConfirmContent": "This removes all completed and failed task records from the list. Downloaded files on disk are kept. Continue?",
-    "tabAll": "All",
-    "tabActive": "Downloading",
+    "tabActive": "Queue",
     "tabError": "Errors",
     "tabDone": "Completed",
     "colStatus": "Status",
