@@ -87,8 +87,8 @@ jobs:
             *-alpha|*-alpha.*)
               echo "UPDATE_CHANNEL=alpha" >> "$GITHUB_ENV"
               ;;
-            *-beta|*-beta.*)
-              echo "UPDATE_CHANNEL=beta" >> "$GITHUB_ENV"
+            *-dev|*-dev.*)
+              echo "UPDATE_CHANNEL=dev" >> "$GITHUB_ENV"
               ;;
             *-*)
               echo "不支持的预发布版本格式: $VERSION"
@@ -163,7 +163,7 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-artifact@v7
         with:
-          name: SPlayer-Next-${{ matrix.name }}
+          name: SPlayer-Together-${{ matrix.name }}
           path: dist/*.*
 
   # 合并多架构更新清单并创建 GitHub 草稿 Release

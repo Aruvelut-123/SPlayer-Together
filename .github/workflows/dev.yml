@@ -1,5 +1,4 @@
-# Dev 分支推送构建
-name: Build Dev
+# Dev 分支推送构�?name: Build Dev
 
 on:
   push:
@@ -85,8 +84,7 @@ jobs:
             libasound2-dev libdbus-1-dev libpipewire-0.3-dev libpulse-dev pkg-config clang \
             rpm libarchive-tools
 
-      # 清理旧构建产物
-      - name: Clean workspace on Windows
+      # 清理旧构建产�?      - name: Clean workspace on Windows
         if: runner.os == 'Windows'
         run: |
           if (Test-Path dist) { Remove-Item -Recurse -Force dist }
@@ -96,8 +94,7 @@ jobs:
         if: runner.os != 'Windows'
         run: rm -rf dist out
 
-      # CI 不需要国内镜像
-      - name: 移除 .npmrc
+      # CI 不需要国内镜�?      - name: 移除 .npmrc
         shell: bash
         run: rm -f .npmrc
 
@@ -117,7 +114,7 @@ jobs:
         if: runner.os == 'Windows'
         uses: actions/upload-artifact@v7
         with:
-          name: SPlayer-Next-Windows-setup-${{ matrix.arch }}
+          name: SPlayer-Together-Windows-setup-${{ matrix.arch }}
           path: dist/*-setup.exe
 
       # 上传构建产物 (macOS)
@@ -125,14 +122,14 @@ jobs:
         if: runner.os == 'macOS'
         uses: actions/upload-artifact@v7
         with:
-          name: SPlayer-Next-macOS-dmg-${{ matrix.arch }}
+          name: SPlayer-Together-macOS-dmg-${{ matrix.arch }}
           path: dist/*.dmg
 
       - name: Upload macOS Zip
         if: runner.os == 'macOS'
         uses: actions/upload-artifact@v7
         with:
-          name: SPlayer-Next-macOS-zip-${{ matrix.arch }}
+          name: SPlayer-Together-macOS-zip-${{ matrix.arch }}
           path: dist/*.zip
 
       # 上传构建产物 (Linux)
@@ -140,33 +137,33 @@ jobs:
         if: runner.os == 'Linux'
         uses: actions/upload-artifact@v7
         with:
-          name: SPlayer-Next-Linux-appimage-${{ matrix.arch }}
+          name: SPlayer-Together-Linux-appimage-${{ matrix.arch }}
           path: dist/*.AppImage
 
       - name: Upload Linux DEB
         if: runner.os == 'Linux'
         uses: actions/upload-artifact@v7
         with:
-          name: SPlayer-Next-Linux-deb-${{ matrix.arch }}
+          name: SPlayer-Together-Linux-deb-${{ matrix.arch }}
           path: dist/*.deb
 
       - name: Upload Linux RPM
         if: runner.os == 'Linux'
         uses: actions/upload-artifact@v7
         with:
-          name: SPlayer-Next-Linux-rpm-${{ matrix.arch }}
+          name: SPlayer-Together-Linux-rpm-${{ matrix.arch }}
           path: dist/*.rpm
 
       - name: Upload Linux Tar
         if: runner.os == 'Linux'
         uses: actions/upload-artifact@v7
         with:
-          name: SPlayer-Next-Linux-tar-${{ matrix.arch }}
+          name: SPlayer-Together-Linux-tar-${{ matrix.arch }}
           path: dist/*.tar.gz
 
       - name: Upload Linux Pacman
         if: runner.os == 'Linux'
         uses: actions/upload-artifact@v7
         with:
-          name: SPlayer-Next-Linux-pacman-${{ matrix.arch }}
+          name: SPlayer-Together-Linux-pacman-${{ matrix.arch }}
           path: dist/*.pacman
