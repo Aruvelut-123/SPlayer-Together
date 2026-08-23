@@ -115,7 +115,7 @@ const validateManifests = (outDir, version, channel) => {
         throw new Error(`${name} 的默认更新文件无效`);
       }
       for (const item of doc.files) {
-        const asset = path.join(outDir, path.basename(item.url));
+        const asset = path.join(outDir, decodeURIComponent(path.basename(item.url)));
         if (!fs.existsSync(asset)) throw new Error(`${name} 引用了不存在的资源: ${item.url}`);
         if (item.size != null && fs.statSync(asset).size !== item.size) {
           throw new Error(`${name} 的资源大小不匹配: ${item.url}`);

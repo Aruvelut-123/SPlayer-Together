@@ -82,7 +82,7 @@ const config: Configuration = {
   win: {
     executableName: "SPlayer-Together",
     icon: "public/icons/logo.ico",
-    artifactName: "${productName}-${version}-${arch}.${ext}",
+    artifactName: "SPlayer-Together-${version}-${arch}.${ext}",
     forceCodeSigning: false,
     target: ["nsis", "portable"],
     protocols: [{ name: "Orpheus Protocol", schemes: ["orpheus"] }],
@@ -92,7 +92,7 @@ const config: Configuration = {
     guid: "top.imsyy.splayer-together",
     installerIcon: "public/icons/favicon.ico",
     uninstallerIcon: "public/icons/favicon.ico",
-    artifactName: "${productName}-${version}-${arch}-setup.${ext}",
+    artifactName: "SPlayer-Together-${version}-${arch}-setup.${ext}",
     shortcutName: "SPlayer Together",
     uninstallDisplayName: "SPlayer Together",
     createDesktopShortcut: "always",
@@ -101,12 +101,12 @@ const config: Configuration = {
     license: "build/license.txt",
   },
   portable: {
-    artifactName: "${productName}-${version}-${arch}-portable.${ext}",
+    artifactName: "SPlayer-Together-${version}-${arch}-portable.${ext}",
   },
   mac: {
     executableName: "SPlayer-Together",
     icon: "public/icons/icon.icns",
-    artifactName: "${productName}-${version}-${arch}.${ext}",
+    artifactName: "SPlayer-Together-${version}-${arch}.${ext}",
     identity: null,
     hardenedRuntime: false,
     notarize: false,
@@ -125,12 +125,12 @@ const config: Configuration = {
     target: ["dmg", "zip"],
   },
   dmg: {
-    artifactName: "${productName}-${version}-${arch}.${ext}",
+    artifactName: "SPlayer-Together-${version}-${arch}.${ext}",
   },
   linux: {
     executableName: "SPlayer-Together",
     icon: "public/icons/favicon-512x512.png",
-    artifactName: "${name}-${version}-${arch}.${ext}",
+    artifactName: "SPlayer-Together-${version}-${arch}.${ext}",
     maintainer: "imsyy.top",
     category: "Audio;Music;AudioVideo;",
     target: ["AppImage", "deb", "rpm", "tar.gz", "pacman"],
@@ -138,10 +138,10 @@ const config: Configuration = {
     desktop: { entry: { MimeType: "x-scheme-handler/orpheus;" } },
   },
   appImage: {
-    artifactName: "${name}-${version}-${arch}.${ext}",
+    artifactName: "SPlayer-Together-${version}-${arch}.${ext}",
   },
   pacman: {
-    artifactName: "${name}-${version}-${arch}.${ext}",
+    artifactName: "SPlayer-Together-${version}-${arch}.${ext}",
     depends: [
       "gtk3",
       "libnotify",
