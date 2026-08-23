@@ -599,7 +599,7 @@
       "selected": "已选 {count} 首",
       "invert": "反选",
       "addToQueue": "添加到播放列表",
-      "download": "下载",
+      "download": "批量下载",
       "exit": "退出"
     },
     "delete": {
@@ -690,8 +690,7 @@
     "clearFinished": "清空已完成",
     "clearConfirmTitle": "清空已完成任务",
     "clearConfirmContent": "将从列表移除所有已完成和出错的任务记录，已下载的本地文件不会被删除。确认清空？",
-    "tabAll": "所有任务",
-    "tabActive": "下载中",
+    "tabActive": "待下载",
     "tabError": "下载出错",
     "tabDone": "已完成",
     "colStatus": "状态",

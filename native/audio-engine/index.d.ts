@@ -4,7 +4,12 @@
 export declare class AudioPlayer {
   /** 创建新的播放器实例 */
   constructor()
-  /** 重新初始化音频输出设备（系统休眠唤醒后调用） */
+  /**
+   * 重新初始化音频输出设备（系统休眠唤醒、设备热插拔或输出流错误后调用）
+   *
+   * 恢复为全成全败：新输出创建失败时不启动解码、不提交状态，保留当前曲目与位置，
+   * 播放器进入暂停态并返回设备错误；在线音源不会因设备错误触发 URL 重取或 sourceError。
+   */
   reinitOutput(): Promise<void>
   /** 设置封面缓存目录（在 load 前调用一次即可） */
   setCoverCacheDir(dir: string): void
@@ -31,6 +36,8 @@ export declare class AudioPlayer {
   play(): Promise<void>
   /** 暂停播放 */
   pause(): void
+  /** 立即暂停播放，用于输出设备切换前阻止短暂串音 */
+  pauseImmediately(): void
   /** 停止播放并释放资源 */
   stop(): void
   /**
@@ -171,7 +178,7 @@ export interface JsMusicMetadata {
 
 /** 播放器事件，推送给 JS 侧 */
 export interface JsPlayerEvent {
-  /** 事件类型："stateChanged" | "ended" | "sourceError" | "position" | "fftData" | "outputStalled" */
+  /** 事件类型："stateChanged" | "ended" | "sourceError" | "position" | "fftData" | "outputStalled" | "outputFailed" */
   type: string
   /** 状态（仅 stateChanged 时有值） */
   state?: string

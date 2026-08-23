@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { evaluateDeviceChange } from "./devicePolicy";
+import { evaluateDeviceChange, recoveryRetryDelay } from "./devicePolicy";
 
 describe("evaluateDeviceChange", () => {
   it("跟随系统默认且默认输出切换时重建", () => {
@@ -29,5 +29,12 @@ describe("evaluateDeviceChange", () => {
       defaultChanged: false,
       shouldReinit: false,
     });
+  });
+
+  it("输出恢复最多尝试三次", () => {
+    assert.equal(recoveryRetryDelay(0), 0);
+    assert.equal(recoveryRetryDelay(1), 250);
+    assert.equal(recoveryRetryDelay(2), 1000);
+    assert.equal(recoveryRetryDelay(3), null);
   });
 });

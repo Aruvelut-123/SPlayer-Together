@@ -239,6 +239,8 @@ export interface PlayerApi {
   seek: (positionMs: number) => Promise<IpcResponse>;
   /** 设置音量（0.0 ~ 1.0） */
   setVolume: (volume: number) => Promise<IpcResponse>;
+  /** 设置输出设备切换时暂停播放 */
+  setPauseOnDeviceSwitch: (enabled: boolean) => Promise<IpcResponse>;
   /** 获取当前音量 */
   getVolume: () => Promise<IpcResponse<number>>;
   /** 获取播放状态快照 */
@@ -276,7 +278,7 @@ export interface PlayerApi {
   /** 获取系统默认输出设备名称 */
   getDefaultDeviceName: () => Promise<IpcResponse<string | null>>;
   /** 切换输出设备（传 null 使用系统默认） */
-  setOutputDevice: (deviceName: string | null) => Promise<IpcResponse>;
+  setOutputDevice: (deviceName: string | null, pauseBeforeSwitch?: boolean) => Promise<IpcResponse>;
   /** 获取当前选择的输出设备名称 */
   getSelectedDeviceName: () => Promise<IpcResponse<string | null>>;
   /** 同步播放模式到托盘 */

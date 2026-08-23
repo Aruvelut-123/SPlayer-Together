@@ -587,12 +587,11 @@ export const refreshDevices = async (): Promise<void> => {
  * @param deviceName - 设备名称，传 null 跟随系统默认
  */
 export const switchDevice = async (deviceName: string | null): Promise<void> => {
-  const result = await window.api.player.setOutputDevice(deviceName);
-  if (!result.success) return;
   const settings = useSettingsStore();
-  settings.player.outputDevice = deviceName;
-  // 是否暂停播放
-  if (settings.player.pauseOnDeviceSwitch && useStatusStore().state === "playing") await pause();
+  const pauseBeforeSwitch =
+    settings.player.pauseOnDeviceSwitch && useStatusStore().state === "playing";
+  const result = await window.api.player.setOutputDevice(deviceName, pauseBeforeSwitch);
+  if (result.success) settings.player.outputDevice = deviceName;
 };
 
 /**
@@ -1042,6 +1041,7 @@ export const initPlayer = async (): Promise<void> => {
   }
   // 刷新设备列表并恢复上次选择的输出设备
   await refreshDevices();
+  await window.api.player.setPauseOnDeviceSwitch(settings.player.pauseOnDeviceSwitch);
   if (settings.player.outputDevice) {
     await window.api.player.setOutputDevice(settings.player.outputDevice);
   }

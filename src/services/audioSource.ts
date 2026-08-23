@@ -69,7 +69,7 @@ export type OnlineResolveResult =
 /**
  * 经插件解析在线音频源 URL
  * @param track - 要解析的 track
- * @param quality - 音质档位（播放默认 hq，下载传下载档位）
+ * @param quality - 音质档位（由调用方传入，默认 hq）
  * @returns 解析结果，失败时带原因码
  */
 export const resolveByPlugin = async (
@@ -171,7 +171,7 @@ const resolveOnlineUrl = async (
       officialErrorCode = ErrorCode.URL_RESOLVE_FAILED;
     }
   }
-  const pluginResolved = await resolveByPlugin(track, "hq", options.skipPluginIds ?? []);
+  const pluginResolved = await resolveByPlugin(track, songLevel, options.skipPluginIds ?? []);
   if (pluginResolved.ok) return pluginResolved;
   if (trialUrl && settings.player.allowTrialPlay) {
     return { ok: true, url: trialUrl, isTrial: true, provider: "trial" };
