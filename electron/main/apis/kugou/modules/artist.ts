@@ -113,7 +113,12 @@ const normalizeArtistSong = (
 
   const authors = raw.authors ?? [];
   const artistStr =
-    authors.map((a) => a.author_name).filter(Boolean).join(" / ") || raw.author_name || "";
+    authors
+      .map((a) => a.author_name)
+      .filter(Boolean)
+      .join(" / ") ||
+    raw.author_name ||
+    "";
 
   const artists = authors.length
     ? authors.map((a) => ({
@@ -179,23 +184,20 @@ const artist: KGModule = async (params) => {
       data: { author_id: id },
       headers: { "x-router": "openapi.kugou.com", "kg-tid": "36" },
     }),
-    kgGatewayRequest<{ data?: RawArtistAudio[]; total?: number }>(
-      "/kmr/v1/audio_group/author",
-      {
-        method: "POST",
-        baseURL: "https://openapi.kugou.com",
-        data: {
-          author_id: id,
-          pagesize: 50,
-          page: 1,
-          sort: 1,
-          area_code: "all",
-          clienttime,
-          key: signParamsKey(clienttime),
-        },
-        headers: { "x-router": "openapi.kugou.com", "kg-tid": "220" },
+    kgGatewayRequest<{ data?: RawArtistAudio[]; total?: number }>("/kmr/v1/audio_group/author", {
+      method: "POST",
+      baseURL: "https://openapi.kugou.com",
+      data: {
+        author_id: id,
+        pagesize: 50,
+        page: 1,
+        sort: 1,
+        area_code: "all",
+        clienttime,
+        key: signParamsKey(clienttime),
       },
-    ),
+      headers: { "x-router": "openapi.kugou.com", "kg-tid": "220" },
+    }),
     kgGatewayRequest<{ data?: RawArtistAlbum[]; total?: number }>("/kmr/v1/author/albums", {
       method: "POST",
       data: {
@@ -228,7 +230,11 @@ const artist: KGModule = async (params) => {
 
   const introText =
     detail.intro ||
-    (detail.long_intro && detail.long_intro.map((item) => item.content).filter(Boolean).join("\n\n"));
+    (detail.long_intro &&
+      detail.long_intro
+        .map((item) => item.content)
+        .filter(Boolean)
+        .join("\n\n"));
 
   const artistInfo: KGArtistItem & { intro?: string; avatar?: string } = {
     id: String(detail.author_id || id),

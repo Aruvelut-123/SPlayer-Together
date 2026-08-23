@@ -66,13 +66,23 @@ export const qrContent = (key: string): string => `https://music.163.com/login?c
 export const fetchLoginStatus = async (): Promise<UserProfile | null> => {
   const body = await neteaseApi.login_status<LoginStatusBody>({ timestamp: Date.now() });
   if (body?.code !== undefined && Number(body.code) !== 200) return null;
-  const raw = body?.data?.profile ?? body?.profile;
-  const userId = raw?.userId ?? body?.data?.account?.id ?? body?.account?.id;
-  if (!userId) return null;
-  const profile = raw ?? {};
+  const account = body?.data?.account ?? body?.account;
+  const profile = body?.data?.profile ?? body?.profile;
+
+  // 游客/匿名账号（anonimous 为 true、或无有效 profile/nickname）判定为未登录
+  if (
+    !account ||
+    (account as { anonimous?: boolean }).anonimous ||
+    !profile ||
+    !profile.userId ||
+    !profile.nickname
+  ) {
+    return null;
+  }
+
   return {
-    userId,
-    nickname: profile.nickname ?? "",
+    userId: profile.userId,
+    nickname: profile.nickname,
     avatarUrl: profile.avatarUrl,
     backgroundUrl: profile.backgroundUrl,
     signature: profile.signature,

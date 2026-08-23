@@ -102,9 +102,7 @@ const normalizeSpecialSong = (raw: RawSpecialSong, fallbackCover?: string): KGSo
 
   const filename = raw.filename || "";
   const artistName = formatArtist(filename, raw.singername);
-  const artists = artistName
-    ? artistName.split(" / ").map((name) => ({ id: name, name }))
-    : [];
+  const artists = artistName ? artistName.split(" / ").map((name) => ({ id: name, name })) : [];
 
   return {
     id: String(raw.audio_id || raw.hash || ""),

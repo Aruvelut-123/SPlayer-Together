@@ -227,7 +227,10 @@ const handleMoreMenu = (key: string): void => {
     <!-- 子路由 -->
     <div v-else class="flex-1 min-h-0">
       <router-view v-slot="{ Component }">
-        <KeepAlive :max="4" :include="['StreamingSongs', 'StreamingAlbums', 'StreamingArtists', 'StreamingPlaylists']">
+        <KeepAlive
+          :max="4"
+          :include="['StreamingSongs', 'StreamingAlbums', 'StreamingArtists', 'StreamingPlaylists']"
+        >
           <component :is="Component" />
         </KeepAlive>
       </router-view>

@@ -1,5 +1,6 @@
 import type { PlaybackContext, Track } from "@shared/types/player";
 import type { TagEditRequest, TagWriteOutcome } from "@shared/types/tagEditor";
+import type { PersonalFmOptions } from "@/types/netease";
 import { handleEvent } from "./events";
 import type { RepeatMode, ShuffleMode } from "@/stores/status";
 import { useMediaStore } from "@/stores/media";
@@ -693,10 +694,14 @@ export const exitHeartMode = (): void => {
   useStatusStore().heartMode = false;
 };
 
-/** 进入私人 FM */
-export const playPersonalFm = async (): Promise<boolean> => {
+/**
+ * 启动私人 FM 播放
+ * @param options - 可选的 FM 模式与场景选项
+ * @returns 是否成功进入并开始播放
+ */
+export const playPersonalFm = async (options?: PersonalFmOptions): Promise<boolean> => {
   const status = useStatusStore();
-  const track = await fm.start();
+  const track = await fm.start(options);
   if (!track) return false;
   status.fmMode = true;
   // 心动 / FM 互斥
@@ -705,7 +710,9 @@ export const playPersonalFm = async (): Promise<boolean> => {
   return true;
 };
 
-/** 私人 FM 减少推荐 */
+/**
+ * 标记当前私人 FM 曲目为不喜欢并切到下一首
+ */
 export const dislikeFmTrack = async (): Promise<void> => {
   if (!useStatusStore().fmMode) return;
   const playedSec = Math.max(0, Math.round(playback.getCurrentTime() / 1000));

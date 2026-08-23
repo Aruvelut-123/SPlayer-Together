@@ -148,7 +148,9 @@ export const kgGatewayRequest = async <T = KGRawBody>(
 
   const code = body.error_code ?? body.errcode ?? body.err_code ?? 0;
   if (code !== 0 && code !== 200) {
-    throw new Error(`KG Gateway API error: code=${code}, msg=${body.msg || body.error || "unknown"}`);
+    throw new Error(
+      `KG Gateway API error: code=${code}, msg=${body.msg || body.error || "unknown"}`,
+    );
   }
 
   return body as T;

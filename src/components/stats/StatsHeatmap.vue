@@ -318,7 +318,9 @@ const codecLabel = (codec: string): string => {
             top: `${(peakLabelY / 128) * 100}%`,
           }"
         >
-          <span class="block whitespace-nowrap text-[9px] font-medium leading-none text-on-primary/80">
+          <span
+            class="block whitespace-nowrap text-[9px] font-medium leading-none text-on-primary/80"
+          >
             {{ t("stats.peakListening") }}
           </span>
           <span class="mt-1 block whitespace-nowrap text-xs font-bold leading-none">

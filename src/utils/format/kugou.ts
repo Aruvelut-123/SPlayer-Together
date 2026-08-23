@@ -153,7 +153,7 @@ export const kgSongToTrack = (song: KGSong): Track => {
 
   const artists = song.artists?.length
     ? song.artists.map((a) => ({
-        id: a.id !== undefined ? String(a.id) : (a.name || undefined),
+        id: a.id !== undefined ? String(a.id) : a.name || undefined,
         name: a.name,
       }))
     : song.artist

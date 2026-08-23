@@ -172,9 +172,7 @@ const normalizeFromMobile = (raw: MobileSong): KGSong => {
   const interval = raw.duration ?? 0;
   const coverTpl = raw.trans_param?.union_cover;
   const artistName = formatMobileArtist(raw.singername);
-  const artists = artistName
-    ? artistName.split(" / ").map((name) => ({ id: name, name }))
-    : [];
+  const artists = artistName ? artistName.split(" / ").map((name) => ({ id: name, name })) : [];
 
   return {
     id: String(raw.audio_id || raw.hash || ""),
@@ -227,7 +225,7 @@ const normalizeFromLegacy = (raw: LegacySong): KGSong => {
   const artistName = formatSingerName(singers);
   const artists = singers.length
     ? singers.map((s) => ({
-        id: s.id !== undefined ? String(s.id) : (s.name || undefined),
+        id: s.id !== undefined ? String(s.id) : s.name || undefined,
         name: decodeName(s.name || ""),
       }))
     : artistName
@@ -323,25 +321,34 @@ const searchSongs = async (keywords: string, page: number, limit: number) => {
 };
 
 const searchAlbums = async (keywords: string, page: number, limit: number) => {
-  const res = await kgGatewayRequest<{ data?: SearchResponseData<RawKGAlbum> }>("/v1/search/album", {
-    params: {
-      keyword: keywords,
-      page,
-      pagesize: limit,
-      platform: "AndroidFilter",
-      iscorrection: 1,
-      albumhide: 0,
-      nocollect: 0,
+  const res = await kgGatewayRequest<{ data?: SearchResponseData<RawKGAlbum> }>(
+    "/v1/search/album",
+    {
+      params: {
+        keyword: keywords,
+        page,
+        pagesize: limit,
+        platform: "AndroidFilter",
+        iscorrection: 1,
+        albumhide: 0,
+        nocollect: 0,
+      },
+      headers: {
+        "x-router": "complexsearch.kugou.com",
+      },
     },
-    headers: {
-      "x-router": "complexsearch.kugou.com",
-    },
-  });
+  );
 
   const rawList = res.data?.lists ?? res.data?.info ?? [];
   const albums: KGAlbumItem[] = rawList.map((raw) => {
     const singerStr =
-      raw.singer || (raw.singers ? raw.singers.map((s) => s.name).filter(Boolean).join(" / ") : "");
+      raw.singer ||
+      (raw.singers
+        ? raw.singers
+            .map((s) => s.name)
+            .filter(Boolean)
+            .join(" / ")
+        : "");
     const artistId = raw.singerid || raw.singerids?.[0];
     return {
       id: String(raw.albumid ?? ""),

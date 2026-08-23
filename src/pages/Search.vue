@@ -152,11 +152,9 @@ const syncFromRoute = (): void => {
   }
 };
 
-watch(
-  () => [route.name, route.query.q, route.query.tab, status.searchPlatform],
-  syncFromRoute,
-  { immediate: true },
-);
+watch(() => [route.name, route.query.q, route.query.tab, status.searchPlatform], syncFromRoute, {
+  immediate: true,
+});
 
 const onTabSwitch = (key: string): void => {
   router.replace({ query: { ...route.query, tab: key } });

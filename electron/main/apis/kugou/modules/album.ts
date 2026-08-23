@@ -134,7 +134,12 @@ const normalizeAlbumSong = (raw: RawAlbumSongEntry, fallbackCover?: string): KGS
   }
 
   const artistStr =
-    authors.map((a) => a.author_name).filter(Boolean).join(" / ") || base.author_name || "";
+    authors
+      .map((a) => a.author_name)
+      .filter(Boolean)
+      .join(" / ") ||
+    base.author_name ||
+    "";
 
   const artists = authors.length
     ? authors.map((a) => ({
@@ -202,9 +207,7 @@ const normalizeMobileAlbumSong = (raw: MobileAlbumSong, fallbackCover?: string):
   const artistName = raw.singername ? decodeName(raw.singername) : filename.split(" - ")[0] || "";
   const songName = raw.songname ? decodeName(raw.songname) : filename.split(" - ")[1] || filename;
 
-  const artists = artistName
-    ? artistName.split(" / ").map((name) => ({ id: name, name }))
-    : [];
+  const artists = artistName ? artistName.split(" / ").map((name) => ({ id: name, name })) : [];
 
   return {
     id: String(raw.audio_id || raw.hash || ""),
@@ -232,7 +235,10 @@ const resolveAlbumId = async (idOrName: string): Promise<string> => {
   if (/^[1-9]\d*$/.test(idOrName)) return idOrName;
   try {
     const searchRes = await kgGatewayRequest<{
-      data?: { lists?: Array<{ albumid?: number | string }>; info?: Array<{ albumid?: number | string }> };
+      data?: {
+        lists?: Array<{ albumid?: number | string }>;
+        info?: Array<{ albumid?: number | string }>;
+      };
     }>("/v1/search/album", {
       params: {
         keyword: idOrName,
@@ -274,7 +280,12 @@ const loadAlbumFromMobile = async (albumId: string) => {
     coverOriginal,
     artist: decodeName(info.singername || ""),
     artists: info.singername
-      ? [{ id: info.singerid !== undefined ? String(info.singerid) : info.singername, name: decodeName(info.singername) }]
+      ? [
+          {
+            id: info.singerid !== undefined ? String(info.singerid) : info.singername,
+            name: decodeName(info.singername),
+          },
+        ]
       : [],
     publishTime: info.publishtime,
     description: info.intro,
@@ -301,14 +312,13 @@ const album: KGModule = async (params) => {
         },
         headers: { "x-router": "openapi.kugou.com", "kg-tid": "255" },
       }),
-      kgGatewayRequest<{ data?: { songs?: RawAlbumSongEntry[]; total?: number } | RawAlbumSongEntry[] }>(
-        "/v1/album_audio/lite",
-        {
-          method: "POST",
-          data: { album_id: id, page: 1, pagesize: 300 },
-          headers: { "x-router": "openapi.kugou.com", "kg-tid": "255" },
-        },
-      ),
+      kgGatewayRequest<{
+        data?: { songs?: RawAlbumSongEntry[]; total?: number } | RawAlbumSongEntry[];
+      }>("/v1/album_audio/lite", {
+        method: "POST",
+        data: { album_id: id, page: 1, pagesize: 300 },
+        headers: { "x-router": "openapi.kugou.com", "kg-tid": "255" },
+      }),
     ]);
 
     const detail = detailRes.data?.[0] ?? {};
@@ -323,7 +333,10 @@ const album: KGModule = async (params) => {
     const authors = detail.authors ?? [];
     const artistName =
       detail.author_name ||
-      authors.map((a) => a.author_name).filter(Boolean).join(" / ") ||
+      authors
+        .map((a) => a.author_name)
+        .filter(Boolean)
+        .join(" / ") ||
       songs[0]?.artist ||
       "";
 
