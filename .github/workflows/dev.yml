@@ -1,4 +1,5 @@
-# Dev 分支推送构�?name: Build Dev
+# Dev 分支推送构建
+name: Build Dev
 
 on:
   push:
@@ -84,7 +85,8 @@ jobs:
             libasound2-dev libdbus-1-dev libpipewire-0.3-dev libpulse-dev pkg-config clang \
             rpm libarchive-tools
 
-      # 清理旧构建产�?      - name: Clean workspace on Windows
+      # 清理旧构建产物
+      - name: Clean workspace on Windows
         if: runner.os == 'Windows'
         run: |
           if (Test-Path dist) { Remove-Item -Recurse -Force dist }
@@ -94,7 +96,8 @@ jobs:
         if: runner.os != 'Windows'
         run: rm -rf dist out
 
-      # CI 不需要国内镜�?      - name: 移除 .npmrc
+      # CI 不需要国内镜像
+      - name: 移除 .npmrc
         shell: bash
         run: rm -f .npmrc
 
