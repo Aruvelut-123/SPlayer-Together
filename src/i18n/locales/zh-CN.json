@@ -460,7 +460,10 @@
       "loading": "正在开启私人 FM…",
       "entered": "已开启私人 FM",
       "already": "已处于私人 FM",
-      "failed": "私人 FM 开启失败，请稍后重试"
+      "failed": "私人 FM 开启失败，请稍后重试",
+      "modeSettings": "私人 FM 模式选择",
+      "modeTooltip": "FM 模式与场景",
+      "modeSettingsTip": "选择喜好的推荐模式与场景"
     },
     "lyricOffset": {
       "title": "歌词偏移",

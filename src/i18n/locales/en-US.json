@@ -472,7 +472,10 @@
       "loading": "Starting Personal FM…",
       "entered": "Personal FM started",
       "already": "Already in Personal FM",
-      "failed": "Failed to start Personal FM, please try again later"
+      "failed": "Failed to start Personal FM, please try again later",
+      "modeSettings": "Personal FM Mode",
+      "modeTooltip": "FM Mode & Scene",
+      "modeSettingsTip": "Select preferred recommendation mode and scene"
     },
     "lyricOffset": {
       "title": "Lyric Offset",
