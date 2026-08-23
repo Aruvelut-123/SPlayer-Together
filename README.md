@@ -6,16 +6,18 @@
 
 <p>🎵 Cross-platform desktop music player with rich lyric support and wide audio format compatibility.</p>
 
-<p>Successor to <a href="https://github.com/SPlayer-Dev/SPlayer">SPlayer</a>.</p>
+<p>Fork of <a href="https://github.com/SPlayer-Dev/SPlayer-Next">SPlayer Next</a> with new features: "Listen Together" (一起听) room collaboration, and more.</p>
 
-[![Stars](https://img.shields.io/github/stars/SPlayer-Dev/SPlayer-Next?style=flat)](https://github.com/SPlayer-Dev/SPlayer-Next/stargazers)
-[![Release](https://img.shields.io/github/v/release/SPlayer-Dev/SPlayer-Next)](https://github.com/SPlayer-Dev/SPlayer-Next/releases)
-[![License](https://img.shields.io/github/license/SPlayer-Dev/SPlayer-Next)](https://github.com/SPlayer-Dev/SPlayer-Next/blob/main/LICENSE)
-[![Issues](https://img.shields.io/github/issues/SPlayer-Dev/SPlayer-Next)](https://github.com/SPlayer-Dev/SPlayer-Next/issues)
+[![Stars](https://img.shields.io/github/stars/Aruvelut-123/SPlayer-Together?style=flat)](https://github.com/Aruvelut-123/SPlayer-Together/stargazers)
+[![Release](https://img.shields.io/github/v/release/Aruvelut-123/SPlayer-Together)](https://github.com/Aruvelut-123/SPlayer-Together/releases)
+[![License](https://img.shields.io/github/license/Aruvelut-123/SPlayer-Together)](https://github.com/Aruvelut-123/SPlayer-Together/blob/main/LICENSE)
+[![Issues](https://img.shields.io/github/issues/Aruvelut-123/SPlayer-Together)](https://github.com/Aruvelut-123/SPlayer-Together/issues)
 
 **English** | [简体中文](./README.zh-CN.md)
 
 </div>
+
+> ⚠️ **Development Notice**: Almost all code changes in this repository were made by **DeepSeek Harness** (an AI coding agent) on behalf of the maintainer. Review the code yourself before using it in production.
 
 ---
 
@@ -24,6 +26,7 @@
 - 🎵 **Broad format support** — MP3, FLAC, WAV, AAC, OGG, APE, and more, decoded via FFmpeg
 - 📝 **Rich lyrics** — LRC / QRC / YRC / TTML, word-by-word highlighting and translations, with desktop, dynamic-island, and taskbar lyric windows
 - 🌐 **Streaming servers** — Subsonic / Navidrome / Jellyfin / Emby (multi-server, auto-connect)
+- 👥 **Listen Together (一起听)** — create a room, share the same queue and playback across members (a fork feature)
 - 🖥️ **Cross-platform** — Windows / macOS / Linux
 - 🎚️ **Audio spectrum** — real-time FFT visualization
 - 🏷️ **Metadata editing** — edit local track tags and cover art

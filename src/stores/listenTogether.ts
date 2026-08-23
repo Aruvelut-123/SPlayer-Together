@@ -164,7 +164,6 @@ export const useListenTogetherStore = defineStore("listenTogether", () => {
 
   /** 房间成员请求头 */
   const memberHeaders = (): Record<string, string> => ({
-    "X-Auth-Key": license.machineKey,
     "X-Member-Id": memberId.value,
     "X-Token": token.value,
   });

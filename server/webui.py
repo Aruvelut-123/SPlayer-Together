@@ -93,7 +93,7 @@ PAGE_HTML = """<!DOCTYPE html>
     <div class="topbar">
       <div>
         <h1>SPlayer Together 管理后台</h1>
-        <div class="sub">管理机器授权密钥与一起听房间</div>
+        <div class="sub">管理一起听房间</div>
       </div>
       <div class="row" style="gap: 6px;">
         <button id="reloadBtn" class="ghost hidden">刷新配置</button>
@@ -113,20 +113,8 @@ PAGE_HTML = """<!DOCTYPE html>
     </div>
 
     <div id="adminView" class="hidden">
-      <h2>密钥白名单</h2>
-      <div class="row">
-        <input id="newKey" class="mono" placeholder="XXXX-XXXX-XXXX-XXXX" maxlength="19" />
-        <button id="addKeyBtn">添加密钥</button>
-      </div>
-      <div id="keysList" class="list"></div>
-      <div class="notice">客户端按机器 ID 生成的密钥需加入此白名单后，软件才能通过授权校验（每 5 分钟复核一次）。</div>
-
       <h2>进行中的房间</h2>
       <div id="roomsList" class="list"></div>
-
-      <h2>更新配置</h2>
-      <div id="updateInfo" class="list"></div>
-      <div class="notice">发布新版本时修改 config.yml 的 update 段，然后点「刷新配置」立即生效（无需重启服务器）。</div>
     </div>
   </div>
 
@@ -161,9 +149,7 @@ PAGE_HTML = """<!DOCTYPE html>
       adminView.classList.remove("hidden");
       logoutBtn.classList.remove("hidden");
       reloadBtn.classList.remove("hidden");
-      refreshKeys();
       refreshRooms();
-      refreshUpdate();
     };
 
     const showLogin = () => {
@@ -176,29 +162,6 @@ PAGE_HTML = """<!DOCTYPE html>
 
     const esc = (s) => String(s).replace(/[&<>"']/g, (c) =>
       ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-
-    const refreshKeys = async () => {
-      try {
-        const res = await api("/api/admin/keys");
-        const data = await res.json();
-        const list = $("keysList");
-        if (!data.keys.length) {
-          list.innerHTML = '<div class="empty">暂无密钥</div>';
-          return;
-        }
-        list.innerHTML = data.keys.map((k) => `
-          <div class="item">
-            <span class="mono grow">${esc(k)}</span>
-            <button class="danger" data-del="${esc(k)}">删除</button>
-          </div>`).join("");
-        list.querySelectorAll("[data-del]").forEach((btn) => {
-          btn.addEventListener("click", async () => {
-            await api(`/api/admin/keys/${encodeURIComponent(btn.dataset.del)}`, { method: "DELETE" });
-            refreshKeys();
-          });
-        });
-      } catch (e) { /* 忽略 */ }
-    };
 
     const refreshRooms = async () => {
       try {
@@ -227,30 +190,11 @@ PAGE_HTML = """<!DOCTYPE html>
       } catch (e) { /* 忽略 */ }
     };
 
-    const refreshUpdate = async () => {
-      try {
-        const res = await api("/api/admin/update");
-        const data = await res.json();
-        const el = $("updateInfo");
-        el.innerHTML = `
-          <div class="item">
-            <span class="tag grow">版本</span>
-            <span class="mono">${esc(data.version || "0.0.0")}</span>
-          </div>
-          <div class="item">
-            <span class="tag grow">下载地址</span>
-            <span class="mono" style="font-size:11px;">${esc(data.url || "—")}</span>
-          </div>`;
-      } catch (e) { /* 忽略 */ }
-    };
-
     const reloadConfig = async () => {
       try {
         const res = await api("/api/admin/reload", { method: "POST" });
         if (res.ok) {
-          refreshKeys();
           refreshRooms();
-          refreshUpdate();
           alert("配置已刷新");
         }
       } catch (e) { /* 忽略 */ }
@@ -263,7 +207,6 @@ PAGE_HTML = """<!DOCTYPE html>
       const password = $("password").value;
       $("loginError").textContent = "";
       try {
-        // same-origin 自动携带 cookie，无需手动保存 token
         const res = await fetch("/api/admin/login", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -284,32 +227,15 @@ PAGE_HTML = """<!DOCTYPE html>
       if (e.key === "Enter") $("loginBtn").click();
     });
 
-    $("addKeyBtn").addEventListener("click", async () => {
-      const key = $("newKey").value.trim().toUpperCase();
-      if (!key) return;
-      const res = await api("/api/admin/keys", {
-        method: "POST",
-        body: JSON.stringify({ key }),
-      });
-      if (res.ok) {
-        $("newKey").value = "";
-        refreshKeys();
-      }
-    });
-
-    $("newKey").addEventListener("keydown", (e) => {
-      if (e.key === "Enter") $("addKeyBtn").click();
-    });
-
     logoutBtn.addEventListener("click", async () => {
       try { await api("/api/admin/logout", { method: "POST" }); } catch (e) { /* 忽略 */ }
       showLogin();
     });
 
-    // 页面加载时用请求头校验 cookie 是否有效（401 会跳转回登录视图）
+    // 页面加载时校验 cookie 是否有效（401 会跳转回登录视图）
     (async () => {
       try {
-        const res = await api("/api/admin/keys");
+        const res = await api("/api/admin/rooms");
         if (res.ok) showAdmin();
       } catch (e) { showLogin(); }
     })();

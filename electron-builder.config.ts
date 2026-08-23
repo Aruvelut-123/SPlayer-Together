@@ -2,11 +2,11 @@ import type { Configuration } from "electron-builder";
 import { readFileSync } from "node:fs";
 
 const packageVersion = JSON.parse(readFileSync("package.json", "utf8")).version as string;
-const prereleaseChannel = /-(alpha|beta)(?:\.|$)/.exec(packageVersion)?.[1];
+const prereleaseChannel = /-(alpha|dev)(?:\.|$)/.exec(packageVersion)?.[1];
 const inferredUpdateChannel = prereleaseChannel ?? "latest";
 const updateChannel = process.env.UPDATE_CHANNEL ?? inferredUpdateChannel;
 
-if (updateChannel !== "latest" && updateChannel !== "beta" && updateChannel !== "alpha") {
+if (updateChannel !== "latest" && updateChannel !== "dev" && updateChannel !== "alpha") {
   throw new Error(`不支持的更新通道: ${updateChannel}`);
 }
 if (packageVersion.includes("-") && !prereleaseChannel) {
@@ -19,7 +19,7 @@ if (updateChannel !== inferredUpdateChannel) {
 const config: Configuration = {
   appId: "top.imsyy.splayer-together",
   productName: "SPlayer Together",
-  copyright: "Copyright © 2026 imsyy, Baymaxawa",
+  copyright: "Copyright © 2026 imsyy",
   directories: { buildResources: "public" },
   afterPack: "./scripts/after-pack.ts",
   compression: "maximum",
@@ -159,8 +159,8 @@ const config: Configuration = {
   },
   publish: {
     provider: "github",
-    owner: "SPlayer-Dev",
-    repo: "SPlayer-Next",
+    owner: "Aruvelut-123",
+    repo: "SPlayer-Together",
     channel: updateChannel,
   },
 };

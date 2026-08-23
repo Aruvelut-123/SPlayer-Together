@@ -55,16 +55,13 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "host": "0.0.0.0",
     "port": 8000,
     "admin": {"username": "admin", "password": "change-me"},
-    "keys": [],
-    "update": {"version": "0.0.0", "url": "", "notes": "", "size": 0},
 }
 
 # 更新包静态目录（setup/portable exe 放这里供 /downloads 下载）
 DOWNLOADS_DIR = BASE_DIR / "downloads"
 DOWNLOADS_DIR.mkdir(exist_ok=True)
-# 更新日志按版本文件目录
+# 更新日志按版本文件目录（供客户端 /api/changelog 读取，已弃用，保留兼容）
 CHANGELOGS_DIR = BASE_DIR / "changelogs"
-CHANGELOGS_DIR.mkdir(exist_ok=True)
 
 
 def now_ms() -> int:
@@ -78,19 +75,10 @@ def load_config() -> dict[str, Any]:
         data = yaml.safe_load(CONFIG_FILE.read_text(encoding="utf-8")) or {}
     config = {**DEFAULT_CONFIG, **data}
     config["admin"] = {**DEFAULT_CONFIG["admin"], **(data.get("admin") or {})}
-    config["keys"] = [str(k).strip() for k in (config.get("keys") or []) if str(k).strip()]
     return config
 
 
-def save_config(config: dict[str, Any]) -> None:
-    CONFIG_FILE.write_text(
-        yaml.safe_dump(config, allow_unicode=True, sort_keys=False),
-        encoding="utf-8",
-    )
-
-
 CONFIG = load_config()
-AUTH_KEYS: list[str] = CONFIG["keys"]
 ADMIN_USERNAME: str = str(CONFIG["admin"]["username"])
 ADMIN_PASSWORD: str = str(CONFIG["admin"]["password"])
 
@@ -190,10 +178,6 @@ def new_code() -> str:
             return code
 
 
-def valid_machine_key(key: str) -> bool:
-    return bool(AUTH_KEYS) and key in AUTH_KEYS
-
-
 def admin_authed(request: web.Request) -> bool:
     """管理员认证：优先读 X-Admin-Token 请求头，其次读 spt_admin_token Cookie"""
     token = request.headers.get("X-Admin-Token", "") or request.cookies.get("spt_admin_token", "")
@@ -201,9 +185,7 @@ def admin_authed(request: web.Request) -> bool:
 
 
 def room_auth(request: web.Request) -> tuple[Room, str] | None:
-    """校验机器密钥与成员凭据，返回 (room, member_id)"""
-    if not valid_machine_key(request.headers.get("X-Auth-Key", "")):
-        return None
+    """校验成员凭据，返回 (room, member_id)"""
     code = request.match_info["code"].strip().upper()
     room = rooms.get(code)
     if room is None:
@@ -229,7 +211,7 @@ async def cors_middleware(request: web.Request, handler: Any) -> web.StreamRespo
             headers={
                 "Access-Control-Allow-Origin": "*",
                 "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
-                "Access-Control-Allow-Headers": "Content-Type, X-Auth-Key, X-Admin-Token, X-Member-Id, X-Token",
+                "Access-Control-Allow-Headers": "Content-Type, X-Admin-Token, X-Member-Id, X-Token",
             },
         )
     response = await handler(request)
@@ -238,57 +220,11 @@ async def cors_middleware(request: web.Request, handler: Any) -> web.StreamRespo
 
 
 # --------------------------------------------------------------------------
-# 授权
-# --------------------------------------------------------------------------
-
-
-async def handle_auth(request: web.Request) -> web.Response:
-    body = await request.json()
-    key = str(body.get("key", "")).strip()
-    if valid_machine_key(key):
-        return web.json_response({"valid": True})
-    return web.json_response({"error": "invalid key"}, status=401)
-
-
-async def handle_update(request: web.Request) -> web.Response:
-    """客户端更新检查：返回最新版本信息（来自 config.yml 的 update 段）"""
-    cfg = CONFIG.get("update") or {}
-    log.debug("客户端请求更新信息：%s", cfg.get("version"))
-    return web.json_response(
-        {
-            "version": str(cfg.get("version", "0.0.0")),
-            "url": str(cfg.get("url", "")),
-            "notes": str(cfg.get("notes", "")),
-            "size": int(cfg.get("size", 0) or 0),
-        }
-    )
-
-
-# --------------------------------------------------------------------------
-# 更新日志（按版本文件）
-# --------------------------------------------------------------------------
-
-
-async def handle_changelog(request: web.Request) -> web.Response:
-    """客户端按版本获取更新日志：changelogs/<version>.md，找不到返回 404"""
-    version = request.query.get("version", "").strip()
-    if not version or "/" in version or "\\" in version or ".." in version:
-        return web.json_response({"error": "invalid version"}, status=400)
-    path = CHANGELOGS_DIR / f"{version}.md"
-    if not path.is_file():
-        return web.json_response({"error": "changelog not found"}, status=404)
-    content = path.read_text(encoding="utf-8")
-    return web.Response(text=content.rstrip("\n") + "\n", content_type="text/markdown")
-
-
-# --------------------------------------------------------------------------
 # 一起听房间（纯 HTTP）
 # --------------------------------------------------------------------------
 
 
 async def handle_create(request: web.Request) -> web.Response:
-    if not valid_machine_key(request.headers.get("X-Auth-Key", "")):
-        return web.json_response({"error": "unauthorized"}, status=401)
     body = await request.json()
     name = str(body.get("name", "")).strip() or "我"
     code = new_code()
@@ -302,8 +238,6 @@ async def handle_create(request: web.Request) -> web.Response:
 
 
 async def handle_join(request: web.Request) -> web.Response:
-    if not valid_machine_key(request.headers.get("X-Auth-Key", "")):
-        return web.json_response({"error": "unauthorized"}, status=401)
     code = request.match_info["code"].strip().upper()
     room = rooms.get(code)
     if room is None:
@@ -567,52 +501,13 @@ async def handle_admin_reload(request: web.Request) -> web.Response:
     """重新加载 config.yml，无需重启服务器"""
     if not admin_authed(request):
         return web.json_response({"error": "unauthorized"}, status=401)
-    global CONFIG, AUTH_KEYS, ADMIN_USERNAME, ADMIN_PASSWORD
+    global CONFIG, ADMIN_USERNAME, ADMIN_PASSWORD
     config = load_config()
     CONFIG = config
-    AUTH_KEYS = config["keys"]
     ADMIN_USERNAME = str(config["admin"]["username"])
     ADMIN_PASSWORD = str(config["admin"]["password"])
-    log.info("管理员刷新配置：密钥 %s 个，更新版本 %s", len(AUTH_KEYS), (config.get("update") or {}).get("version"))
+    log.info("管理员刷新配置")
     return web.json_response({"ok": True})
-
-
-async def handle_admin_update(request: web.Request) -> web.Response:
-    """返回当前更新配置（版本 / 下载地址 / 更新日志）"""
-    if not admin_authed(request):
-        return web.json_response({"error": "unauthorized"}, status=401)
-    return web.json_response(CONFIG.get("update") or {})
-
-
-async def handle_admin_keys_list(request: web.Request) -> web.Response:
-    if not admin_authed(request):
-        return web.json_response({"error": "unauthorized"}, status=401)
-    return web.json_response({"keys": list(AUTH_KEYS)})
-
-
-async def handle_admin_keys_add(request: web.Request) -> web.Response:
-    if not admin_authed(request):
-        return web.json_response({"error": "unauthorized"}, status=401)
-    body = await request.json()
-    key = str(body.get("key", "")).strip()
-    if not key:
-        return web.json_response({"error": "empty key"}, status=400)
-    if key not in AUTH_KEYS:
-        AUTH_KEYS.append(key)
-        save_config(CONFIG)
-        log.info("添加授权密钥：%s", key)
-    return web.json_response({"keys": list(AUTH_KEYS)})
-
-
-async def handle_admin_keys_remove(request: web.Request) -> web.Response:
-    if not admin_authed(request):
-        return web.json_response({"error": "unauthorized"}, status=401)
-    key = request.match_info["key"]
-    if key in AUTH_KEYS:
-        AUTH_KEYS.remove(key)
-        save_config(CONFIG)
-        log.info("删除授权密钥：%s", key)
-    return web.json_response({"keys": list(AUTH_KEYS)})
 
 
 async def handle_admin_rooms_list(request: web.Request) -> web.Response:
@@ -647,9 +542,6 @@ def build_app() -> web.Application:
     app = web.Application(middlewares=[cors_middleware])
     app.router.add_get("/", index)
     app.router.add_get("/admin", handle_admin_page)
-    app.router.add_post("/api/auth", handle_auth)
-    app.router.add_get("/api/update", handle_update)
-    app.router.add_get("/api/changelog", handle_changelog)
     app.router.add_static("/downloads", DOWNLOADS_DIR, show_index=True)
     app.router.add_post("/api/rooms", handle_create)
     app.router.add_post("/api/rooms/{code}/join", handle_join)
@@ -663,10 +555,6 @@ def build_app() -> web.Application:
     app.router.add_post("/api/admin/login", handle_admin_login)
     app.router.add_post("/api/admin/logout", handle_admin_logout)
     app.router.add_post("/api/admin/reload", handle_admin_reload)
-    app.router.add_get("/api/admin/update", handle_admin_update)
-    app.router.add_get("/api/admin/keys", handle_admin_keys_list)
-    app.router.add_post("/api/admin/keys", handle_admin_keys_add)
-    app.router.add_delete("/api/admin/keys/{key}", handle_admin_keys_remove)
     app.router.add_get("/api/admin/rooms", handle_admin_rooms_list)
     app.router.add_post("/api/admin/rooms/{code}/dissolve", handle_admin_room_dissolve)
     app.on_startup.append(start_cleanup)
@@ -675,17 +563,14 @@ def build_app() -> web.Application:
 
 
 def main() -> None:
-    if not AUTH_KEYS:
-        log.warning("密钥白名单为空：请在 config.yml 或 WebUI 中配置，未授权客户端将被拒绝")
     if ADMIN_PASSWORD == "change-me":
         log.warning("管理后台仍在使用默认密码，请尽快在 config.yml 中修改")
     host = str(CONFIG["host"])
     port = int(CONFIG["port"])
     log.info(
-        "SPlayer Together 中继服务器启动：http://%s:%s（密钥 %s 个，管理后台 /admin）",
+        "SPlayer Together 中继服务器启动：http://%s:%s（管理后台 /admin）",
         host,
         port,
-        len(AUTH_KEYS),
     )
     web.run_app(build_app(), host=host, port=port, access_log=None)
 

@@ -1644,10 +1644,10 @@
     },
     "updateChannel": {
       "label": "Update Channel",
-      "description": "Choose Stable, Beta preview, or Alpha experimental updates",
+      "description": "Choose Stable, Alpha preview, or Dev development updates",
       "stable": "Stable",
-      "beta": "Beta Preview",
-      "alpha": "Alpha Experimental"
+      "alpha": "Alpha Preview",
+      "dev": "Dev"
     },
     "checkUpdate": {
       "label": "Check for Updates",
@@ -1656,6 +1656,11 @@
     "showPerformanceMonitor": {
       "label": "Performance Monitor",
       "description": "Floating widget showing FPS / frame time / memory. Click to switch"
+    },
+    "relayServerUrl": {
+      "label": "Listen Together Relay Server",
+      "description": "Custom relay server URL for Listen Together rooms. Leave empty for default",
+      "placeholder": "http://your-server:8000"
     },
     "taskbarProgress": {
       "label": "Taskbar Progress",
@@ -1841,6 +1846,20 @@
       "confirmTitle": "Clear all data?",
       "confirmDesc": "All playlists, sign-in state and caches will be wiped and settings reset. This cannot be undone.",
       "done": "All data has been cleared"
+    },
+    "migrateNext": {
+      "label": "Migrate Settings from SPlayer Next",
+      "description": "Legacy SPlayer Next settings found. Click to import them into SPlayer Together",
+      "button": "Migrate Now",
+      "confirmTitle": "Migrate SPlayer Next settings?",
+      "confirmDesc": "Import settings from SPlayer Next and overwrite current settings. The app will restart to apply",
+      "done": "Settings migrated successfully",
+      "failed": "Settings migration failed",
+      "notFound": "No SPlayer Next settings file found",
+      "oobeTitle": "Legacy SPlayer Next settings detected",
+      "oobeDesc": "Do you want to import your SPlayer Next settings into SPlayer Together?",
+      "oobeMigrate": "Migrate Now",
+      "oobeSkip": "Skip"
     },
     "plugins": {
       "securityWarningTitle": "Mind the security risks before installing",

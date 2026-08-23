@@ -64,6 +64,8 @@ declare global {
         relaunch: () => Promise<void>;
         testNetworkProxy: () => Promise<boolean>;
         getMachineKey: () => Promise<string>;
+        checkSPlayerNextMigration: () => Promise<{ exists: boolean; path: string | null }>;
+        runSPlayerNextMigration: () => Promise<{ ok: boolean; error?: string }>;
         onProtocolUrl: (callback: (url: string) => void) => () => void;
         consumePendingProtocolUrl: () => Promise<string | null>;
       };

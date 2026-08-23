@@ -1632,10 +1632,10 @@
     },
     "updateChannel": {
       "label": "更新通道",
-      "description": "选择正式版、Beta 预览版或 Alpha 内测版更新",
+      "description": "选择正式版、Alpha 预览版或 Dev 开发版更新",
       "stable": "正式版",
-      "beta": "Beta 预览版",
-      "alpha": "Alpha 内测版"
+      "alpha": "Alpha 预览版",
+      "dev": "Dev 开发版"
     },
     "checkUpdate": {
       "label": "检查更新",
@@ -1644,6 +1644,11 @@
     "showPerformanceMonitor": {
       "label": "性能监视器",
       "description": "悬浮显示 FPS / 帧时间 / 内存占用，点击切换指标"
+    },
+    "relayServerUrl": {
+      "label": "一起听中继服务器",
+      "description": "自定义一起听房间中继服务器地址，留空使用默认地址",
+      "placeholder": "http://your-server:8000"
     },
     "taskbarProgress": {
       "label": "任务栏播放进度",
@@ -1829,6 +1834,20 @@
       "confirmTitle": "清除全部数据？",
       "confirmDesc": "将清空全部歌单、登录状态、缓存并重置设置，操作不可恢复",
       "done": "全部数据已清除"
+    },
+    "migrateNext": {
+      "label": "从 SPlayer Next 迁移设置",
+      "description": "检测到旧版 SPlayer Next 的设置文件，可一键导入",
+      "button": "立即迁移",
+      "confirmTitle": "迁移 SPlayer Next 设置？",
+      "confirmDesc": "将导入 SPlayer Next 的设置并覆盖当前设置，应用将重启生效",
+      "done": "设置迁移成功",
+      "failed": "设置迁移失败",
+      "notFound": "未找到 SPlayer Next 的设置文件",
+      "oobeTitle": "检测到旧版 SPlayer Next 设置",
+      "oobeDesc": "是否将 SPlayer Next 的设置导入到 SPlayer Together？",
+      "oobeMigrate": "立即迁移",
+      "oobeSkip": "暂不迁移"
     },
     "plugins": {
       "securityWarningTitle": "安装前请注意安全风险",

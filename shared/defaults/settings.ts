@@ -166,6 +166,7 @@ export const defaultSystemConfig: SystemConfig = {
     neteaseScrobbleEnabled: false,
     neteaseScrobbleMode: "ncbl",
     registerOrpheusProtocol: false,
+    relayServerUrl: "http://47.122.127.107:8000",
   },
   windowStates: {
     main: {

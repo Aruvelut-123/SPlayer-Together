@@ -6,16 +6,18 @@
 
 <p>🎵 跨平台桌面音乐播放器，支持丰富的歌词展现形式与广泛的音频格式</p>
 
-<p>「<a href="https://github.com/SPlayer-Dev/SPlayer">SPlayer</a>」的继任版本</p>
+<p>「<a href="https://github.com/SPlayer-Dev/SPlayer-Next">SPlayer Next</a>」的分支版本，新增「一起听」房间协作等新特性</p>
 
-[![Stars](https://img.shields.io/github/stars/SPlayer-Dev/SPlayer-Next?style=flat)](https://github.com/SPlayer-Dev/SPlayer-Next/stargazers)
-[![Release](https://img.shields.io/github/v/release/SPlayer-Dev/SPlayer-Next)](https://github.com/SPlayer-Dev/SPlayer-Next/releases)
-[![License](https://img.shields.io/github/license/SPlayer-Dev/SPlayer-Next)](https://github.com/SPlayer-Dev/SPlayer-Next/blob/main/LICENSE)
-[![Issues](https://img.shields.io/github/issues/SPlayer-Dev/SPlayer-Next)](https://github.com/SPlayer-Dev/SPlayer-Next/issues)
+[![Stars](https://img.shields.io/github/stars/Aruvelut-123/SPlayer-Together?style=flat)](https://github.com/Aruvelut-123/SPlayer-Together/stargazers)
+[![Release](https://img.shields.io/github/v/release/Aruvelut-123/SPlayer-Together)](https://github.com/Aruvelut-123/SPlayer-Together/releases)
+[![License](https://img.shields.io/github/license/Aruvelut-123/SPlayer-Together)](https://github.com/Aruvelut-123/SPlayer-Together/blob/main/LICENSE)
+[![Issues](https://img.shields.io/github/issues/Aruvelut-123/SPlayer-Together)](https://github.com/Aruvelut-123/SPlayer-Together/issues)
 
 [English](./README.md) | **简体中文**
 
 </div>
+
+> ⚠️ **开发声明**：本仓库几乎所有的代码改动均由 **DeepSeek Harness**（AI 编码代理）代表维护者完成。生产环境使用前请自行审查代码。
 
 ---
 
@@ -24,6 +26,7 @@
 - 🎵 **广泛的格式支持** —— MP3、FLAC、WAV、AAC、OGG、APE 等，基于 FFmpeg 解码
 - 📝 **丰富的歌词** —— LRC / QRC / YRC / TTML，逐字高亮与翻译，支持桌面、灵动岛、任务栏歌词窗口
 - 🌐 **流媒体服务** —— Subsonic / Navidrome / Jellyfin / Emby（多服务器、自动连接）
+- 👥 **一起听** —— 创建房间，成员共享同一播放队列与播放进度（本分支新增特性）
 - 🖥️ **跨平台** —— Windows / macOS / Linux
 - 🎚️ **音乐频谱** —— 实时 FFT 可视化
 - 🏷️ **元信息编辑** —— 编辑本地曲目标签与封面

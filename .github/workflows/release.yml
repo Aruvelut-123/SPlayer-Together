@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "要发布的标签（例如 v1.1.0-beta.1 或 v1.1.0-alpha.1）"
+        description: "要发布的标签（例如 v1.2.0-dev.1 或 v1.2.0-alpha.1）"
         required: true
         type: string
 
@@ -196,8 +196,8 @@ jobs:
             *-alpha|*-alpha.*)
               echo "UPDATE_CHANNEL=alpha" >> "$GITHUB_ENV"
               ;;
-            *-beta|*-beta.*)
-              echo "UPDATE_CHANNEL=beta" >> "$GITHUB_ENV"
+            *-dev|*-dev.*)
+              echo "UPDATE_CHANNEL=dev" >> "$GITHUB_ENV"
               ;;
             *-*)
               echo "不支持的预发布版本格式: $VERSION"

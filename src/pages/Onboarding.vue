@@ -8,6 +8,7 @@ import StepAgreement from "@/components/onboarding/StepAgreement.vue";
 import StepLibrary from "@/components/onboarding/StepLibrary.vue";
 import StepStreaming from "@/components/onboarding/StepStreaming.vue";
 import StepHotkeys from "@/components/onboarding/StepHotkeys.vue";
+import { dialog } from "@/composables/useDialog";
 
 const { t } = useI18n();
 const router = useRouter();
@@ -45,6 +46,34 @@ const goBack = (): void => {
 };
 
 const completing = ref(false);
+const migrationResolved = ref(false);
+
+// 检查 SPlayer Next 迁移
+onMounted(async () => {
+  try {
+    const result = await window.api.system.checkSPlayerNextMigration();
+    if (result.exists) {
+      const migrate = await dialog.confirm({
+        title: t("settings.migrateNext.oobeTitle"),
+        content: t("settings.migrateNext.oobeDesc"),
+        type: "warning",
+        confirmText: t("settings.migrateNext.oobeMigrate"),
+        cancelText: t("settings.migrateNext.oobeSkip"),
+      });
+      if (migrate) {
+        const migrateResult = await window.api.system.runSPlayerNextMigration();
+        if (migrateResult.ok) {
+          await window.api.system.relaunch();
+          return;
+        }
+      }
+    }
+  } catch {
+    // 忽略
+  } finally {
+    migrationResolved.value = true;
+  }
+});
 
 const complete = async (): Promise<void> => {
   if (completing.value) return;

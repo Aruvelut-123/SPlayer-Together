@@ -169,6 +169,10 @@ const api = {
     testNetworkProxy: () => ipcRenderer.invoke("system:testNetworkProxy"),
     // 获取机器授权密钥
     getMachineKey: () => ipcRenderer.invoke("system:getMachineKey"),
+    // 检查是否存在 SPlayer Next 设置可迁移
+    checkSPlayerNextMigration: () => ipcRenderer.invoke("system:checkSPlayerNextMigration"),
+    // 执行 SPlayer Next 设置迁移
+    runSPlayerNextMigration: () => ipcRenderer.invoke("system:runSPlayerNextMigration"),
     // 订阅主进程下发的 orpheus 唤起 URL
     onProtocolUrl: (callback: (url: string) => void) =>
       subscribe<string>("protocol:orpheus", callback),

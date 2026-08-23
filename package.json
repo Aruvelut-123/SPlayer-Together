@@ -2,28 +2,28 @@
   "name": "splayer-together",
   "productName": "SPlayer Together",
   "desktopName": "top.imsyy.splayer_together",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "description": "Cross-platform desktop music player with rich lyric support and wide audio format compatibility",
   "type": "module",
   "packageManager": "pnpm@11.5.2",
   "main": "./out/main/index.js",
   "author": {
-    "name": "imsyy",
-    "email": "imsyy1024@gmail.com",
-    "url": "https://imsyy.top"
+    "name": "Baymaxawa",
+    "url": "https://github.com/Aruvelut-123"
   },
   "contributors": [
     {
-      "name": "Baymaxawa"
+      "name": "Baymaxawa",
+      "url": "https://github.com/Aruvelut-123"
     }
   ],
-  "homepage": "https://splayer-next.imsyy.top",
+  "homepage": "https://github.com/Aruvelut-123/SPlayer-Together",
   "repository": {
     "type": "git",
-    "url": "https://github.com/SPlayer-Dev/SPlayer-Next"
+    "url": "https://github.com/Aruvelut-123/SPlayer-Together"
   },
   "bugs": {
-    "url": "https://github.com/SPlayer-Dev/SPlayer-Next/issues"
+    "url": "https://github.com/Aruvelut-123/SPlayer-Together/issues"
   },
   "license": "AGPL-3.0",
   "license-file": "LICENSE",
@@ -48,8 +48,7 @@
     "build:native": "tsx scripts/build-native.ts",
     "start": "electron-vite preview",
     "dev": "pnpm build:native --dev && tsx scripts/dev.ts",
-    "build": "rimraf dist && pnpm build:native && pnpm typecheck && electron-vite build && pnpm obfuscate",
-    "obfuscate": "tsx scripts/obfuscate.ts",
+    "build": "rimraf dist && pnpm build:native && pnpm typecheck && electron-vite build",
     "postinstall": "electron-rebuild -f -w better-sqlite3",
     "build:unpack": "pnpm build && electron-builder --dir --config electron-builder.config.ts",
     "build:win": "pnpm build && tsx scripts/gen-license.ts && electron-builder --config electron-builder.config.ts --win",
@@ -107,7 +106,6 @@
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-vue": "^10.10.0",
     "happy-dom": "^20.11.1",
-    "javascript-obfuscator": "^5.5.0",
     "localforage": "^1.10.0",
     "marked": "^18.0.9",
     "pinia": "^4.0.2",

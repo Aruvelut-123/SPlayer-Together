@@ -91,12 +91,12 @@ const generalCategory: SettingCategory = {
           binding: { store: "settings", path: "system.update.channel" },
           options: [
             { value: "stable", labelKey: "settings.updateChannel.stable" },
-            { value: "beta", labelKey: "settings.updateChannel.beta" },
             { value: "alpha", labelKey: "settings.updateChannel.alpha" },
+            { value: "dev", labelKey: "settings.updateChannel.dev" },
           ],
           defaultValue: "stable",
           confirm: {
-            when: (next) => next === "beta" || next === "alpha",
+            when: (next) => next === "alpha" || next === "dev",
             titleKey: "settings.confirm.testChannelTitle",
             contentKey: "settings.confirm.testChannelContent",
             type: "warning",
@@ -118,6 +118,13 @@ const generalCategory: SettingCategory = {
     {
       id: "debug",
       items: [
+        {
+          key: "relayServerUrl",
+          type: "text",
+          binding: { store: "settings", path: "system.system.relayServerUrl" },
+          defaultValue: "http://47.122.127.107:8000",
+          placeholderKey: "settings.relayServerUrl.placeholder",
+        },
         {
           key: "showPerformanceMonitor",
           type: "switch",

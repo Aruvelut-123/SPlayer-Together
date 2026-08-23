@@ -10,28 +10,47 @@ defineOptions({ inheritAttrs: false });
 
 const { t } = useI18n();
 
-type ActionKey = "backup" | "restore" | "resetSettings" | "resetAll";
+type ActionKey = "backup" | "restore" | "resetSettings" | "resetAll" | "migrateNext";
 
 interface ActionRow {
   key: ActionKey;
   buttonKey: string;
   /** error 类型按钮（红色） */
   destructive?: boolean;
+  /** 仅当条件满足时显示 */
+  visible?: () => boolean | Promise<boolean>;
 }
 
 const rows: ActionRow[] = [
   { key: "backup", buttonKey: "backup.button" },
   { key: "restore", buttonKey: "restore.button" },
+  {
+    key: "migrateNext",
+    buttonKey: "migrateNext.button",
+    visible: () => migrationAvailable.value,
+  },
   { key: "resetSettings", buttonKey: "resetSettings.button" },
   { key: "resetAll", buttonKey: "resetAll.button", destructive: true },
 ];
 
 const running = ref<ActionKey | null>(null);
+const migrationAvailable = ref(false);
+
+const visibleRows = computed(() => rows.filter((r) => !r.visible || r.visible()));
 
 /** 备份文件标识：恢复时用以辨识是否本应用导出的 JSON */
 const BACKUP_TYPE = "splayer-settings";
 /** 渲染端 settings store 持久化到 localStorage 的 key（与 pinia store id 同名） */
 const SETTINGS_STORE_KEY = "settings";
+
+onMounted(async () => {
+  try {
+    const result = await window.api.system.checkSPlayerNextMigration();
+    migrationAvailable.value = result.exists;
+  } catch {
+    migrationAvailable.value = false;
+  }
+});
 
 interface BackupPayload {
   type: typeof BACKUP_TYPE;
@@ -141,6 +160,24 @@ const handleResetAll = async (): Promise<void> => {
   toast.success(t("settings.resetAll.done"));
 };
 
+/** 从 SPlayer Next 迁移设置 */
+const handleMigrateNext = async (): Promise<void> => {
+  const confirmed = await dialog.confirm({
+    title: t("settings.migrateNext.confirmTitle"),
+    content: t("settings.migrateNext.confirmDesc"),
+    type: "warning",
+  });
+  if (!confirmed) return;
+  const result = await window.api.system.runSPlayerNextMigration();
+  if (result.ok) {
+    toast.success(t("settings.migrateNext.done"));
+    migrationAvailable.value = false;
+    await window.api.system.relaunch();
+  } else {
+    toast.error(result.error ?? t("settings.migrateNext.failed"));
+  }
+};
+
 /** 按 key 分发并互斥执行 */
 const runAction = async (key: ActionKey): Promise<void> => {
   if (running.value) return;
@@ -148,6 +185,7 @@ const runAction = async (key: ActionKey): Promise<void> => {
   try {
     if (key === "backup") await handleBackup();
     else if (key === "restore") await handleRestore();
+    else if (key === "migrateNext") await handleMigrateNext();
     else if (key === "resetSettings") await handleResetSettings();
     else await handleResetAll();
   } finally {
@@ -159,7 +197,7 @@ const runAction = async (key: ActionKey): Promise<void> => {
 <template>
   <div class="flex flex-col gap-3">
     <div
-      v-for="row in rows"
+      v-for="row in visibleRows"
       :key="row.key"
       class="rounded-xl bg-surface-panel border border-solid border-outline-variant/15 px-4 py-3.5 flex items-center justify-between gap-4"
     >

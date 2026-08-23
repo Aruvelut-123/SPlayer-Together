@@ -412,14 +412,14 @@ export interface WindowStates {
   taskbarLyric: TaskbarLyricWindowState;
 }
 
-/** 应用更新通道 */
-export type UpdateChannel = "stable" | "beta" | "alpha";
+/** 应用更新通道：stable 正式版 / alpha 预览版 / dev 开发版 */
+export type UpdateChannel = "stable" | "alpha" | "dev";
 
 /** 应用更新配置 */
 export interface AppUpdateSettings {
   /** 自动检查更新 */
   autoCheck: boolean;
-  /** 更新通道：stable 正式通道 / beta 预览通道 / alpha 内测通道 */
+  /** 更新通道：stable 正式版 / alpha 预览版 / dev 开发版 */
   channel: UpdateChannel;
 }
 
@@ -484,6 +484,8 @@ export interface SystemConfig {
     neteaseScrobbleMode: NeteaseScrobbleMode;
     /** 注册为 Orpheus 协议处理程序，抢占网页端「用客户端打开」 */
     registerOrpheusProtocol: boolean;
+    /** 一起听中继服务器地址（可自定义部署） */
+    relayServerUrl: string;
   };
   /** 窗口几何状态（运行时自动记录，非用户主动配置） */
   windowStates: WindowStates;
