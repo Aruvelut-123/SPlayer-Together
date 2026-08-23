@@ -32,8 +32,8 @@ describe("evaluateDeviceChange", () => {
   });
 
   it("输出恢复最多尝试三次", () => {
-    assert.equal(recoveryRetryDelay(0), 0);
-    assert.equal(recoveryRetryDelay(1), 250);
+    assert.equal(recoveryRetryDelay(0), 100);
+    assert.equal(recoveryRetryDelay(1), 300);
     assert.equal(recoveryRetryDelay(2), 1000);
     assert.equal(recoveryRetryDelay(3), null);
   });
