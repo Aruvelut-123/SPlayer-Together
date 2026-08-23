@@ -14,14 +14,18 @@ export interface Contributor {
 
 /* 仓库标识（本 Fork 仓库 + 上游原仓库一起查） */
 const repoSlug = "Aruvelut-123/SPlayer-Together";
-const upstremSlug = "SPlayer-Dev/SPlayer-Next";
+const upstreamSlug = "SPlayer-Dev/SPlayer-Next";
+
+/** 作者账号的 GitHub 用户名 → 展示名（重命名为用户对外使用的名字） */
+const AUTHOR_LOGIN = "Aruvelut-123";
+const AUTHOR_DISPLAY = "Baymaxawa";
 
 /**
  * 获取仓库贡献者列表（合并本仓库与上游仓库的贡献者）
  * @returns 贡献者数组
  */
 export const getContributors = async (): Promise<Contributor[]> => {
-  const slugs = [repoSlug, upstremSlug];
+  const slugs = [repoSlug, upstreamSlug];
   const seen = new Set<string>();
   const results: Contributor[] = [];
   for (const slug of slugs) {
@@ -34,7 +38,8 @@ export const getContributors = async (): Promise<Contributor[]> => {
       if (!Array.isArray(data)) continue;
       for (const item of data) {
         if (item.type === "Bot" || item.login === "type-bot") continue;
-        const login = item.login ?? item.name ?? "anonymous";
+        const rawLogin = item.login ?? item.name ?? "anonymous";
+        const login = rawLogin === AUTHOR_LOGIN ? AUTHOR_DISPLAY : rawLogin;
         if (seen.has(login)) continue;
         seen.add(login);
         results.push({

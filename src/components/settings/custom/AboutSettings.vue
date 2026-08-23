@@ -128,34 +128,23 @@ const visibleDevelopers = computed(() =>
 const hasMoreDevelopers = computed(() => developers.value.length > 6);
 
 onMounted(async () => {
-  // 离线兜底：展示主要开发/维护者，避免只剩一人
-  developers.value = [
-    {
-      login: "Baymaxawa",
-      htmlUrl: "https://github.com/Aruvelut-123",
-      avatar: "https://avatars.githubusercontent.com/u/87363371?v=4&size=64",
-    },
-    {
-      login: "imsyy",
-      htmlUrl: "https://github.com/imsyy",
-      avatar: "https://avatars.githubusercontent.com/u/67524584?v=4&size=64",
-    },
-    {
-      login: "SPlayer-Dev",
-      htmlUrl: "https://github.com/SPlayer-Dev",
-      avatar: "https://avatars.githubusercontent.com/u/137995816?v=4&size=64",
-    },
-  ];
   try {
-    // 在线时再从 GitHub 拉取完整贡献者合并展示（本仓库 + 上游仓库）
-    const remote = await getContributors();
-    const merged = new Map(developers.value.map((d) => [d.login, d]));
-    for (const item of remote) {
-      if (!merged.has(item.login)) merged.set(item.login, item);
-    }
-    developers.value = [...merged.values()];
+    developers.value = await getContributors();
   } catch (error) {
     console.error("获取贡献者失败:", error);
+    // 离线兜底
+    developers.value = [
+      {
+        login: "imsyy",
+        htmlUrl: "https://github.com/imsyy",
+        avatar: "https://avatars.githubusercontent.com/u/67524584?v=4&size=64",
+      },
+      {
+        login: "SPlayer-Dev",
+        htmlUrl: "https://github.com/SPlayer-Dev",
+        avatar: "https://avatars.githubusercontent.com/u/137995816?v=4&size=64",
+      },
+    ];
   }
 });
 </script>
