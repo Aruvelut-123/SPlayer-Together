@@ -8,9 +8,12 @@ import { sendToMain } from "@main/utils/broadcast";
 import { store } from "@main/store";
 import { isDev, isMac, isPortable, isAppX } from "@main/utils/config";
 import { updaterLog } from "@main/utils/logger";
-import { autoUpdater, type UpdateInfo } from "electron-updater";
+import electronUpdater from "electron-updater";
+import type { UpdateInfo } from "electron-updater";
 import type { UpdateEvent } from "@shared/types/update";
 import type { UpdateChannel } from "@shared/types/settings";
+
+const { autoUpdater } = electronUpdater;
 
 /** 是否支持内置下载安装 */
 const canSelfInstall = !isMac && !isPortable && !isAppX;
