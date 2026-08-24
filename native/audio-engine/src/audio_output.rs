@@ -134,6 +134,12 @@ fn persisted_device_name(device: &cpal::Device) -> Option<String> {
     device.description().ok().map(|desc| desc.name().to_owned())
 }
 
+/// cpal 的 PipeWire 后端会合成「跟随系统默认」的哨兵设备，它们不对应真实节点，
+/// 选择系统默认时由 `open_device(None)` 取用，不应混进给用户挑选的设备列表
+fn is_synthetic_default_device(name: &str) -> bool {
+    cfg!(target_os = "linux") && matches!(name, "default_output" | "default_sink")
+}
+
 /// 枚举所有输出设备，返回 `(name, is_default)` 列表
 /// 纯查询，不涉及流状态，调用方任意线程都能用
 pub fn list_output_devices() -> Vec<(String, bool)> {
@@ -148,6 +154,9 @@ pub fn list_output_devices() -> Vec<(String, bool)> {
                 devices
                     .filter_map(|device| {
                         let name = persisted_device_name(&device)?;
+                        if is_synthetic_default_device(&name) {
+                            return None;
+                        }
                         let is_default = default_name.as_deref() == Some(name.as_str());
                         Some((name, is_default))
                     })
@@ -312,4 +321,27 @@ where
         None,
     )?;
     Ok(stream)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn hides_synthetic_default_devices_from_the_selectable_list() {
+        assert_eq!(
+            is_synthetic_default_device("default_output"),
+            cfg!(target_os = "linux")
+        );
+        assert_eq!(
+            is_synthetic_default_device("default_sink"),
+            cfg!(target_os = "linux")
+        );
+    }
+
+    #[test]
+    fn keeps_real_devices_in_the_selectable_list() {
+        assert!(!is_synthetic_default_device("Built-in Audio Analog Stereo"));
+        assert!(!is_synthetic_default_device("扬声器 (Realtek(R) Audio)"));
+    }
 }

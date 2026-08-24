@@ -61,6 +61,10 @@ const runReinit = (player: PlayerInstance, attempt: number): void => {
 
 /** 串行重建音频输出，合并重建期间到达的设备变化 / 输出流错误 */
 export const requestReinit = (player: PlayerInstance): void => {
+  // 暂停放在重建入口而非默认设备变化分支：Linux 的 cpal PipeWire 后端默认设备名恒为哨兵值
+  // default_output，比较设备名判断不出切换，那里只有输出流错误能反映输出已经易主
+  // ponytail: 若要区分「主动切换」与「被动断连」，需把各后端已有的精确信号透传进 DeviceChangedCallback
+  if (pauseOnDeviceSwitch) player.pauseImmediately();
   if (reinitPromise !== null || retryTimer !== null) {
     pendingReinitPlayer = player;
     return;
@@ -111,10 +115,7 @@ const handleDeviceChange = (notifyListChange: boolean): void => {
         data: { defaultDevice: currentDefault },
       });
     }
-    if (decision.shouldReinit) {
-      if (pauseOnDeviceSwitch) player.pauseImmediately();
-      requestReinit(player);
-    }
+    if (decision.shouldReinit) requestReinit(player);
   } catch (error) {
     playerLog.warn("检查音频设备变化失败:", error);
   }

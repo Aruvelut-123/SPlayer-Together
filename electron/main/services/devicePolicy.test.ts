@@ -31,6 +31,15 @@ describe("evaluateDeviceChange", () => {
     });
   });
 
+  it("Linux 默认设备名恒为哨兵值，无法据此判断切换", () => {
+    // cpal PipeWire 后端的 default_output_device() 返回合成设备，设备名是编译期常量，
+    // 所以「切换时暂停」不能挂在这个判断上，改由 requestReinit 承担
+    assert.deepEqual(evaluateDeviceChange("default_output", "default_output", null), {
+      defaultChanged: false,
+      shouldReinit: false,
+    });
+  });
+
   it("输出恢复最多尝试三次", () => {
     assert.equal(recoveryRetryDelay(0), 100);
     assert.equal(recoveryRetryDelay(1), 300);
