@@ -91,7 +91,7 @@ export const resolveByPlugin = async (
       info.status.sources[pluginSource]?.actions.includes("musicUrl"),
   );
   if (candidates.length === 0) return fail(ErrorCode.NO_PLUGIN_AVAILABLE);
-  // MusicInfoBase 形状；id / songmid / songId 三种别名都给，兼容不同年代脚本
+  // 补齐 id / songmid / songId / hash / albumId 等字段
   const totalSec = track.duration > 0 ? Math.round(track.duration / 1000) : 0;
   const interval =
     totalSec > 0
@@ -100,19 +100,28 @@ export const resolveByPlugin = async (
           .padStart(2, "0")}:${(totalSec % 60).toString().padStart(2, "0")}`
       : null;
   const singer = track.artists.map((artist) => artist.name).join("/");
+  const songId = track.id;
+  const isHash =
+    typeof songId === "string" && songId.length === 32 && /^[0-9a-fA-F]{32}$/.test(songId);
+  const hash = isHash || track.source === "kugou" ? songId : "";
   const musicInfo = {
-    id: track.id,
-    songmid: track.id,
-    songId: track.id,
+    id: songId,
+    songmid: songId,
+    songId,
     name: track.title,
     singer,
     source: pluginSource,
     interval,
+    img: track.cover ?? null,
+    hash,
+    albumId: track.album?.id ?? "",
+    albumName: track.album?.name ?? "",
     meta: {
-      songId: track.id,
+      songId,
       albumName: track.album?.name ?? "",
-      albumId: track.album?.id,
+      albumId: track.album?.id ?? "",
       picUrl: track.cover ?? null,
+      hash,
     },
   };
   for (const plugin of candidates) {
