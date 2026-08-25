@@ -25,6 +25,7 @@ import type {
   PlaylistCreateInput,
   PlaylistUpdateInput,
 } from "@shared/types/playlist";
+import type { CjkTransformMode } from "@shared/types/opencc";
 
 /** 订阅主进程推送的事件 */
 const subscribe = <T>(channel: string, callback: (data: T) => void): (() => void) => {
@@ -415,6 +416,14 @@ const api = {
     matchLocalTTML: (track: unknown) => ipcRenderer.invoke("lyrics:matchLocalTTML", track),
     // 选择本地 TTML 歌词库目录
     pickLyricRepoDir: () => ipcRenderer.invoke("lyrics:pickLyricRepoDir"),
+  },
+  opencc: {
+    // 转换单个文本
+    convert: (text: string, config: CjkTransformMode): Promise<string> =>
+      ipcRenderer.invoke("opencc:convert", text, config),
+    // 批量转换文本
+    convertBatch: (texts: string[], config: CjkTransformMode): Promise<string[]> =>
+      ipcRenderer.invoke("opencc:convertBatch", texts, config),
   },
   comments: {
     sources: () => ipcRenderer.invoke("comments:sources"),

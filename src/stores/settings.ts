@@ -93,6 +93,7 @@ export const useSettingsStore = defineStore(
       lyricFormatOrder: [...DEFAULT_LYRIC_FORMAT_ORDER],
       smartPreferOnline: false,
       detectBackgroundLyrics: true,
+      cjkTransform: "none",
       adaptiveFontSize: true,
       fontSize: 48,
       fontWeight: 700,

@@ -2,6 +2,7 @@ import type { LyricFormat } from "@shared/types/lyrics";
 import { DEFAULT_LYRIC_FORMAT_ORDER as DEFAULT_LYRIC_FORMAT_ORDER_SHARED } from "@shared/types/lyrics";
 import type { Platform } from "@shared/types/platform";
 import { ALL_PLATFORMS } from "@shared/types/platform";
+import type { CjkTransformMode } from "@shared/types/opencc";
 import type { QualityLevel } from "@/utils/quality";
 
 /** 播放器背景类型 */
@@ -74,6 +75,8 @@ export interface LyricSettings {
   smartPreferOnline: boolean;
   /** 自动识别背景歌词 */
   detectBackgroundLyrics: boolean;
+  /** 中文繁简转换模式（基于 OpenCC） */
+  cjkTransform: CjkTransformMode;
   /** 字号自适应窗口大小 */
   adaptiveFontSize: boolean;
   /** 歌词字号（px，自适应关闭时生效） */
