@@ -302,7 +302,7 @@ export const useListenTogetherStore = defineStore("listenTogether", () => {
       lastPushed.trackId !== trackId ||
       lastPushed.state !== state ||
       Math.abs(lastPushed.positionMs - positionMs) >= SYNC_INTERVAL_MS;
-    const heartbeatDue = Date.now() - lastHeartbeatAt > 15_000;
+    const heartbeatDue = Date.now() - lastHeartbeatAt > 5_000;
     if (!changed && !heartbeatDue) return;
     lastHeartbeatAt = Date.now();
     lastPushed = { trackId, state, positionMs };

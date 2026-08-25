@@ -43,8 +43,6 @@ ROOM_CODE_LEN = 6
 
 # 成员超过该时长未请求视为离线
 MEMBER_TIMEOUT_MS = 60_000
-# 房主超过该时长未推送状态视为失联，将房主转移给在线成员
-HOST_TIMEOUT_MS = 20_000
 # 无在线成员的房间超过该时长后清理（仅清理无人在线的房间）
 ROOM_TTL_MS = 2 * 60 * 1000
 # 后台清理任务间隔
@@ -435,14 +433,16 @@ async def cleanup_loop() -> None:
                 rooms.pop(code, None)
                 log.info("清理已关闭房间 %s", code)
                 continue
-            if now - room.host_last_push > HOST_TIMEOUT_MS:
+            # 房主超过 MEMBER_TIMEOUT_MS 未在线时转移房主
+            host_member = room.members.get(room.host_id)
+            if host_member and now - host_member["last_seen"] > MEMBER_TIMEOUT_MS:
                 for mid, m in room.members.items():
                     if mid != room.host_id and now - m["last_seen"] <= MEMBER_TIMEOUT_MS:
                         room.host_id = mid
                         room.host_last_push = now
                         log.warning(
-                            "房主失联（%s 秒未推送），房间 %s 房主转移给 %s",
-                            HOST_TIMEOUT_MS // 1000,
+                            "房主失联（%s 秒未在线），房间 %s 房主转移给 %s",
+                            MEMBER_TIMEOUT_MS // 1000,
                             room.code,
                             mid,
                         )
