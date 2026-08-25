@@ -91,6 +91,8 @@ pnpm build:native     # Build the Rust native modules only (add `--dev` for debu
 
 Special thanks to the open-source projects that make SPlayer Together possible:
 
+- [SPlayer Next](https://github.com/SPlayer-Dev/SPlayer-Next) — the upstream project this fork is based on, also licensed under AGPL-3.0
+- [SPlayer](https://github.com/SPlayer-Dev/SPlayer) — the original SPlayer project
 - [applemusic-like-lyrics](https://github.com/Steve-xmh/applemusic-like-lyrics) — Apple Music-style lyrics display component library
 - [NeteaseCloudMusicApiEnhanced](https://github.com/neteasecloudmusicapienhanced/api-enhanced) — NetEase Cloud Music API (backup + enhanced)
 

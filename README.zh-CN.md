@@ -91,6 +91,8 @@ pnpm build:native     # 仅构建 Rust 原生模块（加 `--dev` 为 debug 构�
 
 特别感谢以下让 SPlayer Together 成为可能的开源项目：
 
+- [SPlayer Next](https://github.com/SPlayer-Dev/SPlayer-Next) —— 本分支所基于的上游项目，同样采用 AGPL-3.0 许可
+- [SPlayer](https://github.com/SPlayer-Dev/SPlayer) —— 原始 SPlayer 项目
 - [applemusic-like-lyrics](https://github.com/Steve-xmh/applemusic-like-lyrics) —— 类 Apple Music 歌词显示组件库
 - [NeteaseCloudMusicApiEnhanced](https://github.com/neteasecloudmusicapienhanced/api-enhanced) —— 网易云音乐 API 备份 + 增强
 
