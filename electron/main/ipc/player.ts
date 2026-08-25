@@ -136,6 +136,7 @@ const registerNativeEvents = (inst: InstanceType<AudioEngineModule["AudioPlayer"
             position: toDisplayPositionMs(toMs(inst.getPosition())),
             duration: toDisplayDurationMs(toMs(inst.getDuration())),
             volume: inst.getVolume(),
+            speed: inst.getSpeed(),
             isFinished: false,
           },
         };
@@ -226,6 +227,7 @@ export const registerPlayerIpc = (): void => {
           position: 0,
           duration: 0,
           volume: inst.getVolume(),
+          speed: inst.getSpeed(),
           isFinished: false,
         },
       };
@@ -442,6 +444,7 @@ export const registerPlayerIpc = (): void => {
         position: toDisplayPositionMs(toMs(raw.position)),
         duration: toDisplayDurationMs(toMs(raw.duration)),
         volume: raw.volume,
+        speed: getPlayer().getSpeed(),
         isFinished: raw.isFinished,
       },
     };
@@ -504,6 +507,7 @@ export const registerPlayerIpc = (): void => {
   ipcMain.handle("player:setSpeed", (_event, speed: number) => {
     try {
       getPlayer().setSpeed(speed);
+      mediaService.setRate(speed);
       nowPlaying.onSpeedChange(speed);
       return { success: true };
     } catch (error) {
@@ -677,7 +681,45 @@ export const registerPlayerIpc = (): void => {
           break;
         case "SetVolume":
           if (event.volume != null) {
-            inst.setVolume(event.volume);
+            if (0 <= event.volume && event.volume <= 1) {
+              inst.setVolume(event.volume);
+              mediaService.setVolume(event.volume);
+              sendToMain("player:event", {
+                type: "status",
+                data: {
+                  state: inst.getStatus().state as PlayerState,
+                  position: toDisplayPositionMs(toMs(inst.getPosition())),
+                  duration: toDisplayDurationMs(toMs(inst.getDuration())),
+                  volume: event.volume,
+                  speed: inst.getSpeed(),
+                  isFinished: false,
+                },
+              });
+            } else {
+              playerLog.warn(`无效的音量值: ${event.volume}`);
+            }
+          }
+          break;
+        case "SetRate":
+          if (event.rate != null) {
+            if (0.5 <= event.rate && event.rate <= 2.0) {
+              inst.setSpeed(event.rate);
+              mediaService.setRate(event.rate);
+              nowPlaying.onSpeedChange(event.rate);
+              sendToMain("player:event", {
+                type: "status",
+                data: {
+                  state: inst.getStatus().state as PlayerState,
+                  position: toDisplayPositionMs(toMs(inst.getPosition())),
+                  duration: toDisplayDurationMs(toMs(inst.getDuration())),
+                  volume: inst.getVolume(),
+                  speed: event.rate,
+                  isFinished: false,
+                },
+              });
+            } else {
+              playerLog.warn(`无效的播放速率值: ${event.rate}`);
+            }
           }
           break;
         case "NextTrack":
@@ -712,7 +754,7 @@ export const registerPlayerIpc = (): void => {
     stopDeviceMonitoring();
     const stoppedEvent = {
       type: "status",
-      data: { state: "stopped", position: 0, duration: 0, volume: 1, isFinished: false },
+      data: { state: "stopped", position: 0, duration: 0, volume: 1, speed: 1, isFinished: false },
     };
     sendToMain("player:event", stoppedEvent);
     wsBroadcast(stoppedEvent);

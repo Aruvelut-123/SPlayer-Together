@@ -182,6 +182,7 @@ export interface PlayerStatus {
   position: number;
   duration: number;
   volume: number;
+  speed: number;
   isFinished: boolean;
 }
 
