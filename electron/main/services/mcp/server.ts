@@ -17,12 +17,20 @@ import { getTrayPlayMode } from "@main/services/tray";
 import { createMcpEndpoint as createHttpEndpoint, type McpEndpoint } from "./endpoint";
 import { searchOnlineTracks } from "./onlineSearch";
 import { cacheTracks, getTrackById, getTracksByIds } from "./cache";
+import {
+  createRoom as createTogetherRoom,
+  joinRoom as joinTogetherRoom,
+  leaveRoom as leaveTogetherRoom,
+  getRoomSnapshot,
+  isInRoom,
+  currentRoomCode,
+} from "./listenTogether";
 
 const jsonContent = (value: unknown) => ({
   content: [{ type: "text" as const, text: JSON.stringify(value) }],
 });
 
-/** 创建并注册 SPlayer MCP 能力 */
+/** 创建并注册 SPlayer Together MCP 能力 */
 const createServer = (): McpServer => {
   const server = new McpServer({
     name: "splayer-together",
@@ -33,7 +41,7 @@ const createServer = (): McpServer => {
     "get_playback_status",
     {
       title: "获取播放状态",
-      description: "获取 SPlayer 当前播放状态、进度、时长和音量。时间单位为毫秒",
+      description: "获取 SPlayer Together 当前播放状态、进度、时长和音量。时间单位为毫秒",
       annotations: { readOnlyHint: true, idempotentHint: true },
     },
     () => {
@@ -290,7 +298,7 @@ const createServer = (): McpServer => {
     "now-playing",
     "splayer://now-playing",
     {
-      title: "SPlayer 当前播放",
+      title: "SPlayer Together 当前播放",
       description: "不含完整歌词正文的当前歌曲与播放位置轻量快照",
       mimeType: "application/json",
     },
@@ -309,7 +317,7 @@ const createServer = (): McpServer => {
     "library-summary",
     "splayer://library/summary",
     {
-      title: "SPlayer 曲库摘要",
+      title: "SPlayer Together 曲库摘要",
       description: "本地曲库的歌曲、专辑和艺术家数量",
       mimeType: "application/json",
     },
@@ -328,10 +336,86 @@ const createServer = (): McpServer => {
     }),
   );
 
+  // ── 一起听（Listen Together）──
+
+  server.registerTool(
+    "together_create_room",
+    {
+      title: "创建一起听房间",
+      description: "创建一个一起听房间，返回 6 位房间码供他人加入。",
+      inputSchema: { name: z.string().max(50).optional() },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
+    },
+    async ({ name }) => {
+      const res = await createTogetherRoom(name);
+      return jsonContent({ code: res.code, memberId: res.memberId, token: res.token });
+    },
+  );
+
+  server.registerTool(
+    "together_join_room",
+    {
+      title: "加入一起听房间",
+      description: "通过 6 位房间码加入一个一起听房间。",
+      inputSchema: { code: z.string().length(6), name: z.string().max(50).optional() },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
+    },
+    async ({ code, name }) => {
+      const res = await joinTogetherRoom(code, name);
+      return jsonContent({ memberId: res.memberId, token: res.token });
+    },
+  );
+
+  server.registerTool(
+    "together_get_room_status",
+    {
+      title: "查询一起听房间状态",
+      description: "查询当前所在一起听房间的状态、成员列表和播放进度。",
+      annotations: { readOnlyHint: true, idempotentHint: true },
+    },
+    async () => {
+      if (!isInRoom()) return jsonContent({ error: "未加入任何一起听房间" });
+      try {
+        const snap = await getRoomSnapshot();
+        return jsonContent({
+          code: currentRoomCode(),
+          hostId: snap.hostId,
+          members: snap.members.map((m) => ({ id: m.id, name: m.name, role: m.role })),
+          state: snap.state
+            ? {
+                track: snap.state.track,
+                status: snap.state.state,
+                positionMs: snap.state.positionMs,
+                repeatMode: snap.state.repeatMode,
+                shuffleMode: snap.state.shuffleMode,
+              }
+            : null,
+          serverNow: snap.serverNow,
+        });
+      } catch (err) {
+        return jsonContent({ error: err instanceof Error ? err.message : String(err) });
+      }
+    },
+  );
+
+  server.registerTool(
+    "together_leave_room",
+    {
+      title: "离开一起听房间",
+      description: "离开当前所在的一起听房间。",
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
+    },
+    async () => {
+      if (!isInRoom()) return jsonContent({ ok: true, message: "你不在任何房间中" });
+      await leaveTogetherRoom();
+      return jsonContent({ ok: true });
+    },
+  );
+
   return server;
 };
 
-/** 创建 SPlayer MCP HTTP 端点 */
+/** 创建 SPlayer Together MCP HTTP 端点 */
 export const createMcpEndpoint = (): McpEndpoint => createHttpEndpoint(createServer);
 
 export type { McpEndpoint } from "./endpoint";
