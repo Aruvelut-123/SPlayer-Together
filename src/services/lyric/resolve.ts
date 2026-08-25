@@ -295,6 +295,21 @@ export const resolvePluginLyric = async (track: Track): Promise<ResolvedLyric | 
   return null;
 };
 
+/** 插件歌词是否作为首选来源（本地 TTML 仓库仍最高） */
+export const isPluginLyricPreferred = (): boolean =>
+  useSettingsStore().lyric.preferPluginLyric === true;
+
+/**
+ * 插件歌词作为首选时的前置尝试
+ * 关闭该偏好时不发起任何插件请求，保持原有兜底语义
+ * @param track - 歌曲信息
+ * @returns 命中的插件歌词，未开启或未命中返回 null
+ */
+export const resolvePreferredPluginLyric = async (track: Track): Promise<ResolvedLyric | null> => {
+  if (!isPluginLyricPreferred()) return null;
+  return resolvePluginLyric(track);
+};
+
 /**
  * 为下一首歌曲解析最终歌词结果
  * 本地歌曲依赖实际加载后的 TrackDetail，不在此处提前解析
@@ -310,6 +325,10 @@ export const resolveLyricForPreload = async (
   const localRepo = await resolveLocalRepoLyric(track);
   if (!shouldContinue()) return null;
   if (localRepo) return localRepo;
+
+  const preferredPlugin = await resolvePreferredPluginLyric(track);
+  if (!shouldContinue()) return null;
+  if (preferredPlugin) return preferredPlugin;
 
   if (track.source === "streaming") {
     const streaming = await resolveStreamingByPreference(track, shouldContinue);

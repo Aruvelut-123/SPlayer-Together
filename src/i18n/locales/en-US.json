@@ -929,6 +929,10 @@
       "label": "Auto-Upgrade Lyric Format",
       "description": "Fetch a higher-ranked format from other platforms when the current one is low"
     },
+    "preferPluginLyric": {
+      "label": "Prefer Plugin Lyrics",
+      "description": "Query plugins first and fall back to built-in platforms on a miss; when off, plugins are only a last resort"
+    },
     "detectBackgroundLyrics": {
       "label": "Auto-Detect Background Lyrics",
       "description": "Detect backing vocals from brackets. Disable this if lyrics are misdetected"

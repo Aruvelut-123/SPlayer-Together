@@ -14,6 +14,7 @@ import {
   resolveLocalRepoLyric,
   resolveOnlineByPreference,
   resolvePluginLyric,
+  resolvePreferredPluginLyric,
   resolveStreamingByPreference,
   resolveTTMLOverlay,
   type LocalLyric,
@@ -137,6 +138,19 @@ const tryPluginFallback = async (token: number, track: Track): Promise<boolean> 
 };
 
 /**
+ * 插件歌词作为首选来源：开启偏好时在所有网络来源之前尝试
+ * 关闭时不发起请求，插件仍按原有顺序兜底
+ * @param token - 竞态 token
+ * @param track - 歌曲信息
+ * @returns 是否已提交有效歌词
+ */
+const tryPreferredPlugin = async (token: number, track: Track): Promise<boolean> => {
+  const resolved = await resolvePreferredPluginLyric(track);
+  if (token !== currentToken) return false;
+  return resolved ? commitResolvedAndHasParsed(token, resolved) : false;
+};
+
+/**
  * 流媒体歌词加载：按来源偏好解析，失败后使用插件和内嵌歌词兜底
  * @param token - 竞态 token
  * @param track - 歌曲信息
@@ -213,6 +227,9 @@ export const loadForTrack = async (detail: TrackDetail | null): Promise<void> =>
     // 本地 TTML 歌词库最高优先
     if (await tryLocalRepo(token, track)) return;
     if (token !== currentToken) return;
+    // 插件首选：仅在开启偏好时先于所有网络来源
+    if (await tryPreferredPlugin(token, track)) return;
+    if (token !== currentToken) return;
     // 在线歌曲（任一在线平台）
     if (isPlatform(track.source)) {
       await loadPlatformLyric(token, track);
@@ -262,6 +279,9 @@ const refreshPreference = async (): Promise<void> => {
   // 本地 TTML 歌词库最高优先
   if (await tryLocalRepo(token, track)) return;
   if (token !== currentToken) return;
+  // 插件首选
+  if (await tryPreferredPlugin(token, track)) return;
+  if (token !== currentToken) return;
   if (track.source === "streaming") {
     await loadStreamingLyric(token, track, media.detail);
     return;
@@ -302,6 +322,7 @@ export const watchLyricPreference = (): void => {
     () => [
       settings.lyric.lyricSourcePreference,
       settings.lyric.smartPreferOnline,
+      settings.lyric.preferPluginLyric,
       settings.lyric.detectBackgroundLyrics,
       settings.system.lyric.enableOnlineTTMLLyric,
       settings.system.localLyric.enableLocalTTMLOverride,

@@ -12,6 +12,7 @@ import {
   resolveLocalRepoLyric,
   resolveOnlineByPreference,
   resolvePluginLyric,
+  resolvePreferredPluginLyric,
   resolveStreamingByPreference,
   resolveTTMLOverlay,
   type OnlineResult,
@@ -60,6 +61,9 @@ const resolveOnlineDownloadLyric = async (
 export const resolveDownloadLyric = async (track: Track): Promise<DownloadLyric | null> => {
   const local = toUsableDownloadLyric(await resolveLocalRepoLyric(track));
   if (local) return local;
+  // 插件首选
+  const preferredPlugin = toUsableDownloadLyric(await resolvePreferredPluginLyric(track));
+  if (preferredPlugin) return preferredPlugin;
   // 流媒体
   if (track.source === "streaming") {
     return (
