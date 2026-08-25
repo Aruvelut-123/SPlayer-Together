@@ -35,7 +35,7 @@ impl AudioOutput {
     /// 解析输出设备与配置
     ///
     /// # Arguments
-    /// * `device_name` - 输出设备名，`None` 走系统默认设备
+    /// * `device_id` - 输出设备 ID，`None` 走系统默认设备
     /// * `requested_sample_rate` - 期望输出采样率；设备支持时按此速率打开（音源精确采样率），
     ///   否则回退到设备默认配置。`None` 表示直接用设备默认配置
     /// * `generation` - 输出流单调代次，见 [`AudioOutput`] 字段说明
@@ -45,15 +45,16 @@ impl AudioOutput {
     /// - 找不到指定设备
     /// - 无可用音频设备
     pub fn new(
-        device_name: Option<&str>,
+        device_id: Option<&str>,
         requested_sample_rate: Option<u32>,
         generation: u64,
         on_failure: OutputFailureCallback,
     ) -> Result<Self> {
-        let (device, config) = open_device(device_name, requested_sample_rate)
+        let (device, config) = open_device(device_id, requested_sample_rate)
             .with_audio_kind(AudioErrorKind::Device)?;
         info!(
-            device = %device,
+            id = device_id_string(&device).as_deref().unwrap_or("-"),
+            name = %device,
             sample_rate = config.sample_rate(),
             "打开音频输出配置"
         );
@@ -87,14 +88,7 @@ impl AudioOutput {
         let config = self.config.clone();
         let on_failure = Arc::clone(&self.on_failure);
         run_in_clean_mta(move || {
-            build_typed_stream_for_format(
-                &device,
-                &config,
-                source,
-                volume,
-                stopped,
-                on_failure,
-            )
+            build_typed_stream_for_format(&device, &config, source, volume, stopped, on_failure)
         })
         .with_audio_kind(AudioErrorKind::Device)
     }
@@ -108,7 +102,9 @@ impl Drop for AudioOutput {
 
 /// 在干净的 COM MTA 线程环境中运行任务（Windows 特需，防止 Node.js STA 或线程池残留的 COM 冲突）
 #[cfg(target_os = "windows")]
-fn run_in_clean_mta<T: Send + 'static, F: FnOnce() -> Result<T> + Send + 'static>(f: F) -> Result<T> {
+fn run_in_clean_mta<T: Send + 'static, F: FnOnce() -> Result<T> + Send + 'static>(
+    f: F,
+) -> Result<T> {
     use windows::Win32::System::Com::{CoInitializeEx, CoUninitialize, COINIT_MULTITHREADED};
     std::thread::Builder::new()
         .name("audio-mta-worker".into())
@@ -128,10 +124,15 @@ fn run_in_clean_mta<T, F: FnOnce() -> Result<T>>(f: F) -> Result<T> {
     f()
 }
 
-/// 设备持久化选择键：cpal 0.18 起 `Device::name()` 并入 `description().name()`，
-/// 沿用该值以避免升级后已有配置失效
+/// 设备显示名：cpal 0.18 起 `Device::name()` 并入 `description().name()`。
+/// 可能重复、可被用户改名，只用于展示和旧配置回退匹配
 fn persisted_device_name(device: &cpal::Device) -> Option<String> {
     device.description().ok().map(|desc| desc.name().to_owned())
+}
+
+/// 设备稳定 ID：WASAPI 端点 ID / CoreAudio UID / PipeWire node.name，跨重启和改名都稳定
+fn device_id_string(device: &cpal::Device) -> Option<String> {
+    device.id().ok().map(|id| id.to_string())
 }
 
 /// cpal 的 PipeWire 后端会合成「跟随系统默认」的哨兵设备，它们不对应真实节点，
@@ -140,14 +141,27 @@ fn is_synthetic_default_device(name: &str) -> bool {
     cfg!(target_os = "linux") && matches!(name, "default_output" | "default_sink")
 }
 
-/// 枚举所有输出设备，返回 `(name, is_default)` 列表
+/// 按选择器查找输出设备，优先按稳定 ID 匹配，失败后回退到显示名。
+///
+/// 回退是为 1.0.0 及更早版本存下的显示名配置准备的：命中后由 JS 侧改写成 ID。
+/// 显示名可能重复，回退路径取首个匹配，因此仅用于迁移，不作为长期身份。
+fn find_device(host: &cpal::Host, selector: &str) -> Option<cpal::Device> {
+    if let Ok(parsed) = selector.parse::<cpal::DeviceId>() {
+        return host.device_by_id(&parsed);
+    }
+    host.output_devices()
+        .ok()?
+        .find(|device| persisted_device_name(device).as_deref() == Some(selector))
+}
+
+/// 枚举所有输出设备，返回 `(id, name, is_default)` 列表
 /// 纯查询，不涉及流状态，调用方任意线程都能用
-pub fn list_output_devices() -> Vec<(String, bool)> {
+pub fn list_output_devices() -> Vec<(String, String, bool)> {
     run_in_clean_mta(|| {
         let host = cpal::default_host();
-        let default_name = host
+        let default_id = host
             .default_output_device()
-            .and_then(|device| persisted_device_name(&device));
+            .and_then(|device| device_id_string(&device));
         let list = host
             .output_devices()
             .map(|devices| {
@@ -157,12 +171,18 @@ pub fn list_output_devices() -> Vec<(String, bool)> {
                         if is_synthetic_default_device(&name) {
                             return None;
                         }
-                        let is_default = default_name.as_deref() == Some(name.as_str());
-                        Some((name, is_default))
+                        let id = device_id_string(&device)?;
+                        let is_default = default_id.as_deref() == Some(id.as_str());
+                        Some((id, name, is_default))
                     })
                     .collect()
             })
             .unwrap_or_default();
+        debug!(
+            default_id = default_id.as_deref().unwrap_or("-"),
+            devices = ?list,
+            "枚举音频输出设备"
+        );
         Ok(list)
     })
     .unwrap_or_default()
@@ -179,22 +199,20 @@ pub fn default_device_name() -> Option<String> {
     .unwrap_or_default()
 }
 
-/// 按设备名（`None` 为默认设备）解析设备与输出配置。
+/// 按设备 ID（`None` 为默认设备）解析设备与输出配置。
 /// 设备支持 `requested_sample_rate` 时按该速率打开，否则使用设备默认配置。
 /// 样本格式优先沿用设备默认格式：PipeWire 等后端上报的 supported 列表包含
 /// 全部合成格式（顺序 I8…F64），首个条目不代表设备真实能力，直接采用会导致
 /// 以 i8 打开输出流而严重劣化音质。
 fn open_device_internal(
-    device_name: Option<&str>,
+    device_id: Option<&str>,
     requested_sample_rate: Option<u32>,
 ) -> Result<(cpal::Device, SupportedStreamConfig)> {
     let host = cpal::default_host();
-    let device = match device_name {
-        Some(name) => host
-            .output_devices()
-            .context("枚举输出设备失败")?
-            .find(|device| persisted_device_name(device).as_deref() == Some(name))
-            .with_context(|| format!("输出设备 '{name}' 不存在"))?,
+    let device = match device_id {
+        Some(selector) => {
+            find_device(&host, selector).with_context(|| format!("输出设备 '{selector}' 不存在"))?
+        }
         None => host.default_output_device().context("没有可用的输出设备")?,
     };
     let config = match requested_sample_rate {
@@ -250,13 +268,11 @@ fn open_device_internal(
 }
 
 fn open_device(
-    device_name: Option<&str>,
+    device_id: Option<&str>,
     requested_sample_rate: Option<u32>,
 ) -> Result<(cpal::Device, SupportedStreamConfig)> {
-    let name_owned = device_name.map(String::from);
-    run_in_clean_mta(move || {
-        open_device_internal(name_owned.as_deref(), requested_sample_rate)
-    })
+    let id_owned = device_id.map(String::from);
+    run_in_clean_mta(move || open_device_internal(id_owned.as_deref(), requested_sample_rate))
 }
 
 /// 按样本格式分发到类型化构建
@@ -343,5 +359,19 @@ mod tests {
     fn keeps_real_devices_in_the_selectable_list() {
         assert!(!is_synthetic_default_device("Built-in Audio Analog Stereo"));
         assert!(!is_synthetic_default_device("扬声器 (Realtek(R) Audio)"));
+    }
+
+    /// `find_device` 先按 `DeviceId` 解析、失败才回退显示名，旧配置存的显示名必须落到回退分支
+    #[test]
+    fn legacy_display_names_do_not_parse_as_device_ids() {
+        assert!("扬声器 (Realtek(R) Audio)"
+            .parse::<cpal::DeviceId>()
+            .is_err());
+        assert!("Built-in Audio Analog Stereo"
+            .parse::<cpal::DeviceId>()
+            .is_err());
+        assert!("AppleHDAEngineOutput:1B,0,1,0:0"
+            .parse::<cpal::DeviceId>()
+            .is_err());
     }
 }

@@ -96,6 +96,9 @@ pub struct JsMusicMetadata {
 /// 音频输出设备信息
 #[napi(object)]
 pub struct JsAudioDevice {
+    /// 稳定设备 ID（cpal `DeviceId` 的字符串形式）
+    pub id: String,
+    /// 显示名
     pub name: String,
     /// 是否为系统默认设备
     pub is_default: bool,
@@ -185,12 +188,12 @@ impl AudioPlayer {
             was_playing_fallback,
             output_generation,
             on_failure,
-            device_name,
+            device_id,
         ) = {
             let mut player = self.inner.lock();
             let position = player.position();
             let is_playing = player.state() == PlayerState::Playing;
-            let device_name = player.selected_device_name().map(String::from);
+            let device_id = player.selected_device().map(String::from);
             let output_generation = player.reserve_output_generation();
             let on_failure = player.make_failure_callback(output_generation);
             let seek_take = player.take_for_async_seek();
@@ -202,7 +205,7 @@ impl AudioPlayer {
                 is_playing,
                 output_generation,
                 on_failure,
-                device_name,
+                device_id,
             )
         };
 
@@ -225,7 +228,7 @@ impl AudioPlayer {
 
                 // 优先沿用原输出采样率；设备回退到其它格式时在下方重建播放重采样器
                 let output = match audio_output::AudioOutput::new(
-                    device_name.as_deref(),
+                    device_id.as_deref(),
                     Some(output_sample_rate),
                     output_generation,
                     on_failure,
@@ -478,7 +481,7 @@ impl AudioPlayer {
             load_token,
             cover_dir,
             normalization_enabled,
-            device_name,
+            device_id,
             output_generation,
             failure_callback,
             equalizer,
@@ -494,7 +497,7 @@ impl AudioPlayer {
                 player.load_token_handle(),
                 player.cover_cache_dir().map(String::from),
                 player.is_normalization_enabled(),
-                player.selected_device_name().map(String::from),
+                player.selected_device().map(String::from),
                 output_generation,
                 failure_callback,
                 player.equalizer_handle(),
@@ -515,7 +518,7 @@ impl AudioPlayer {
             }
             // 输出采样率协商：音源原始采样率被设备支持时按精确采样率打开
             let output = audio_output::AudioOutput::new(
-                device_name.as_deref(),
+                device_id.as_deref(),
                 Some(prepared.original_sample_rate()),
                 output_generation,
                 failure_callback,
@@ -893,7 +896,11 @@ impl AudioPlayer {
     pub fn get_output_devices(&self) -> Vec<JsAudioDevice> {
         audio_output::list_output_devices()
             .into_iter()
-            .map(|(name, is_default)| JsAudioDevice { name, is_default })
+            .map(|(id, name, is_default)| JsAudioDevice {
+                id,
+                name,
+                is_default,
+            })
             .collect()
     }
 
@@ -903,18 +910,19 @@ impl AudioPlayer {
         audio_output::default_device_name()
     }
 
-    /// 切换输出设备（传 None/undefined 使用系统默认）
+    /// 切换输出设备（传设备 ID，None/undefined 使用系统默认）
     #[napi]
-    pub async fn set_output_device(&self, device_name: Option<String>) -> Result<()> {
-        info!(device = ?device_name, "切换输出设备");
-        self.inner.lock().set_output_device(device_name);
+    pub async fn set_output_device(&self, device_id: Option<String>) -> Result<()> {
+        self.inner.lock().set_output_device(device_id);
         self.reinit_output().await
     }
 
-    /// 获取当前选择的输出设备名称（None = 系统默认）
+    /// 获取当前选择的输出设备 ID（None = 跟随系统默认）
+    ///
+    /// 旧配置存的是显示名，此处原样返回，由 `open_device` 回退解析
     #[napi]
     pub fn get_selected_device_name(&self) -> Option<String> {
-        self.inner.lock().selected_device_name().map(String::from)
+        self.inner.lock().selected_device().map(String::from)
     }
 
     /// 设置播放速度（自动 clamp 到 [0.5, 2.0]）

@@ -62,8 +62,8 @@ pub struct InnerPlayer {
     /// FFT 推送定时器的停止信号和线程句柄
     fft_timer_stop: Option<Arc<AtomicBool>>,
     fft_timer_handle: Option<JoinHandle<()>>,
-    /// 用户选择的输出设备名称（None = 系统默认）
-    selected_device_name: Option<String>,
+    /// 用户选择的输出设备（设备 ID，None = 跟随系统默认）
+    selected_device: Option<String>,
     /// 音量归一化开关
     normalization_enabled: bool,
     /// 跨曲目共享的均衡器（load/seek 时交给 DSP 线程）
@@ -96,7 +96,7 @@ impl InnerPlayer {
             let generation = self.reserve_output_generation();
             let on_failure = self.make_failure_callback(generation);
             self.output = Some(AudioOutput::new(
-                self.selected_device_name.as_deref(),
+                self.selected_device.as_deref(),
                 requested_sample_rate,
                 generation,
                 on_failure,
@@ -170,7 +170,7 @@ impl InnerPlayer {
             fft_enabled: Arc::new(AtomicBool::new(false)),
             fft_timer_stop: None,
             fft_timer_handle: None,
-            selected_device_name: None,
+            selected_device: None,
             normalization_enabled: false,
             equalizer: Arc::new(Mutex::new(Equalizer::new(
                 initial_rate,
@@ -187,14 +187,14 @@ impl InnerPlayer {
     }
 
     /// 切换输出设备（下一次重建设备时生效）
-    pub fn set_output_device(&mut self, device_name: Option<String>) {
-        info!(device = ?device_name, "切换输出设备");
-        self.selected_device_name = device_name;
+    pub fn set_output_device(&mut self, device_id: Option<String>) {
+        info!(device = ?device_id, "切换输出设备");
+        self.selected_device = device_id;
     }
 
-    /// 获取当前选择的输出设备名称（None = 系统默认）
-    pub fn selected_device_name(&self) -> Option<&str> {
-        self.selected_device_name.as_deref()
+    /// 获取当前选择的输出设备（None = 跟随系统默认）
+    pub fn selected_device(&self) -> Option<&str> {
+        self.selected_device.as_deref()
     }
 
     /// 注册事件回调（支持热替换：先停止旧的定时器/渐变，确保旧回调的 Arc 引用尽快释放）

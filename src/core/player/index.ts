@@ -568,14 +568,14 @@ export const refreshDevices = async (): Promise<void> => {
 
 /**
  * 切换音频输出设备
- * @param deviceName - 设备名称，传 null 跟随系统默认
+ * @param deviceId - 设备 ID，传 null 跟随系统默认
  */
-export const switchDevice = async (deviceName: string | null): Promise<void> => {
+export const switchDevice = async (deviceId: string | null): Promise<void> => {
   const settings = useSettingsStore();
   const pauseBeforeSwitch =
     settings.player.pauseOnDeviceSwitch && useStatusStore().state === "playing";
-  const result = await window.api.player.setOutputDevice(deviceName, pauseBeforeSwitch);
-  if (result.success) settings.player.outputDevice = deviceName;
+  const result = await window.api.player.setOutputDevice(deviceId, pauseBeforeSwitch);
+  if (result.success) settings.player.outputDevice = deviceId;
 };
 
 /**
@@ -1020,6 +1020,11 @@ export const initPlayer = async (): Promise<void> => {
   await refreshDevices();
   await window.api.player.setPauseOnDeviceSwitch(settings.player.pauseOnDeviceSwitch);
   if (settings.player.outputDevice) {
+    // 1.0.0 及更早版本存的是显示名，就地换成稳定 ID；设备当前不在线时保留原值等下次启动
+    const legacy = useStatusStore().outputDevices.find(
+      (device) => device.name === settings.player.outputDevice,
+    );
+    if (legacy) settings.player.outputDevice = legacy.id;
     await window.api.player.setOutputDevice(settings.player.outputDevice);
   }
   // 先订阅事件，确保 load 触发播放后 position 事件能被接收

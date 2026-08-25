@@ -605,14 +605,14 @@ export const registerPlayerIpc = (): void => {
     }
   });
 
-  // 切换输出设备（传 null 使用系统默认）
+  // 切换输出设备（传设备 ID，null 使用系统默认）
   ipcMain.handle(
     "player:setOutputDevice",
-    async (_event, deviceName: string | null, pauseBeforeSwitch = false) => {
+    async (_event, deviceId: string | null, pauseBeforeSwitch = false) => {
       try {
         cancelPendingReinit();
         if (pauseBeforeSwitch) getPlayer().pauseImmediately();
-        await getPlayer().setOutputDevice(deviceName ?? undefined);
+        await getPlayer().setOutputDevice(deviceId ?? undefined);
         return { success: true };
       } catch (error) {
         return fail(

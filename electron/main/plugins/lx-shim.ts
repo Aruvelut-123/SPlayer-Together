@@ -100,7 +100,8 @@ export interface LxCurrentScriptInfo {
 /** 规范化输入为标准的 Uint8Array / Buffer */
 const toBuffer = (val: unknown): Buffer => {
   if (Buffer.isBuffer(val)) return val;
-  if (val instanceof Uint8Array || val instanceof ArrayBuffer) return Buffer.from(val as ArrayBuffer);
+  if (val instanceof Uint8Array || val instanceof ArrayBuffer)
+    return Buffer.from(val as ArrayBuffer);
   if (Array.isArray(val)) return Buffer.from(val as number[]);
   if (typeof val === "string") return Buffer.from(val, "utf-8");
   return Buffer.alloc(0);
@@ -123,10 +124,7 @@ const buildLxUtils = (): object => ({
     },
     rsaEncrypt: (buffer: Buffer | Uint8Array | number[], key: string): Buffer => {
       const buf = toBuffer(buffer);
-      const padded =
-        buf.length < 128
-          ? Buffer.concat([Buffer.alloc(128 - buf.length), buf])
-          : buf;
+      const padded = buf.length < 128 ? Buffer.concat([Buffer.alloc(128 - buf.length), buf]) : buf;
       return crypto.publicEncrypt({ key, padding: crypto.constants.RSA_NO_PADDING }, padded);
     },
     randomBytes: (size: number): Buffer => crypto.randomBytes(size),
@@ -142,7 +140,10 @@ const buildLxUtils = (): object => ({
       encoding?: BufferEncoding,
     ): Buffer =>
       typeof data === "string" ? Buffer.from(data, encoding) : Buffer.from(data as ArrayBuffer),
-    bufToString: (buf: Buffer | Uint8Array | string | number[], format: BufferEncoding = "utf-8"): string => {
+    bufToString: (
+      buf: Buffer | Uint8Array | string | number[],
+      format: BufferEncoding = "utf-8",
+    ): string => {
       if (typeof buf === "string") return Buffer.from(buf, "binary").toString(format);
       return toBuffer(buf).toString(format);
     },

@@ -170,7 +170,7 @@ export interface PlayerSettings {
   followCoverColor: boolean;
   /** 全屏播放器自动进入沉浸模式（隐藏顶/底栏与鼠标） */
   autoImmersive: boolean;
-  /** 输出设备名称，null 表示跟随系统默认 */
+  /** 输出设备 ID（cpal DeviceId），null 表示跟随系统默认 */
   outputDevice: string | null;
   /** 切换输出设备时暂停播放 */
   pauseOnDeviceSwitch: boolean;
