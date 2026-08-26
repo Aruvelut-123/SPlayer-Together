@@ -1,11 +1,11 @@
 <script setup lang="ts">
+import { useDataStore } from "@/stores/data";
 import { toast } from "@/composables/useToast";
 import {
   fetchQQMusicLoginStatus,
   openQQMusicLoginWeb,
   logoutQQMusic,
   setQQMusicCookie,
-  type QQMusicProfile,
 } from "@/apis/login/qqmusic";
 import IconLucideMusic from "~icons/lucide/music";
 import IconLucideUnplug from "~icons/lucide/unplug";
@@ -16,29 +16,12 @@ import vipImg from "@/assets/images/vip.png";
 defineOptions({ inheritAttrs: false });
 
 const { t } = useI18n();
+const dataStore = useDataStore();
 
 const PLATFORM = "QM";
-const CACHE_KEY = "splayer:qm_profile";
+const PLATFORM_KEY = "qqmusic";
 
-const getCachedProfile = (): QQMusicProfile | null => {
-  try {
-    const raw = localStorage.getItem(CACHE_KEY);
-    return raw ? (JSON.parse(raw) as QQMusicProfile) : null;
-  } catch {
-    return null;
-  }
-};
-
-const setCachedProfile = (p: QQMusicProfile | null): void => {
-  try {
-    if (p) localStorage.setItem(CACHE_KEY, JSON.stringify(p));
-    else localStorage.removeItem(CACHE_KEY);
-  } catch {
-    // ignore
-  }
-};
-
-const profile = ref<QQMusicProfile | null>(getCachedProfile());
+const profile = computed(() => dataStore.getPlatformProfile(PLATFORM_KEY));
 const loggingIn = ref(false);
 const confirmOpen = ref(false);
 const cookieModalOpen = ref(false);
@@ -52,11 +35,10 @@ watch(cookieModalOpen, (val) => {
   }
 });
 
-/** 刷新登录状态并同步本地缓存 */
+/** 刷新登录状态并同步 Store */
 const refresh = async (): Promise<void> => {
   const latest = await fetchQQMusicLoginStatus();
-  profile.value = latest;
-  setCachedProfile(latest);
+  dataStore.setPlatformProfile(PLATFORM_KEY, latest);
 };
 
 onMounted(refresh);
@@ -91,8 +73,7 @@ const handleLogin = async (): Promise<void> => {
 const handleDisconnect = async (): Promise<void> => {
   confirmOpen.value = false;
   await logoutQQMusic();
-  profile.value = null;
-  setCachedProfile(null);
+  dataStore.clearPlatformProfile(PLATFORM_KEY);
   toast.success(t("settings.platformLogin.toast.logoutDone", { name: PLATFORM }));
 };
 
@@ -111,15 +92,13 @@ const handleManualCookieSubmit = async (): Promise<void> => {
 
     const latest = await fetchQQMusicLoginStatus();
     if (latest) {
-      profile.value = latest;
-      setCachedProfile(latest);
+      dataStore.setPlatformProfile(PLATFORM_KEY, latest);
       cookieModalOpen.value = false;
       manualCookie.value = "";
       toast.success(t("settings.platformLogin.toast.cookieSuccess", { name: PLATFORM }));
     } else {
       await logoutQQMusic();
-      profile.value = null;
-      setCachedProfile(null);
+      dataStore.clearPlatformProfile(PLATFORM_KEY);
       toast.error(t("settings.platformLogin.toast.cookieInvalid"));
     }
   } catch (err) {

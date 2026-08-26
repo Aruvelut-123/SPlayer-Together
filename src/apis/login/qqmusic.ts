@@ -1,18 +1,11 @@
 import { qqmusicCall } from "@/apis/qqmusic";
-
-export interface QQMusicProfile {
-  userId: string;
-  nickname: string;
-  avatarUrl: string;
-  isVip: boolean;
-  vipLevel?: number;
-}
+import type { PlatformProfile } from "@shared/types/platform";
 
 interface UserDetailResponse {
   code: number;
   loggedIn: boolean;
   message?: string;
-  profile?: QQMusicProfile;
+  profile?: PlatformProfile;
 }
 
 /**
@@ -28,7 +21,7 @@ export const openQQMusicLoginWeb = async (): Promise<boolean> => {
  * 获取当前 QM 登录状态与用户资料
  * @returns 已登录返回 profile，未登录返回 null
  */
-export const fetchQQMusicLoginStatus = async (): Promise<QQMusicProfile | null> => {
+export const fetchQQMusicLoginStatus = async (): Promise<PlatformProfile | null> => {
   try {
     const data = await qqmusicCall<UserDetailResponse>("user_detail", {
       timestamp: Date.now(),

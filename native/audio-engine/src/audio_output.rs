@@ -371,7 +371,12 @@ where
             }
         },
         move |error| {
-            warn!(%error, "音频输出流失败");
+            let err_msg = error.to_string();
+            if err_msg.contains("no longer valid") {
+                info!("音频输出流因设备切换失效，准备重建");
+            } else {
+                warn!(%error, "音频输出流失败");
+            }
             on_failure();
         },
         None,
