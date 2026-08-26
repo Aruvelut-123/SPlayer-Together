@@ -135,3 +135,149 @@ export const openNeteaseLoginWindow = async (): Promise<Record<string, string> |
     });
   });
 };
+
+const QM_LOGIN_PARTITION = "persist:qqmusic-login";
+const QM_LOGIN_URL = "https://y.qq.com";
+
+/** QM 关键 cookie 列表 */
+const QM_COOKIE_KEYS = [
+  "uin",
+  "qm_keyst",
+  "qqmusic_key",
+  "pskey",
+  "skey",
+  "p_skey",
+  "p_uin",
+  "pt4_token",
+  "pt2gguin",
+  "tmeLoginType",
+  "wxuin",
+  "wxopenid",
+  "wxrefresh_token",
+  "qimei",
+  "qimei_fuse",
+  "QIMEI36",
+];
+
+let activeQMWin: BrowserWindow | null = null;
+let qmPollTimer: NodeJS.Timeout | null = null;
+
+const getQMLoginSession = (): Electron.Session => session.fromPartition(QM_LOGIN_PARTITION);
+
+const stopQMPolling = (): void => {
+  if (qmPollTimer) {
+    clearInterval(qmPollTimer);
+    qmPollTimer = null;
+  }
+};
+
+/**
+ * 收集 QM 登录会话中的 cookies
+ * @returns 含 uin 与 qm_keyst/qqmusic_key/pskey 时返回完整 cookies 对象，否则 null
+ */
+const collectQMCookies = async (): Promise<Record<string, string> | null> => {
+  const ses = getQMLoginSession();
+  const all = await ses.cookies.get({ domain: ".qq.com" });
+  const yAll = await ses.cookies.get({ url: "https://y.qq.com" });
+  const merged = [...all, ...yAll];
+
+  const hasUin = merged.find(
+    (c) => (c.name === "uin" || c.name === "wxuin" || c.name === "p_uin") && !!c.value,
+  );
+  const hasKey = merged.find(
+    (c) =>
+      (c.name === "qm_keyst" ||
+        c.name === "qqmusic_key" ||
+        c.name === "pskey" ||
+        c.name === "p_skey") &&
+      !!c.value,
+  );
+
+  if (!hasUin || !hasKey) return null;
+
+  const out: Record<string, string> = {};
+  for (const c of merged) {
+    if (c.name && c.value && (QM_COOKIE_KEYS.includes(c.name) || c.domain?.includes("qq.com"))) {
+      out[c.name] = c.value;
+    }
+  }
+  return Object.keys(out).length > 0 ? out : null;
+};
+
+/**
+ * 打开 QM 网页登录窗口
+ * @returns 登录成功返回 cookies 对象；用户关闭窗口返回 null
+ */
+export const openQQMusicLoginWindow = async (): Promise<Record<string, string> | null> => {
+  if (activeQMWin && !activeQMWin.isDestroyed()) {
+    activeQMWin.focus();
+    return null;
+  }
+
+  const ses = getQMLoginSession();
+  await ses.clearStorageData({ storages: ["cookies", "localstorage", "indexdb"] });
+  ses.setUserAgent(FAKE_UA);
+
+  const parent = getMainWindow() ?? undefined;
+
+  activeQMWin = new BrowserWindow({
+    parent,
+    modal: false,
+    width: 1024,
+    height: 720,
+    minWidth: 800,
+    minHeight: 600,
+    center: true,
+    title: "登录 QM",
+    autoHideMenuBar: true,
+    backgroundColor: "#ffffff",
+    show: false,
+    webPreferences: {
+      session: ses,
+      sandbox: false,
+      spellcheck: false,
+      backgroundThrottling: false,
+      nodeIntegration: false,
+      contextIsolation: true,
+    },
+  });
+
+  activeQMWin.webContents.setUserAgent(FAKE_UA);
+  activeQMWin.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+
+  return await new Promise<Record<string, string> | null>((resolve) => {
+    let settled = false;
+    const finish = (result: Record<string, string> | null): void => {
+      if (settled) return;
+      settled = true;
+      stopQMPolling();
+      if (activeQMWin && !activeQMWin.isDestroyed()) activeQMWin.destroy();
+      activeQMWin = null;
+      resolve(result);
+    };
+
+    activeQMWin!.once("ready-to-show", () => activeQMWin?.show());
+
+    activeQMWin!.webContents.once("dom-ready", () => {
+      qmPollTimer = setInterval(async () => {
+        try {
+          const cookies = await collectQMCookies();
+          if (cookies) {
+            const uin = (cookies.uin || cookies.wxuin || cookies.p_uin || "").replace(/^o/, "");
+            coreLog.info(`[qm-login] 成功获取登录凭据 (uin: ${uin})`);
+            finish(cookies);
+          }
+        } catch (err) {
+          coreLog.warn("[qm-login] poll cookies failed:", err);
+        }
+      }, 1000);
+    });
+
+    activeQMWin!.on("closed", () => finish(null));
+
+    activeQMWin!.loadURL(QM_LOGIN_URL, { userAgent: FAKE_UA }).catch((err) => {
+      coreLog.error("[qm-login] loadURL failed:", err);
+      finish(null);
+    });
+  });
+};

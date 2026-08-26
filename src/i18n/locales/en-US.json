@@ -732,6 +732,7 @@
       "about": "About"
     },
     "section": {
+      "platformLogin": "Platform Login",
       "network": "Network & Proxy",
       "aboutApp": "About",
       "specialThanks": "Special Thanks",
@@ -1589,6 +1590,26 @@
         "canceled": "Authorization canceled",
         "failed": "Connection failed, please retry",
         "disconnected": "Disconnected from Last.fm"
+      }
+    },
+    "qm": {
+      "notConnected": "Not logged in to QM",
+      "connectHint": "Log in to QM to get official high-quality audio streams directly",
+      "vipTag": " · VIP Member",
+      "loginWeb": "QM Web Login",
+      "manualCookie": "QM Cookie",
+      "logout": "Log Out",
+      "logoutTitle": "Log Out from QM",
+      "logoutConfirm": "Are you sure you want to log out of current QM account ({name})?",
+      "cookieTitle": "Set QM Cookie",
+      "cookieHint": "Please log in on the official QM website (y.qq.com) and copy the Cookie string containing uin and qm_keyst / qqmusic_key from browser console or network requests.",
+      "cookiePlaceholder": "uin=123456789; qm_keyst=...",
+      "toast": {
+        "loginSuccess": "QM login successful: {name}",
+        "loginFailed": "QM login failed, please try again",
+        "logoutDone": "Logged out from QM",
+        "cookieSuccess": "QM Cookie set successfully",
+        "cookieInvalid": "Invalid Cookie, must contain uin and key"
       }
     },
     "rememberWindowState": {

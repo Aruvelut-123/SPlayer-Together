@@ -720,6 +720,7 @@
       "about": "关于软件"
     },
     "section": {
+      "platformLogin": "平台登录",
       "network": "网络代理",
       "aboutApp": "关于软件",
       "specialThanks": "特别致谢",
@@ -1577,6 +1578,26 @@
         "canceled": "已取消授权",
         "failed": "连接失败，请重试",
         "disconnected": "已断开 Last.fm 连接"
+      }
+    },
+    "qm": {
+      "notConnected": "未登录 QM 账号",
+      "connectHint": "登录 QM 账号后可直接获取官方高品质音频直链",
+      "vipTag": " · VIP 会员",
+      "loginWeb": "QM 网页登录",
+      "manualCookie": "QM Cookie",
+      "logout": "退出登录",
+      "logoutTitle": "退出 QM 登录",
+      "logoutConfirm": "确定要退出当前 QM 账号（{name}）吗？",
+      "cookieTitle": "设置 QM Cookie",
+      "cookieHint": "在登录后，从浏览器控制台或网络请求中复制包含 uin 和 qm_keyst / qqmusic_key 的 Cookie 字符串",
+      "cookiePlaceholder": "uin=123456789; qm_keyst=...",
+      "toast": {
+        "loginSuccess": "QM 登录成功：{name}",
+        "loginFailed": "QM 登录失败，请重试",
+        "logoutDone": "已退出 QM 登录",
+        "cookieSuccess": "QM Cookie 设置成功",
+        "cookieInvalid": "Cookie 无效，需包含 uin 和 key"
       }
     },
     "rememberWindowState": {

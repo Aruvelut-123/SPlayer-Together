@@ -86,6 +86,8 @@ export interface Track {
   id: string;
   /** 平台二级 id */
   extId?: string;
+  /** 平台媒体文件 id */
+  mediaId?: string;
   /** 歌曲来源 */
   source: TrackSource;
   /** 本地路径 */

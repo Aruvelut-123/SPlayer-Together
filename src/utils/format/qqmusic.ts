@@ -4,6 +4,7 @@ import type { CoverItem } from "@/types/artist";
 export interface QMSong {
   id: string;
   mid?: string;
+  mediaMid?: string;
   name: string;
   artist: string;
   artists?: Array<{ mid?: string; name?: string }>;
@@ -93,6 +94,7 @@ export const qqSongToTrack = (song: QMSong): Track => {
   return {
     id: song.mid || song.id,
     extId: song.mid && song.id !== song.mid ? song.id : undefined,
+    mediaId: song.mediaMid || undefined,
     source: "qqmusic",
     title: song.name,
     artists: song.artists?.length

@@ -206,6 +206,7 @@ declare module 'vue' {
     PopoverPortal: typeof import('reka-ui')['PopoverPortal']
     PopoverRoot: typeof import('reka-ui')['PopoverRoot']
     PopoverTrigger: typeof import('reka-ui')['PopoverTrigger']
+    QQMusicPanel: typeof import('./src/components/settings/custom/QQMusicPanel.vue')['default']
     QualityControl: typeof import('./src/components/player/QualityControl.vue')['default']
     QueuePanel: typeof import('./src/components/player/FullPlayer/QueuePanel.vue')['default']
     QueuePopover: typeof import('./src/components/list/QueuePopover.vue')['default']

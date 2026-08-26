@@ -6,6 +6,7 @@ import { useSettingsStore } from "@/stores/settings";
 import { usePluginsStore } from "@/stores/plugins";
 import { useUserStore } from "@/stores/user";
 import { resolveNeteaseUrl } from "@/apis/song/netease";
+import { resolveQQMusicUrl } from "@/apis/song/qqmusic";
 import { ErrorCode } from "@shared/types/errors";
 import { handleError } from "@/utils/errors";
 
@@ -37,7 +38,7 @@ const isOnlinePlatform = (source: TrackSource): source is Platform =>
 
 /**
  * 派生缓存键
- * netease 把音质档位并入键，使不同音质的同一首歌互不覆盖
+ * netease / qqmusic 把音质档位并入键，使不同音质的同一首歌互不覆盖
  * @param track - 要解析的 track
  * @param songLevel - 在线歌曲音质档位
  * @returns 派生缓存键，如果该 track 不参与歌曲缓存则返回 null
@@ -46,8 +47,8 @@ const cacheKeyForTrack = (track: Track, songLevel: QualityLevel): string | null 
   if (track.source === "streaming" && track.serverId && track.originalId) {
     return `s:${track.serverId}:${track.originalId}:`;
   }
-  if (track.source === "netease" && track.id) {
-    return `o:netease:${track.id}:${songLevel}`;
+  if ((track.source === "netease" || track.source === "qqmusic") && track.id) {
+    return `o:${track.source}:${track.id}:${songLevel}`;
   }
   if (isOnlinePlatform(track.source) && track.id) {
     return `o:${track.source}:${track.id}:`;
@@ -177,6 +178,18 @@ const resolveOnlineUrl = async (
       }
     } catch (err) {
       console.warn("[audio-source] official URL resolve failed:", err);
+      officialErrorCode = ErrorCode.URL_RESOLVE_FAILED;
+    }
+  }
+  if (track.source === "qqmusic" && !options.skipOfficialOnline) {
+    try {
+      const resolved = await resolveQQMusicUrl(track, songLevel);
+      if (resolved.available) {
+        return { ok: true, url: resolved.url, isTrial: false, provider: "official" };
+      }
+      officialErrorCode = resolved.errorCode;
+    } catch (err) {
+      console.warn("[audio-source] official QQMusic URL resolve failed:", err);
       officialErrorCode = ErrorCode.URL_RESOLVE_FAILED;
     }
   }

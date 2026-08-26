@@ -8,7 +8,7 @@
 import { getDb } from "./index";
 
 /** 支持的音源平台标识 */
-export type AccountPlatform = "netease";
+export type AccountPlatform = "netease" | "qqmusic";
 
 interface SessionRow {
   platform: string;

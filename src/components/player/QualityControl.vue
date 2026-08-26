@@ -13,7 +13,10 @@ const media = useMediaStore();
 const settings = useSettingsStore();
 
 /** 是否支持切换在线音质 */
-const canSwitchQuality = computed(() => media.track?.source === "netease" && !media.track?.cloud);
+const canSwitchQuality = computed(
+  () =>
+    (media.track?.source === "netease" || media.track?.source === "qqmusic") && !media.track.cloud,
+);
 
 /** 实际播放音质；详情加载前使用歌曲自身的音质信息。 */
 const quality = computed(() => media.detail?.quality ?? media.track?.quality);
