@@ -1,4 +1,5 @@
 import { sendToMain } from "@main/utils/broadcast";
+import { isWin } from "@main/utils/config";
 import { playerLog } from "@main/utils/logger";
 import { evaluateDeviceChange, recoveryRetryDelay } from "./devicePolicy";
 
@@ -6,6 +7,9 @@ type AudioEngineModule = typeof import("@splayer/audio-engine");
 type PlayerInstance = InstanceType<AudioEngineModule["AudioPlayer"]>;
 
 const DEVICE_EVENT_DEBOUNCE_MS = 200;
+
+/** WASAPI 的输出流自带默认设备切换通知，见 `evaluateDeviceChange` */
+const STREAM_REPORTS_DEFAULT_CHANGE = isWin;
 
 let activePlayer: PlayerInstance | null = null;
 let debounceTimer: NodeJS.Timeout | null = null;
@@ -103,6 +107,7 @@ const handleDeviceChange = (notifyListChange: boolean): void => {
       previousDefault,
       currentDefault,
       player.getSelectedDeviceName() ?? null,
+      STREAM_REPORTS_DEFAULT_CHANGE,
     );
     lastDefaultDevice = currentDefault;
 
