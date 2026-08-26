@@ -2168,6 +2168,7 @@
     "SCAN_DIR_NOT_SELECTED": "No directory selected",
     "TAG_READ_FAILED": "Failed to read tags",
     "TAG_WRITE_FAILED": "Failed to write tags",
+    "MAX_CONSECUTIVE_FAILURES": "Too many consecutive playback failures",
     "UNKNOWN": "Operation failed"
   },
   "tagEditor": {

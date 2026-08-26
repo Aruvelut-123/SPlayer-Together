@@ -28,6 +28,7 @@ import { installPlayStats } from "./stats";
 import { useFavorite } from "@/composables/useFavorite";
 import { extractColorFromUrl } from "@/utils/color";
 import { handleError, isSkippableError } from "@/utils/errors";
+import { ErrorCode } from "@shared/types/errors";
 import { shouldSkipDjTrack } from "@/utils/preset/djMode";
 import { toast } from "@/composables/useToast";
 import i18n from "@/i18n";
@@ -82,8 +83,12 @@ const skipOnFailure = async (myToken: number, getCurrentToken: () => number): Pr
     consecutiveFailures >= MAX_CONSECUTIVE_FAILURES ||
     consecutiveFailures >= queue.queueLength.value
   ) {
+    const reachedMax = consecutiveFailures >= MAX_CONSECUTIVE_FAILURES;
     consecutiveFailures = 0;
     await onQueueEnded();
+    if (reachedMax) {
+      handleError(ErrorCode.MAX_CONSECUTIVE_FAILURES);
+    }
     return;
   }
   setTimeout(() => {
@@ -293,36 +298,45 @@ const loadTrack = async (track: Track | null, context?: PlaybackContext): Promis
   void window.api.player.stop();
   // 是否可跳曲
   let shouldSkip = false;
-  const loaded = await loadTrackSourceWithFallback(
-    track,
-    context,
-    true,
-    () => myToken === trackToken,
-    false,
-    preloaded?.source,
-  );
-  if (loaded.status === "cancelled") return;
-  if (loaded.status === "unresolved") {
-    const status = useStatusStore();
-    status.currentSource = null;
-    status.state = "idle";
-    void window.api.player.stop();
-    useMediaStore().setLyric(null, null);
-    shouldSkip = true;
-  } else {
-    const { result, resolved } = loaded;
-    if (!result.ok && result.error && isSkippableError(result.error)) {
-      handleError(result.error);
+  try {
+    const loaded = await loadTrackSourceWithFallback(
+      track,
+      context,
+      true,
+      () => myToken === trackToken,
+      false,
+      preloaded?.source,
+    );
+    if (loaded.status === "cancelled") return;
+    if (loaded.status === "unresolved") {
+      const status = useStatusStore();
+      status.currentSource = null;
+      status.state = "idle";
+      void window.api.player.stop();
+      useMediaStore().setLyric(null, null);
       shouldSkip = true;
-    } else if (result.ok) {
-      // 用户主动触发的成功播放记入历史；initPlayer 的恢复路径走 load() 不经此处
-      void useHistoryStore().record(track);
-      if (resolved.cacheRequest) {
-        cacheScheduler.schedule(track.id, resolved.cacheRequest);
+    } else {
+      const { result, resolved } = loaded;
+      if (!result.ok && result.error && isSkippableError(result.error)) {
+        handleError(result.error);
+        shouldSkip = true;
+      } else if (result.ok) {
+        // 用户主动触发的成功播放记入历史；initPlayer 的恢复路径走 load() 不经此处
+        void useHistoryStore().record(track);
+        if (resolved.cacheRequest) {
+          cacheScheduler.schedule(track.id, resolved.cacheRequest);
+        }
+        scheduleNextTrackPreload();
+      } else if (result.error) {
+        handleError(result.error);
       }
-      scheduleNextTrackPreload();
-    } else if (result.error) {
-      handleError(result.error);
+    }
+  } finally {
+    if (myToken === trackToken) {
+      const status = useStatusStore();
+      if (shouldSkip || status.state !== "playing") {
+        status.trackLoading = false;
+      }
     }
   }
   if (shouldSkip) await skipOnFailure(myToken, () => trackToken);
@@ -446,9 +460,10 @@ export const pause = async (): Promise<void> => {
 
 /** 停止播放并重置进度 */
 export const stop = async (): Promise<void> => {
+  const status = useStatusStore();
+  status.trackLoading = false;
   const result = await window.api.player.stop();
   if (result.success) {
-    const status = useStatusStore();
     status.state = "stopped";
     status.position = 0;
     playback.reset();
@@ -776,11 +791,12 @@ export const prevTrack = async (): Promise<void> => {
 
 /** 队列播放结束，通知主进程停止并更新状态 */
 const onQueueEnded = async (): Promise<void> => {
+  const status = useStatusStore();
+  status.trackLoading = false;
   playback.setPlaying(false);
   playback.reset();
   // 通知主进程停止音频引擎
   await window.api.player.stop();
-  const status = useStatusStore();
   status.state = "stopped";
   status.position = status.duration;
 };

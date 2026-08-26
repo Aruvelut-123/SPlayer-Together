@@ -2156,6 +2156,7 @@
     "SCAN_DIR_NOT_SELECTED": "未选择目录",
     "TAG_READ_FAILED": "读取标签失败",
     "TAG_WRITE_FAILED": "写入标签失败",
+    "MAX_CONSECUTIVE_FAILURES": "连续播放失败次数过多",
     "UNKNOWN": "操作失败"
   },
   "tagEditor": {
