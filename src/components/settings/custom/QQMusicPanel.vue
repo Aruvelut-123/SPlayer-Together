@@ -17,6 +17,7 @@ defineOptions({ inheritAttrs: false });
 
 const { t } = useI18n();
 
+const PLATFORM = "QM";
 const CACHE_KEY = "splayer:qm_profile";
 
 const getCachedProfile = (): QQMusicProfile | null => {
@@ -41,7 +42,15 @@ const profile = ref<QQMusicProfile | null>(getCachedProfile());
 const loggingIn = ref(false);
 const confirmOpen = ref(false);
 const cookieModalOpen = ref(false);
+const cookieSubmitting = ref(false);
 const manualCookie = ref("");
+
+watch(cookieModalOpen, (val) => {
+  if (!val) {
+    manualCookie.value = "";
+    cookieSubmitting.value = false;
+  }
+});
 
 /** 刷新登录状态并同步本地缓存 */
 const refresh = async (): Promise<void> => {
@@ -60,13 +69,19 @@ const handleLogin = async (): Promise<void> => {
     if (ok) {
       await refresh();
       if (profile.value) {
-        toast.success(t("settings.qm.toast.loginSuccess", { name: profile.value.nickname }));
+        toast.success(
+          t("settings.platformLogin.toast.loginSuccess", {
+            name: PLATFORM,
+            user: profile.value.nickname,
+          }),
+        );
       } else {
-        toast.success(t("settings.qm.toast.loginSuccess", { name: "" }));
+        toast.error(t("settings.platformLogin.toast.loginFailed", { name: PLATFORM }));
       }
     }
   } catch (err) {
-    toast.error(t("settings.qm.toast.loginFailed"));
+    toast.error(t("settings.platformLogin.toast.loginFailed", { name: PLATFORM }));
+    console.error(err);
   } finally {
     loggingIn.value = false;
   }
@@ -78,20 +93,40 @@ const handleDisconnect = async (): Promise<void> => {
   await logoutQQMusic();
   profile.value = null;
   setCachedProfile(null);
-  toast.success(t("settings.qm.toast.logoutDone"));
+  toast.success(t("settings.platformLogin.toast.logoutDone", { name: PLATFORM }));
 };
 
 /** 手动输入 Cookie 提交 */
 const handleManualCookieSubmit = async (): Promise<void> => {
-  if (!manualCookie.value.trim()) return;
-  const ok = await setQQMusicCookie(manualCookie.value.trim());
-  if (ok) {
-    cookieModalOpen.value = false;
-    manualCookie.value = "";
-    await refresh();
-    toast.success(t("settings.qm.toast.cookieSuccess"));
-  } else {
-    toast.error(t("settings.qm.toast.cookieInvalid"));
+  const cookieStr = manualCookie.value.trim();
+  if (!cookieStr || cookieSubmitting.value) return;
+
+  cookieSubmitting.value = true;
+  try {
+    const ok = await setQQMusicCookie(cookieStr);
+    if (!ok) {
+      toast.error(t("settings.platformLogin.toast.cookieInvalid"));
+      return;
+    }
+
+    const latest = await fetchQQMusicLoginStatus();
+    if (latest) {
+      profile.value = latest;
+      setCachedProfile(latest);
+      cookieModalOpen.value = false;
+      manualCookie.value = "";
+      toast.success(t("settings.platformLogin.toast.cookieSuccess", { name: PLATFORM }));
+    } else {
+      await logoutQQMusic();
+      profile.value = null;
+      setCachedProfile(null);
+      toast.error(t("settings.platformLogin.toast.cookieInvalid"));
+    }
+  } catch (err) {
+    toast.error(t("settings.platformLogin.toast.cookieInvalid"));
+    console.error(err);
+  } finally {
+    cookieSubmitting.value = false;
   }
 };
 </script>
@@ -120,17 +155,19 @@ const handleManualCookieSubmit = async (): Promise<void> => {
           <IconLucideMusic class="size-5" />
         </div>
         <div class="min-w-0">
-          <div class="flex items-center gap-2">
-            <span class="text-sm font-medium text-on-surface truncate">
-              {{ profile ? profile.nickname : t("settings.qm.notConnected") }}
+          <div class="flex items-center gap-2 text-base">
+            <span class="truncate">
+              {{
+                profile ? profile.nickname : t("settings.platformLogin.title", { name: PLATFORM })
+              }}
             </span>
             <img v-if="profile?.isVip" :src="vipImg" alt="VIP" class="h-3.5 shrink-0" />
           </div>
-          <div class="text-xs text-on-surface-variant/60 mt-0.5 truncate">
+          <div class="text-sm text-on-surface-variant/70 mt-0.5 truncate">
             {{
               profile
-                ? `UIN: ${profile.userId}${profile.isVip ? t("settings.qm.vipTag") : ""}`
-                : t("settings.qm.connectHint")
+                ? `UIN: ${profile.userId}${profile.isVip ? t("settings.platformLogin.vipTag") : ""}`
+                : t("settings.platformLogin.desc")
             }}
           </div>
         </div>
@@ -138,28 +175,19 @@ const handleManualCookieSubmit = async (): Promise<void> => {
 
       <div class="shrink-0 flex items-center gap-2">
         <template v-if="profile">
-          <SButton
-            variant="secondary"
-            size="small"
-            type="error"
-            @click="confirmOpen = true"
-          >
+          <SButton variant="secondary" size="small" type="error" @click="confirmOpen = true">
             <template #icon>
               <IconLucideUnplug class="size-4" />
             </template>
-            {{ t("settings.qm.logout") }}
+            {{ t("settings.platformLogin.logout") }}
           </SButton>
         </template>
         <template v-else>
-          <SButton
-            variant="secondary"
-            size="small"
-            @click="cookieModalOpen = true"
-          >
+          <SButton variant="secondary" size="small" @click="cookieModalOpen = true">
             <template #icon>
               <IconLucideKey class="size-3.5" />
             </template>
-            {{ t("settings.qm.manualCookie") }}
+            {{ t("settings.platformLogin.manualCookie") }}
           </SButton>
           <SButton
             variant="secondary"
@@ -171,16 +199,25 @@ const handleManualCookieSubmit = async (): Promise<void> => {
             <template #icon>
               <IconLucideLogIn class="size-4" />
             </template>
-            {{ t("settings.qm.loginWeb") }}
+            {{ t("settings.platformLogin.loginWeb") }}
           </SButton>
         </template>
       </div>
     </div>
 
     <!-- 退出确认弹窗 -->
-    <SDialog v-model:open="confirmOpen" :title="t('settings.qm.logoutTitle')" width="400px">
+    <SDialog
+      v-model:open="confirmOpen"
+      :title="t('settings.platformLogin.logoutTitle', { name: PLATFORM })"
+      width="400px"
+    >
       <p class="text-sm text-on-surface-variant">
-        {{ t("settings.qm.logoutConfirm", { name: profile?.nickname || "" }) }}
+        {{
+          t("settings.platformLogin.logoutConfirm", {
+            name: PLATFORM,
+            user: profile?.nickname || "",
+          })
+        }}
       </p>
       <template #footer="{ close }">
         <SButton variant="tertiary" @click="close">{{ t("common.cancel") }}</SButton>
@@ -191,22 +228,26 @@ const handleManualCookieSubmit = async (): Promise<void> => {
     </SDialog>
 
     <!-- 手动输入 Cookie 弹窗 -->
-    <SDialog v-model:open="cookieModalOpen" :title="t('settings.qm.cookieTitle')" width="450px">
+    <SDialog
+      v-model:open="cookieModalOpen"
+      :title="t('settings.platformLogin.cookieTitle', { name: PLATFORM })"
+      width="450px"
+    >
       <div class="flex flex-col gap-3 py-1">
-        <SAlert>
-          {{ t("settings.qm.cookieHint") }}
-        </SAlert>
         <SInput
           v-model="manualCookie"
           type="textarea"
           :rows="4"
           clearable
-          :placeholder="t('settings.qm.cookiePlaceholder')"
+          :disabled="cookieSubmitting"
+          :placeholder="t('settings.platformLogin.cookiePlaceholder')"
         />
       </div>
       <template #footer="{ close }">
-        <SButton variant="tertiary" @click="close">{{ t("common.cancel") }}</SButton>
-        <SButton type="primary" @click="handleManualCookieSubmit">
+        <SButton variant="tertiary" :disabled="cookieSubmitting" @click="close">
+          {{ t("common.cancel") }}
+        </SButton>
+        <SButton type="primary" :loading="cookieSubmitting" @click="handleManualCookieSubmit">
           {{ t("common.confirm") }}
         </SButton>
       </template>

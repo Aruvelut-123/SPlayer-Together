@@ -14,6 +14,12 @@ const otherCategory: SettingCategory = {
           type: "custom",
           component: QQMusicPanel,
           fullWidth: true,
+          keywords: [
+            "settings.platformLogin.title",
+            "settings.platformLogin.desc",
+            "settings.platformLogin.loginWeb",
+            "settings.platformLogin.manualCookie",
+          ],
         },
       ],
     },

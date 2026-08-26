@@ -98,7 +98,13 @@ export const registerApisIpc = (): void => {
       return { ok: true };
     }
     if (platform === "qqmusic") {
-      if (!parsed.uin && !parsed.wxuin && !parsed.p_uin && !parsed.qm_keyst && !parsed.qqmusic_key) {
+      if (
+        !parsed.uin &&
+        !parsed.wxuin &&
+        !parsed.p_uin &&
+        !parsed.qm_keyst &&
+        !parsed.qqmusic_key
+      ) {
         return { ok: false, error: "missing uin or key" };
       }
       mergeQQMusicCookies(parsed);
