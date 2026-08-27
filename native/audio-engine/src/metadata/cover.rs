@@ -35,16 +35,11 @@ pub fn extract_cover_thumbnail(
         return Some(thumb_file.to_string_lossy().into_owned());
     }
 
-    // 先尝试内嵌封面
-    if let Some(cover) = reader.cover() {
-        std::fs::create_dir_all(cache_dir).ok()?;
-        generate_cover_thumbnail(&cover.data, &thumb_file).ok()?;
-        return Some(thumb_file.to_string_lossy().into_owned());
-    }
-
-    // 回退到文件夹封面图片
-    let folder_cover = find_folder_cover(source)?;
-    let data = std::fs::read(&folder_cover).ok()?;
+    // 内嵌封面优先，无则回退同目录封面图片
+    let data = reader
+        .cover()
+        .map(|cover| cover.data)
+        .or_else(|| find_folder_cover(source).and_then(|p| std::fs::read(p).ok()))?;
     std::fs::create_dir_all(cache_dir).ok()?;
     generate_cover_thumbnail(&data, &thumb_file).ok()?;
 

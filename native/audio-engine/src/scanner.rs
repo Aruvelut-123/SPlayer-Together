@@ -127,7 +127,7 @@ pub(crate) fn probe_fast(path: &str, cover_cache_dir: Option<&str>) -> Option<Sc
     }
 
     let raw_metadata = reader.metadata();
-    let tags = metadata::extract_tags_with_fallback(&raw_metadata, path);
+    let tags = metadata::extract_tags(&raw_metadata);
 
     let cover =
         cover_cache_dir.and_then(|dir| metadata::extract_cover_thumbnail(&reader, path, dir));
