@@ -12,6 +12,19 @@ interface SingerSong {
   interval?: number;
   singer?: Array<{ id?: number; mid?: string; name?: string }>;
   album?: { mid?: string; name?: string };
+  file?: {
+    media_mid?: string;
+    size_128mp3?: number;
+    size_320mp3?: number;
+    size_ape?: number;
+    size_flac?: number;
+    size_192ogg?: number;
+  };
+  pay?: {
+    pay_month?: number;
+    pay_play?: number;
+    price_album?: number;
+  };
 }
 
 interface SingerAlbum {
@@ -54,6 +67,16 @@ const artist: QMModule = async (params) => {
     album: song.album?.name ?? "",
     albumMid: song.album?.mid ?? "",
     duration: (song.interval ?? 0) * 1000,
+    mediaMid: song.file?.media_mid ?? "",
+    pay: {
+      payalbum: song.pay?.pay_month === 0 && (song.pay.price_album ?? 0) > 0 ? 1 : 0,
+      payplay: song.pay?.pay_play ?? 0,
+    },
+    size128: song.file?.size_128mp3 ?? 0,
+    size320: song.file?.size_320mp3 ?? 0,
+    sizeApe: song.file?.size_ape ?? 0,
+    sizeFlac: song.file?.size_flac ?? 0,
+    sizeOgg: song.file?.size_192ogg ?? 0,
   }));
   const albums = (albumsData.list ?? []).map((album) => ({
     id: album.album_mid ?? "",
