@@ -28,7 +28,12 @@ interface CacheEntry {
 const cache = new Map<string, CacheEntry>();
 
 /** 不缓存的实时接口 */
-const NON_CACHEABLE: ReadonlySet<string> = new Set(["search", "user_detail", "song_url"]);
+const NON_CACHEABLE: ReadonlySet<string> = new Set([
+  "search",
+  "user_detail",
+  "song_url",
+  "comment",
+]);
 
 const hashParams = (params: unknown): string =>
   createHash("md5")

@@ -136,6 +136,7 @@ declare module 'vue' {
     IconLucideRepeat: typeof import('~icons/lucide/repeat')['default']
     IconLucideRepeat1: typeof import('~icons/lucide/repeat1')['default']
     IconLucideRotateCcw: typeof import('~icons/lucide/rotate-ccw')['default']
+    IconLucideRotateCw: typeof import('~icons/lucide/rotate-cw')['default']
     IconLucideScanLine: typeof import('~icons/lucide/scan-line')['default']
     IconLucideSearch: typeof import('~icons/lucide/search')['default']
     IconLucideSearchX: typeof import('~icons/lucide/search-x')['default']

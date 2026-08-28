@@ -1,4 +1,5 @@
 import { callNetease } from "@main/apis/netease";
+import { callQQMusic } from "@main/apis/qqmusic";
 import { pickBestCandidate, type LyricCandidate } from "@main/apis/common/lyric/utils";
 import { pluginRegistry, type PluginRuntime } from "@main/plugins/registry";
 import { callMusicComment, callMusicSearch } from "@main/plugins/router";
@@ -6,9 +7,15 @@ import { pluginLog } from "@main/utils/logger";
 import type { CommentSource, MusicCommentPage, MusicCommentQuery } from "@shared/types/comment";
 import type { MusicSearchCandidate } from "@shared/types/plugin";
 import type { Track } from "@shared/types/player";
-import { buildCommentSources, normalizeNeteaseCommentPage } from "./data";
+import {
+  buildCommentSources,
+  normalizeNeteaseCommentPage,
+  normalizeQQMusicCommentPage,
+  type QQMusicCommentBody,
+} from "./data";
 
 const NETEASE_SOURCE_ID = "builtin:netease";
+const QQMUSIC_SOURCE_ID = "builtin:qqmusic";
 const NETEASE_RESOURCE_TYPE = "R_SO_4_";
 
 const PLATFORM_TO_PLUGIN_SOURCE: Record<string, string> = {
@@ -111,6 +118,38 @@ const getNeteaseComments = async (args: MusicCommentQuery): Promise<MusicComment
   return normalizeNeteaseCommentPage(body, args.type, args.page, args.limit);
 };
 
+const findQQMusicId = async (track: Track): Promise<string | null> => {
+  if (track.source === "qqmusic") {
+    return track.extId || (/^\d+$/.test(track.id) ? track.id : null);
+  }
+  const keyword = toKeyword(track);
+  if (!keyword) return null;
+  const body = await callQQMusic("search", { keywords: keyword, type: 0, page: 1, limit: 20 });
+  const candidates: LyricCandidate<{ id: string }>[] = (body.songs ?? []).map(
+    (song: { id?: string; name?: string; artist?: string; album?: string; duration?: number }) => ({
+      name: song.name ?? "",
+      artist: song.artist ?? "",
+      album: song.album,
+      duration: song.duration,
+      extra: { id: song.id ?? "" },
+    }),
+  );
+  return pickBestCandidate(candidates, track)?.extra.id || null;
+};
+
+const getQQMusicComments = async (args: MusicCommentQuery): Promise<MusicCommentPage> => {
+  const id = await findQQMusicId(args.track);
+  if (!id) return { list: [], total: 0, page: args.page, limit: args.limit };
+  const body = await callQQMusic("comment", {
+    id,
+    type: args.type,
+    page: args.page,
+    limit: args.limit,
+    cursor: args.cursor,
+  });
+  return normalizeQQMusicCommentPage(body as QQMusicCommentBody, args.page, args.limit);
+};
+
 const getPluginComments = async (
   parsed: ParsedPluginSource,
   args: MusicCommentQuery,
@@ -152,6 +191,7 @@ export const getCommentSources = (): CommentSource[] =>
 export const getMusicComments = async (args: MusicCommentQuery): Promise<MusicCommentPage> => {
   const query = normalizeQuery(args);
   if (query.sourceId === NETEASE_SOURCE_ID) return getNeteaseComments(query);
+  if (query.sourceId === QQMUSIC_SOURCE_ID) return getQQMusicComments(query);
   const parsed = parsePluginSource(query.sourceId);
   if (parsed) return getPluginComments(parsed, query);
   throw new Error(`unknown comment source: ${query.sourceId}`);

@@ -5,8 +5,7 @@ import type {
   MusicCommentPage,
 } from "@shared/types/comment";
 import type { PluginInfo } from "@shared/types/plugin";
-
-const NETEASE_SOURCE_NAME = "NCM";
+import { PLATFORM_SHORT_NAME } from "@shared/types/platform";
 
 interface NeteaseUser {
   userId?: string | number;
@@ -39,6 +38,28 @@ interface NeteaseCommentBody {
     parentComment?: NeteaseComment;
     hasMore?: boolean;
   };
+}
+
+interface QQMusicComment {
+  Avatar?: string;
+  CmId?: string;
+  Content?: string;
+  EncryptUin?: string;
+  Location?: string;
+  Nick?: string;
+  Pic?: string;
+  PraiseNum?: number;
+  PubTime?: number;
+  ReplyCnt?: number;
+  RepliedComments?: QQMusicComment[];
+  SubComments?: QQMusicComment[];
+}
+
+export interface QQMusicCommentBody {
+  comments?: QQMusicComment[];
+  total?: number;
+  hasMore?: boolean;
+  nextCursor?: string;
 }
 
 const toStringId = (value: unknown): string => {
@@ -104,6 +125,53 @@ export const normalizeNeteaseCommentPage = (
   };
 };
 
+/** 转换 QM 评论项 */
+export const normalizeQQMusicComment = (raw: QQMusicComment): MusicCommentItem | null => {
+  const id = optionalString(raw.CmId);
+  const text = optionalString(raw.Content);
+  if (!id || !text) return null;
+  const rawReplies = raw.RepliedComments?.length ? raw.RepliedComments : raw.SubComments;
+  const reply = (rawReplies ?? [])
+    .map((item) => normalizeQQMusicComment(item))
+    .filter((item): item is MusicCommentItem => item !== null);
+  const item: MusicCommentItem = {
+    id,
+    userName: optionalString(raw.Nick) ?? "",
+    text,
+  };
+  const userId = optionalString(raw.EncryptUin);
+  if (userId) item.userId = userId;
+  const avatar = optionalString(raw.Avatar)?.replace(/^http:/, "https:");
+  if (avatar) item.avatar = avatar;
+  if (typeof raw.PubTime === "number") item.time = raw.PubTime * 1000;
+  const location = optionalString(raw.Location);
+  if (location) item.location = location;
+  if (typeof raw.PraiseNum === "number") item.likedCount = raw.PraiseNum;
+  if (typeof raw.ReplyCnt === "number") item.replyTotal = raw.ReplyCnt;
+  const image = optionalString(raw.Pic)?.replace(/^http:/, "https:");
+  if (image) item.images = [image];
+  if (reply.length) item.reply = reply;
+  return item;
+};
+
+/** 转换 QM 评论分页 */
+export const normalizeQQMusicCommentPage = (
+  body: QQMusicCommentBody,
+  page: number,
+  limit: number,
+): MusicCommentPage => {
+  const list = (body.comments ?? [])
+    .map((item) => normalizeQQMusicComment(item))
+    .filter((item): item is MusicCommentItem => item !== null);
+  return {
+    list,
+    total: body.total ?? list.length,
+    page,
+    limit,
+    ...(body.hasMore && body.nextCursor ? { nextCursor: body.nextCursor } : {}),
+  };
+};
+
 /** 构建可用评论源 */
 export const buildCommentSources = (
   plugins: Array<
@@ -116,9 +184,15 @@ export const buildCommentSources = (
   const sources: CommentSource[] = [
     {
       id: "builtin:netease",
-      name: NETEASE_SOURCE_NAME,
+      name: PLATFORM_SHORT_NAME.netease,
       kind: "builtin",
       platform: "netease",
+    },
+    {
+      id: "builtin:qqmusic",
+      name: PLATFORM_SHORT_NAME.qqmusic,
+      kind: "builtin",
+      platform: "qqmusic",
     },
   ];
 

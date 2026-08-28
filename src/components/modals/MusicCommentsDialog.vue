@@ -15,9 +15,14 @@ const loadingCount = ref(0);
 const error = ref("");
 const listScrollRef = ref<HTMLElement | null>(null);
 let loadingEpoch = 0;
+let suppressSourceRefresh = false;
 const pages = reactive<Record<"hot" | "new", MusicCommentPage>>({
   hot: { list: [], total: 0, page: 1, limit: 20 },
   new: { list: [], total: 0, page: 1, limit: 20 },
+});
+const pageCursors = reactive<Record<"hot" | "new", Record<number, string>>>({
+  hot: { 1: "" },
+  new: { 1: "" },
 });
 const requestTokens = reactive<Record<"hot" | "new", number>>({
   hot: 0,
@@ -38,13 +43,22 @@ const maxPage = computed(() =>
   Math.max(1, Math.ceil(page.value.total / Math.max(1, page.value.limit))),
 );
 
-const makeContextKey = (trackId: string, source: string): string => `${trackId}\n${source}`;
+const makeContextKey = (track: { id: string; extId?: string; source: string }, source: string) =>
+  `${track.source}\n${track.id}\n${track.extId ?? ""}\n${source}`;
 
 const loadSources = async (): Promise<void> => {
   sources.value = await window.api.comments.sources();
-  if (!sources.value.some((source) => source.id === sourceId.value)) {
-    sourceId.value = sources.value[0]?.id ?? "";
-  }
+  const track = status.commentsTrack;
+  const preferred = sources.value.find((source) => source.platform === track?.source);
+  const nextSource =
+    preferred?.id ||
+    (sources.value.some((source) => source.id === sourceId.value) ? sourceId.value : "") ||
+    sources.value[0]?.id ||
+    "";
+  suppressSourceRefresh = true;
+  sourceId.value = nextSource;
+  await nextTick();
+  suppressSourceRefresh = false;
 };
 
 const resetPages = (): void => {
@@ -52,6 +66,8 @@ const resetPages = (): void => {
   requestTokens.new += 1;
   pages.hot = { list: [], total: 0, page: 1, limit: 20 };
   pages.new = { list: [], total: 0, page: 1, limit: 20 };
+  pageCursors.hot = { 1: "" };
+  pageCursors.new = { 1: "" };
 };
 
 const loadPage = async (type: "hot" | "new", pageNo = 1): Promise<void> => {
@@ -59,7 +75,7 @@ const loadPage = async (type: "hot" | "new", pageNo = 1): Promise<void> => {
   if (!track || !sourceId.value) return;
   const token = requestTokens[type] + 1;
   requestTokens[type] = token;
-  const contextKey = makeContextKey(track.id, sourceId.value);
+  const contextKey = makeContextKey(track, sourceId.value);
   const epoch = loadingEpoch;
   loadingCount.value += 1;
   error.value = "";
@@ -70,12 +86,14 @@ const loadPage = async (type: "hot" | "new", pageNo = 1): Promise<void> => {
       type,
       page: pageNo,
       limit: pages[type].limit,
+      cursor: pageCursors[type][pageNo],
     });
     if (!result.ok) throw new Error(result.error);
     if (!status.commentsOpen || requestTokens[type] !== token) return;
     const currentTrack = status.commentsTrack;
-    if (!currentTrack || makeContextKey(currentTrack.id, sourceId.value) !== contextKey) return;
+    if (!currentTrack || makeContextKey(currentTrack, sourceId.value) !== contextKey) return;
     pages[type] = result.data;
+    if (result.data.nextCursor) pageCursors[type][pageNo + 1] = result.data.nextCursor;
   } catch (err) {
     if (!status.commentsOpen || requestTokens[type] !== token) return;
     error.value = err instanceof Error ? err.message : String(err);
@@ -116,8 +134,14 @@ watch(
 );
 
 watch(sourceId, (next, prev) => {
-  if (!status.commentsOpen || !next || !prev || next === prev) return;
+  if (suppressSourceRefresh || !status.commentsOpen || !next || next === prev) return;
   refresh().catch(() => {});
+});
+
+watch(activeTab, async (next, prev) => {
+  if (!status.commentsOpen || next === prev) return;
+  await nextTick();
+  listScrollRef.value?.scrollTo({ top: 0 });
 });
 </script>
 
