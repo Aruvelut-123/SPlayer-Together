@@ -362,7 +362,7 @@
     }
   },
   "login": {
-    "qrTipWaiting": "Open the Cloud Music app and scan the QR code",
+    "qrTipWaiting": "Open the app and scan the QR code",
     "qrTipScanned": "Scanned, please confirm in the app",
     "qrTipExpired": "QR code expired, refreshing",
     "qrTipDone": "Signed in",
@@ -1597,6 +1597,8 @@
       "desc": "Log in to retrieve playback streams directly from the platform",
       "vipTag": " · VIP Member",
       "loginWeb": "Web Login",
+      "loginQr": "QR Login",
+      "qrTitle": "Scan to Log In",
       "manualCookie": "Cookie Login",
       "logout": "Log Out",
       "logoutTitle": "Log Out from {name}",

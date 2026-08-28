@@ -8,6 +8,7 @@
 
 import { KG_APPID, KG_CLIENTVER, KG_GATEWAY_URL } from "./config";
 import { cleanKgResponse, getDeviceMid, signatureAndroidParams } from "./crypto";
+import { getSessionCookies } from "@main/database/sessions";
 
 interface FetchOptions {
   headers?: Record<string, string>;
@@ -83,6 +84,7 @@ export const kgGatewayRequest = async <T = KGRawBody>(
 
   const clienttime = Math.floor(Date.now() / 1000);
   const mid = getDeviceMid();
+  const session = getSessionCookies("kugou");
   const dfid = "-";
   const uuid = "-";
 
@@ -93,6 +95,8 @@ export const kgGatewayRequest = async <T = KGRawBody>(
     appid: KG_APPID,
     clientver: KG_CLIENTVER,
     clienttime,
+    ...(session.token ? { token: session.token } : {}),
+    ...(session.userid ? { userid: session.userid } : {}),
   };
 
   const mergedParams = { ...defaultParams, ...params };

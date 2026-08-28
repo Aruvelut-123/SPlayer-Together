@@ -2,6 +2,7 @@
 import { useDataStore } from "@/stores/data";
 import { toast } from "@/composables/useToast";
 import { getPlatformAccountAdapter } from "@/apis/login/platform";
+import { REPO_NAME } from "@/utils/config";
 import type { Platform } from "@shared/types/platform";
 
 defineOptions({ inheritAttrs: false });
@@ -17,6 +18,7 @@ const profile = computed(() => dataStore.getPlatformProfile(props.platform));
 const loggingIn = ref(false);
 const confirmOpen = ref(false);
 const cookieModalOpen = ref(false);
+const qrModalOpen = ref(false);
 const cookieSubmitting = ref(false);
 const manualCookie = ref("");
 
@@ -100,6 +102,24 @@ const handleManualCookieSubmit = async (): Promise<void> => {
     cookieSubmitting.value = false;
   }
 };
+
+/**
+ * 二维码登录成功回调
+ */
+const handleQrSuccess = async (): Promise<void> => {
+  await refresh();
+  if (!profile.value) {
+    toast.error(t("settings.platformLogin.toast.loginFailed", { name: platformName.value }));
+    return;
+  }
+  qrModalOpen.value = false;
+  toast.success(
+    t("settings.platformLogin.toast.loginSuccess", {
+      name: platformName.value,
+      user: profile.value.nickname,
+    }),
+  );
+};
 </script>
 
 <template>
@@ -127,6 +147,7 @@ const handleManualCookieSubmit = async (): Promise<void> => {
         </div>
         <div class="min-w-0">
           <div class="flex items-center gap-2 text-base">
+            <STag size="small">{{ platformName }}</STag>
             <span class="truncate">
               {{
                 profile
@@ -134,7 +155,7 @@ const handleManualCookieSubmit = async (): Promise<void> => {
                   : t("settings.platformLogin.title", { name: platformName })
               }}
             </span>
-            <STag v-if="!profile?.isVip" size="small" round>VIP</STag>
+            <STag v-if="profile?.isVip" size="small" round>VIP</STag>
           </div>
           <div class="text-sm text-on-surface-variant/70 mt-0.5 truncate">
             {{
@@ -166,6 +187,16 @@ const handleManualCookieSubmit = async (): Promise<void> => {
               <IconLucideKey class="size-3.5" />
             </template>
             {{ t("settings.platformLogin.manualCookie") }}
+          </SButton>
+          <SButton
+            v-if="adapter.qrLogin"
+            variant="secondary"
+            size="small"
+            type="primary"
+            @click="qrModalOpen = true"
+          >
+            <template #icon><IconLucideQrCode class="size-4" /></template>
+            {{ t("settings.platformLogin.loginQr") }}
           </SButton>
           <SButton
             v-if="adapter.openWebLogin"
@@ -202,6 +233,27 @@ const handleManualCookieSubmit = async (): Promise<void> => {
         <SButton variant="tertiary" @click="close">{{ t("common.cancel") }}</SButton>
         <SButton variant="secondary" type="error" @click="handleDisconnect">
           {{ t("common.confirm") }}
+        </SButton>
+      </template>
+    </SDialog>
+
+    <SDialog v-if="adapter.qrLogin" v-model:open="qrModalOpen" :closable="false" width="380px">
+      <div class="flex flex-col items-center gap-4 py-3">
+        <div class="flex flex-col items-center gap-2">
+          <SLogo :size="48" />
+          <div class="text-xl font-semibold text-on-surface">{{ REPO_NAME }}</div>
+        </div>
+        <QrLoginPanel
+          class="mt-4"
+          :active="qrModalOpen"
+          :adapter="adapter.qrLogin"
+          @success="handleQrSuccess"
+        />
+      </div>
+      <template #footer="{ close }">
+        <SButton variant="tertiary" class="mx-auto" @click="close">
+          <template #icon><IconLucideX /></template>
+          {{ t("common.cancel") }}
         </SButton>
       </template>
     </SDialog>

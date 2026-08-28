@@ -4,6 +4,7 @@
 
 import type { UserProfile } from "@/types/user";
 import { netease as neteaseApi } from "@/apis/netease";
+import type { QrLoginAdapter, QrLoginState } from "./platform";
 
 interface LoginStatusBody {
   code?: number | string;
@@ -58,6 +59,25 @@ export const qrCheck = async (key: string): Promise<QrCheckResult> => {
  * @returns 二维码内容
  */
 export const qrContent = (key: string): string => `https://music.163.com/login?codekey=${key}`;
+
+export const neteaseQrLoginAdapter: QrLoginAdapter = {
+  create: async () => {
+    const key = await qrKey();
+    return { key, content: qrContent(key) };
+  },
+  check: async (key) => {
+    const result = await qrCheck(key);
+    const state: QrLoginState =
+      result.code === 800
+        ? "expired"
+        : result.code === 802
+          ? "scanned"
+          : result.code === 803
+            ? "success"
+            : "waiting";
+    return { state, nickname: result.nickname, avatarUrl: result.avatarUrl };
+  },
+};
 
 /**
  * 校验 cookie 并取当前用户 profile

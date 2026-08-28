@@ -350,8 +350,8 @@
     }
   },
   "login": {
-    "qrTipWaiting": "请打开云音乐 APP 扫码登录",
-    "qrTipScanned": "扫描成功，请在客户端确认登录",
+    "qrTipWaiting": "请打开 APP 扫码登录",
+    "qrTipScanned": "扫描成功，请在 APP 中确认登录",
     "qrTipExpired": "二维码已过期，正在重试",
     "qrTipDone": "登录成功",
     "qrTipUnknown": "状态异常，请重试",
@@ -1585,6 +1585,8 @@
       "desc": "登录后可获取对应平台播放地址",
       "vipTag": " · VIP 会员",
       "loginWeb": "网页登录",
+      "loginQr": "扫码登录",
+      "qrTitle": "扫码登录",
       "manualCookie": "Cookie 登录",
       "logout": "退出登录",
       "logoutTitle": "退出 {name} 登录",

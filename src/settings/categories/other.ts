@@ -8,6 +8,7 @@ const otherCategory: SettingCategory = {
   sections: [
     {
       id: "platformLogin",
+      tag: { text: "Beta" },
       items: [
         {
           key: "qmAccount",
@@ -19,6 +20,19 @@ const otherCategory: SettingCategory = {
             "settings.platformLogin.title",
             "settings.platformLogin.desc",
             "settings.platformLogin.loginWeb",
+            "settings.platformLogin.manualCookie",
+          ],
+        },
+        {
+          key: "kgAccount",
+          type: "custom",
+          component: PlatformAccount,
+          componentProps: { platform: "kugou" },
+          fullWidth: true,
+          keywords: [
+            "settings.platformLogin.title",
+            "settings.platformLogin.desc",
+            "settings.platformLogin.loginQr",
             "settings.platformLogin.manualCookie",
           ],
         },

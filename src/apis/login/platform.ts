@@ -5,6 +5,18 @@ import {
   openQQMusicLoginWeb,
   setQQMusicCookie,
 } from "./qqmusic";
+import { fetchKugouLoginStatus, kugouQrLoginAdapter, logoutKugou, setKugouCookie } from "./kugou";
+
+export type QrLoginState = "expired" | "waiting" | "scanned" | "success";
+
+export interface QrLoginAdapter {
+  create: () => Promise<{ key: string; content: string }>;
+  check: (key: string) => Promise<{
+    state: QrLoginState;
+    nickname?: string;
+    avatarUrl?: string;
+  }>;
+}
 
 export interface PlatformAccountAdapter {
   displayName: string;
@@ -13,6 +25,7 @@ export interface PlatformAccountAdapter {
   logout: () => Promise<void>;
   openWebLogin?: () => Promise<boolean>;
   setCookie?: (cookie: string) => Promise<boolean>;
+  qrLogin?: QrLoginAdapter;
 }
 
 const adapters: Partial<Record<Platform, PlatformAccountAdapter>> = {
@@ -23,6 +36,14 @@ const adapters: Partial<Record<Platform, PlatformAccountAdapter>> = {
     logout: logoutQQMusic,
     openWebLogin: openQQMusicLoginWeb,
     setCookie: setQQMusicCookie,
+  },
+  kugou: {
+    displayName: "KG",
+    userIdLabel: "ID",
+    fetchProfile: fetchKugouLoginStatus,
+    logout: logoutKugou,
+    setCookie: setKugouCookie,
+    qrLogin: kugouQrLoginAdapter,
   },
 };
 

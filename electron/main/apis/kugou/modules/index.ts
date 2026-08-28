@@ -9,6 +9,8 @@ import search from "./search";
 import album from "./album";
 import artist from "./artist";
 import playlist from "./playlist";
+import userDetail from "./user_detail";
+import { loginQrCheck, loginQrKey } from "./login_qr";
 
 export const modules: Record<string, KGModule> = {
   lyric,
@@ -17,4 +19,7 @@ export const modules: Record<string, KGModule> = {
   artist,
   playlist,
   song_list: playlist,
+  user_detail: userDetail,
+  login_qr_key: loginQrKey,
+  login_qr_check: loginQrCheck,
 };
