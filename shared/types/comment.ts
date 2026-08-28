@@ -13,6 +13,8 @@ export interface CommentSource {
   name: string;
   kind: CommentSourceKind;
   platform?: Platform;
+  /** 该来源支持的评论标签，未声明时默认全部支持 */
+  tabs?: CommentTab[];
   pluginId?: string;
   pluginSource?: string;
 }

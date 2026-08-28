@@ -27,7 +27,13 @@ export const clearKugouSession = (): void => {
 /** 2 分钟响应缓存 */
 const DEFAULT_TTL = 2 * 60 * 1000;
 const MAX_ENTRIES = 200;
-const NON_CACHEABLE = new Set(["login_qr_key", "login_qr_check", "user_detail", "song_url"]);
+const NON_CACHEABLE = new Set([
+  "login_qr_key",
+  "login_qr_check",
+  "user_detail",
+  "song_url",
+  "comment",
+]);
 
 interface CacheEntry {
   value: unknown;

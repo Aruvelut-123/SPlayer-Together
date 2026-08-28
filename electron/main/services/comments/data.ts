@@ -62,6 +62,36 @@ export interface QQMusicCommentBody {
   nextCursor?: string;
 }
 
+interface KugouCommentImage {
+  url?: string;
+}
+
+interface KugouComment {
+  id?: string | number;
+  content?: string;
+  addtime?: string;
+  user_id?: string | number;
+  user_name?: string;
+  user_pic?: string;
+  location?: string;
+  reply_num?: number;
+  like?: {
+    count?: number;
+  };
+  images?: KugouCommentImage[];
+}
+
+export interface KugouCommentBody {
+  count?: number;
+  current_page?: number;
+  list?: KugouComment[];
+  data?: {
+    count?: number;
+    current_page?: number;
+    list?: KugouComment[];
+  };
+}
+
 const toStringId = (value: unknown): string => {
   if (typeof value === "string") return value;
   if (typeof value === "number" || typeof value === "bigint") return String(value);
@@ -172,6 +202,55 @@ export const normalizeQQMusicCommentPage = (
   };
 };
 
+/** 转换 KG 评论项 */
+export const normalizeKugouComment = (raw: KugouComment): MusicCommentItem | null => {
+  const id = toStringId(raw.id);
+  const text = optionalString(raw.content);
+  if (!id || !text) return null;
+
+  const item: MusicCommentItem = {
+    id,
+    userName: optionalString(raw.user_name) ?? "",
+    text,
+  };
+  const userId = toStringId(raw.user_id);
+  if (userId) item.userId = userId;
+  const avatar = optionalString(raw.user_pic);
+  if (avatar) item.avatar = avatar;
+  const time = optionalString(raw.addtime);
+  if (time) {
+    const timestamp = new Date(time.replace(" ", "T")).getTime();
+    if (Number.isFinite(timestamp)) item.time = timestamp;
+  }
+  const location = optionalString(raw.location);
+  if (location) item.location = location;
+  if (typeof raw.like?.count === "number") item.likedCount = raw.like.count;
+  if (typeof raw.reply_num === "number") item.replyTotal = raw.reply_num;
+  const images = (raw.images ?? [])
+    .map((image) => optionalString(image.url))
+    .filter((image): image is string => Boolean(image));
+  if (images.length) item.images = images;
+  return item;
+};
+
+/** 转换 KG 评论分页 */
+export const normalizeKugouCommentPage = (
+  body: KugouCommentBody,
+  page: number,
+  limit: number,
+): MusicCommentPage => {
+  const data = body.data ?? body;
+  const list = (data.list ?? [])
+    .map((item) => normalizeKugouComment(item))
+    .filter((item): item is MusicCommentItem => item !== null);
+  return {
+    list,
+    total: data.count ?? list.length,
+    page: data.current_page ?? page,
+    limit,
+  };
+};
+
 /** 构建可用评论源 */
 export const buildCommentSources = (
   plugins: Array<
@@ -193,6 +272,13 @@ export const buildCommentSources = (
       name: PLATFORM_SHORT_NAME.qqmusic,
       kind: "builtin",
       platform: "qqmusic",
+    },
+    {
+      id: "builtin:kugou",
+      name: PLATFORM_SHORT_NAME.kugou,
+      kind: "builtin",
+      platform: "kugou",
+      tabs: ["hot"],
     },
   ];
 

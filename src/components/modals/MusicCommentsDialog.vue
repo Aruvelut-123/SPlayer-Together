@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { CommentSource, MusicCommentPage } from "@shared/types/comment";
+import type { CommentSource, CommentTab, MusicCommentPage } from "@shared/types/comment";
 import { useStatusStore } from "@/stores/status";
 import { toast } from "@/composables/useToast";
 import { formatDate } from "@/utils/time";
@@ -32,10 +32,14 @@ const requestTokens = reactive<Record<"hot" | "new", number>>({
 const sourceOptions = computed(() =>
   sources.value.map((source) => ({ value: source.id, label: source.name })),
 );
-const tabs = computed(() => [
-  { key: "hot", label: `${t("comments.hot")} (${pages.hot.total})` },
-  { key: "new", label: `${t("comments.new")} (${pages.new.total})` },
-]);
+const selectedSource = computed(() => sources.value.find((source) => source.id === sourceId.value));
+const supportedTabs = computed<CommentTab[]>(() => selectedSource.value?.tabs ?? ["hot", "new"]);
+const tabs = computed(() =>
+  supportedTabs.value.map((key) => ({
+    key,
+    label: `${t(`comments.${key}`)} (${pages[key].total})`,
+  })),
+);
 
 const loading = computed(() => loadingCount.value > 0);
 const page = computed(() => pages[activeTab.value]);
@@ -105,7 +109,8 @@ const loadPage = async (type: "hot" | "new", pageNo = 1): Promise<void> => {
 
 const refresh = async (): Promise<void> => {
   resetPages();
-  await Promise.all([loadPage("hot"), loadPage("new")]);
+  if (!supportedTabs.value.includes(activeTab.value)) activeTab.value = supportedTabs.value[0];
+  await Promise.all(supportedTabs.value.map((type) => loadPage(type)));
   await nextTick();
   listScrollRef.value?.scrollTo({ top: 0 });
 };
@@ -243,6 +248,21 @@ watch(activeTab, async (next, prev) => {
                 <p class="mt-2 whitespace-pre-wrap break-words text-sm leading-6">
                   {{ item.text }}
                 </p>
+                <div
+                  v-if="item.images?.length"
+                  class="mt-2 grid w-fit max-w-full grid-cols-3 gap-1.5"
+                >
+                  <SImg
+                    v-for="(image, index) in item.images"
+                    :key="image"
+                    :src="image"
+                    :alt="`${item.userName} ${index + 1}`"
+                    :class="[
+                      'aspect-square max-w-full rounded-lg ring-1 ring-black/10 dark:ring-white/10',
+                      item.images.length === 1 ? 'w-48' : 'w-24',
+                    ]"
+                  />
+                </div>
                 <div v-if="item.reply?.length" class="mt-2 rounded-md bg-on-surface/5 px-3 py-2">
                   <div
                     v-for="reply in item.reply"
