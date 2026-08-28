@@ -73,7 +73,7 @@ export interface LyricSettings {
   lyricFormatOrder: LyricFormatOrder;
   /** 智能选择是否优先在线 */
   smartPreferOnline: boolean;
-  /** 插件歌词优先于内置来源（仅次于本地 TTML 歌词库） */
+  /** 优先使用插件歌词（并发请求，更优格式自动热替换） */
   preferPluginLyric: boolean;
   /** 自动识别背景歌词 */
   detectBackgroundLyrics: boolean;

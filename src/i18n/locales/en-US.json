@@ -931,7 +931,7 @@
     },
     "preferPluginLyric": {
       "label": "Prefer Plugin Lyrics",
-      "description": "Query plugins first and fall back to built-in platforms on a miss; when off, plugins are only a last resort"
+      "description": "Request plugin lyrics concurrently and auto-replace if a higher-ranked format is returned"
     },
     "detectBackgroundLyrics": {
       "label": "Auto-Detect Background Lyrics",

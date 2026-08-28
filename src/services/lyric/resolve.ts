@@ -94,14 +94,30 @@ const platformCanUpgrade = (
   return false;
 };
 
-/** 判断在线结果是否优于本地歌词 */
-const isOnlineResultUpgrade = (result: OnlineResult, localFormat: LyricFormat): boolean => {
-  const formatOrder = useSettingsStore().lyric.lyricFormatOrder ?? DEFAULT_LYRIC_FORMAT_ORDER;
-  const localIdx = formatOrder.indexOf(localFormat);
-  if (localIdx === -1) return true;
-  const mainIdx = formatOrder.indexOf(result.source.format);
-  return mainIdx !== -1 && mainIdx < localIdx;
+/**
+ * 判断 candidateFormat 是否比 currentFormat 更优（优先级更高）
+ * @param candidateFormat - 候选格式
+ * @param currentFormat - 当前格式（为 null 时直接判定为更优）
+ * @param formatOrder - 格式优先级列表，省略则从 store 取
+ */
+export const isBetterFormat = (
+  candidateFormat: LyricFormat,
+  currentFormat: LyricFormat | null,
+  formatOrder?: readonly LyricFormat[],
+): boolean => {
+  if (!currentFormat) return true;
+  const order =
+    formatOrder ?? useSettingsStore().lyric.lyricFormatOrder ?? DEFAULT_LYRIC_FORMAT_ORDER;
+  const currIdx = order.indexOf(currentFormat);
+  const candIdx = order.indexOf(candidateFormat);
+  const currRank = currIdx === -1 ? order.length : currIdx;
+  const candRank = candIdx === -1 ? order.length : candIdx;
+  return candRank < currRank;
 };
+
+/** 判断在线结果是否优于本地歌词 */
+const isOnlineResultUpgrade = (result: OnlineResult, localFormat: LyricFormat): boolean =>
+  isBetterFormat(result.source.format, localFormat);
 
 interface OnlinePreferenceOptions {
   hasLocal: boolean;
@@ -273,47 +289,41 @@ export const resolveLocalRepoLyric = async (track: Track): Promise<ResolvedLyric
  * @returns 首个有效插件歌词，不存在则返回 null
  */
 export const resolvePluginLyric = async (track: Track): Promise<ResolvedLyric | null> => {
-  const plugins = usePluginsStore();
-  for (const info of plugins.list) {
-    if (!info.enabled || info.status.state !== "ready") continue;
-    for (const [source, cap] of Object.entries(info.status.sources)) {
-      if (!cap.actions.includes("musicLyric")) continue;
-      const resp = await window.api.plugins.matchLyric({
-        pluginId: info.manifest.id,
-        source,
-        track,
-      });
-      if (!resp.ok || !resp.data) continue;
-      const content = resp.data.awlyric ?? resp.data.lyric;
-      if (!content?.trim()) continue;
-      return {
-        source: { source: "online", format: detectFormat(content) },
-        input: { content, translation: resp.data.tlyric, romaji: resp.data.rlyric },
-      };
+  try {
+    const plugins = usePluginsStore();
+    for (const info of plugins.list) {
+      if (!info.enabled || info.status.state !== "ready") continue;
+      for (const [source, cap] of Object.entries(info.status.sources)) {
+        if (!cap.actions.includes("musicLyric")) continue;
+        const resp = await window.api.plugins.matchLyric({
+          pluginId: info.manifest.id,
+          source,
+          track,
+        });
+        if (!resp.ok || !resp.data) continue;
+        const content = resp.data.awlyric ?? resp.data.lyric;
+        if (!content?.trim()) continue;
+        return {
+          source: { source: "online", format: detectFormat(content) },
+          input: { content, translation: resp.data.tlyric, romaji: resp.data.rlyric },
+        };
+      }
     }
+  } catch (err) {
+    console.error("[lyricResolve] resolvePluginLyric failed:", err);
   }
   return null;
 };
 
-/** 插件歌词是否作为首选来源（本地 TTML 仓库仍最高） */
+/** 插件歌词是否作为首选来源（开启后与内置来源并发请求并择优） */
 export const isPluginLyricPreferred = (): boolean =>
   useSettingsStore().lyric.preferPluginLyric === true;
-
-/**
- * 插件歌词作为首选时的前置尝试
- * 关闭该偏好时不发起任何插件请求，保持原有兜底语义
- * @param track - 歌曲信息
- * @returns 命中的插件歌词，未开启或未命中返回 null
- */
-export const resolvePreferredPluginLyric = async (track: Track): Promise<ResolvedLyric | null> => {
-  if (!isPluginLyricPreferred()) return null;
-  return resolvePluginLyric(track);
-};
 
 /**
  * 为下一首歌曲解析最终歌词结果
  * 本地歌曲依赖实际加载后的 TrackDetail，不在此处提前解析
  * @param track - 候选歌曲
+ * @param shouldContinue - 竞态检查
  * @returns 最终歌词，不存在或不支持预载则返回 null
  */
 export const resolveLyricForPreload = async (
@@ -326,16 +336,47 @@ export const resolveLyricForPreload = async (
   if (!shouldContinue()) return null;
   if (localRepo) return localRepo;
 
-  const preferredPlugin = await resolvePreferredPluginLyric(track);
-  if (!shouldContinue()) return null;
-  if (preferredPlugin) return preferredPlugin;
+  const preferPlugin = isPluginLyricPreferred();
 
   if (track.source === "streaming") {
+    if (preferPlugin) {
+      const [streaming, plugin] = await Promise.all([
+        resolveStreamingByPreference(track, shouldContinue),
+        resolvePluginLyric(track),
+      ]);
+      if (!shouldContinue()) return null;
+      if (plugin && isBetterFormat(plugin.source.format, streaming?.source.format ?? null)) {
+        return plugin;
+      }
+      return streaming ?? plugin ?? null;
+    }
     const streaming = await resolveStreamingByPreference(track, shouldContinue);
     if (!shouldContinue()) return null;
     if (streaming) return streaming;
     const plugin = await resolvePluginLyric(track);
     return shouldContinue() ? plugin : null;
+  }
+
+  if (preferPlugin) {
+    const [onlineLyric, plugin] = await Promise.all([
+      (async () => {
+        const online = await resolveOnlineByPreference(track, {
+          hasLocal: false,
+          localFormat: null,
+          shouldContinue,
+        });
+        if (!shouldContinue() || !online) return null;
+        const ttml = await resolveTTMLOverlay(track, online);
+        if (!shouldContinue()) return null;
+        return ttml ?? { source: online.source, input: online.input };
+      })(),
+      resolvePluginLyric(track),
+    ]);
+    if (!shouldContinue()) return null;
+    if (plugin && isBetterFormat(plugin.source.format, onlineLyric?.source.format ?? null)) {
+      return plugin;
+    }
+    return onlineLyric ?? plugin ?? null;
   }
 
   const online = await resolveOnlineByPreference(track, {
