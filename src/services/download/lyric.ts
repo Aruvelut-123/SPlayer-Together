@@ -63,52 +63,31 @@ export const resolveDownloadLyric = async (track: Track): Promise<DownloadLyric 
   const local = toUsableDownloadLyric(await resolveLocalRepoLyric(track));
   if (local) return local;
 
-  const preferPlugin = isPluginLyricPreferred();
-
   // 流媒体
   if (track.source === "streaming") {
-    if (preferPlugin) {
-      const [streamingResolved, pluginResolved] = await Promise.all([
-        resolveStreamingByPreference(track),
-        resolvePluginLyric(track),
-      ]);
-      const streaming = toUsableDownloadLyric(streamingResolved);
-      const plugin = toUsableDownloadLyric(pluginResolved);
-      if (plugin && isBetterFormat(plugin.format, streaming?.format ?? null)) {
-        return plugin;
-      }
+    // 插件优选：请求先行发出，与正常来源并发
+    const pluginTask = isPluginLyricPreferred() ? resolvePluginLyric(track) : null;
+    const streaming = toUsableDownloadLyric(await resolveStreamingByPreference(track));
+    if (pluginTask) {
+      const plugin = toUsableDownloadLyric(await pluginTask);
+      if (plugin && isBetterFormat(plugin.format, streaming?.format ?? null)) return plugin;
       return streaming ?? plugin ?? null;
     }
-    return (
-      toUsableDownloadLyric(await resolveStreamingByPreference(track)) ??
-      toUsableDownloadLyric(await resolvePluginLyric(track))
-    );
+    return streaming ?? toUsableDownloadLyric(await resolvePluginLyric(track));
   }
 
   // 在线平台
   if (isPlatform(track.source)) {
-    if (preferPlugin) {
-      const [onlineLyric, pluginResolved] = await Promise.all([
-        (async () => {
-          const online = await resolveOnlineByPreference(track, {
-            hasLocal: false,
-            localFormat: null,
-          });
-          return resolveOnlineDownloadLyric(track, online);
-        })(),
-        resolvePluginLyric(track),
-      ]);
-      const plugin = toUsableDownloadLyric(pluginResolved);
-      if (plugin && isBetterFormat(plugin.format, onlineLyric?.format ?? null)) {
-        return plugin;
-      }
+    // 插件优选：请求先行发出，与正常来源并发
+    const pluginTask = isPluginLyricPreferred() ? resolvePluginLyric(track) : null;
+    const online = await resolveOnlineByPreference(track, { hasLocal: false, localFormat: null });
+    const onlineLyric = await resolveOnlineDownloadLyric(track, online);
+    if (pluginTask) {
+      const plugin = toUsableDownloadLyric(await pluginTask);
+      if (plugin && isBetterFormat(plugin.format, onlineLyric?.format ?? null)) return plugin;
       return onlineLyric ?? plugin ?? null;
     }
-    const online = await resolveOnlineByPreference(track, { hasLocal: false, localFormat: null });
-    return (
-      (await resolveOnlineDownloadLyric(track, online)) ??
-      toUsableDownloadLyric(await resolvePluginLyric(track))
-    );
+    return onlineLyric ?? toUsableDownloadLyric(await resolvePluginLyric(track));
   }
 
   return null;

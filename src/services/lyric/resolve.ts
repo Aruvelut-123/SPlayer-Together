@@ -98,16 +98,13 @@ const platformCanUpgrade = (
  * 判断 candidateFormat 是否比 currentFormat 更优（优先级更高）
  * @param candidateFormat - 候选格式
  * @param currentFormat - 当前格式（为 null 时直接判定为更优）
- * @param formatOrder - 格式优先级列表，省略则从 store 取
  */
 export const isBetterFormat = (
   candidateFormat: LyricFormat,
   currentFormat: LyricFormat | null,
-  formatOrder?: readonly LyricFormat[],
 ): boolean => {
   if (!currentFormat) return true;
-  const order =
-    formatOrder ?? useSettingsStore().lyric.lyricFormatOrder ?? DEFAULT_LYRIC_FORMAT_ORDER;
+  const order = useSettingsStore().lyric.lyricFormatOrder ?? DEFAULT_LYRIC_FORMAT_ORDER;
   const currIdx = order.indexOf(currentFormat);
   const candIdx = order.indexOf(candidateFormat);
   const currRank = currIdx === -1 ? order.length : currIdx;
@@ -289,33 +286,29 @@ export const resolveLocalRepoLyric = async (track: Track): Promise<ResolvedLyric
  * @returns 首个有效插件歌词，不存在则返回 null
  */
 export const resolvePluginLyric = async (track: Track): Promise<ResolvedLyric | null> => {
-  try {
-    const plugins = usePluginsStore();
-    for (const info of plugins.list) {
-      if (!info.enabled || info.status.state !== "ready") continue;
-      for (const [source, cap] of Object.entries(info.status.sources)) {
-        if (!cap.actions.includes("musicLyric")) continue;
-        const resp = await window.api.plugins.matchLyric({
-          pluginId: info.manifest.id,
-          source,
-          track,
-        });
-        if (!resp.ok || !resp.data) continue;
-        const content = resp.data.awlyric ?? resp.data.lyric;
-        if (!content?.trim()) continue;
-        return {
-          source: { source: "online", format: detectFormat(content) },
-          input: { content, translation: resp.data.tlyric, romaji: resp.data.rlyric },
-        };
-      }
+  const plugins = usePluginsStore();
+  for (const info of plugins.list) {
+    if (!info.enabled || info.status.state !== "ready") continue;
+    for (const [source, cap] of Object.entries(info.status.sources)) {
+      if (!cap.actions.includes("musicLyric")) continue;
+      const resp = await window.api.plugins.matchLyric({
+        pluginId: info.manifest.id,
+        source,
+        track,
+      });
+      if (!resp.ok || !resp.data) continue;
+      const content = resp.data.awlyric ?? resp.data.lyric;
+      if (!content?.trim()) continue;
+      return {
+        source: { source: "online", format: detectFormat(content) },
+        input: { content, translation: resp.data.tlyric, romaji: resp.data.rlyric },
+      };
     }
-  } catch (err) {
-    console.error("[lyricResolve] resolvePluginLyric failed:", err);
   }
   return null;
 };
 
-/** 插件歌词是否作为首选来源（开启后与内置来源并发请求并择优） */
+/** 插件歌词是否优先于内置来源 */
 export const isPluginLyricPreferred = (): boolean =>
   useSettingsStore().lyric.preferPluginLyric === true;
 
@@ -336,47 +329,23 @@ export const resolveLyricForPreload = async (
   if (!shouldContinue()) return null;
   if (localRepo) return localRepo;
 
-  const preferPlugin = isPluginLyricPreferred();
+  // 插件优选：请求先行发出，与下方正常解析并发
+  const pluginTask = isPluginLyricPreferred() ? resolvePluginLyric(track) : null;
 
   if (track.source === "streaming") {
-    if (preferPlugin) {
-      const [streaming, plugin] = await Promise.all([
-        resolveStreamingByPreference(track, shouldContinue),
-        resolvePluginLyric(track),
-      ]);
+    const streaming = await resolveStreamingByPreference(track, shouldContinue);
+    if (!shouldContinue()) return null;
+    if (pluginTask) {
+      const plugin = await pluginTask;
       if (!shouldContinue()) return null;
       if (plugin && isBetterFormat(plugin.source.format, streaming?.source.format ?? null)) {
         return plugin;
       }
       return streaming ?? plugin ?? null;
     }
-    const streaming = await resolveStreamingByPreference(track, shouldContinue);
-    if (!shouldContinue()) return null;
     if (streaming) return streaming;
     const plugin = await resolvePluginLyric(track);
     return shouldContinue() ? plugin : null;
-  }
-
-  if (preferPlugin) {
-    const [onlineLyric, plugin] = await Promise.all([
-      (async () => {
-        const online = await resolveOnlineByPreference(track, {
-          hasLocal: false,
-          localFormat: null,
-          shouldContinue,
-        });
-        if (!shouldContinue() || !online) return null;
-        const ttml = await resolveTTMLOverlay(track, online);
-        if (!shouldContinue()) return null;
-        return ttml ?? { source: online.source, input: online.input };
-      })(),
-      resolvePluginLyric(track),
-    ]);
-    if (!shouldContinue()) return null;
-    if (plugin && isBetterFormat(plugin.source.format, onlineLyric?.source.format ?? null)) {
-      return plugin;
-    }
-    return onlineLyric ?? plugin ?? null;
   }
 
   const online = await resolveOnlineByPreference(track, {
@@ -385,11 +354,21 @@ export const resolveLyricForPreload = async (
     shouldContinue,
   });
   if (!shouldContinue()) return null;
+  let normal: ResolvedLyric | null = null;
   if (online) {
     const ttml = await resolveTTMLOverlay(track, online);
     if (!shouldContinue()) return null;
-    return ttml ?? { source: online.source, input: online.input };
+    normal = ttml ?? { source: online.source, input: online.input };
   }
+  if (pluginTask) {
+    const plugin = await pluginTask;
+    if (!shouldContinue()) return null;
+    if (plugin && isBetterFormat(plugin.source.format, normal?.source.format ?? null)) {
+      return plugin;
+    }
+    return normal ?? plugin ?? null;
+  }
+  if (normal) return normal;
 
   const plugin = await resolvePluginLyric(track);
   return shouldContinue() ? plugin : null;
