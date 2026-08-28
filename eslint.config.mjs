@@ -18,7 +18,6 @@ export default defineConfig(
     "**/.vitepress/",
     "native/*/index.d.ts",
     ".github/scripts/",
-    "plugins/",
   ]),
   tseslint.configs.recommended,
   { languageOptions: { globals: autoImports.globals } },
