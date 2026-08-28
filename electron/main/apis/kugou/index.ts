@@ -7,11 +7,7 @@
 import { createHash } from "node:crypto";
 import { modules } from "./modules";
 import type { KGParams } from "./core/types";
-import {
-  clearSessionCookies,
-  getSessionCookies,
-  saveSessionCookies,
-} from "@main/database/sessions";
+import { getSessionCookies, saveSessionCookies } from "@main/database/sessions";
 
 export const getKugouSession = (): Record<string, string> => getSessionCookies("kugou");
 
@@ -19,12 +15,19 @@ export const mergeKugouSession = (values: Record<string, string>): void => {
   saveSessionCookies("kugou", { ...getKugouSession(), ...values });
 };
 
-export const clearKugouSession = (): void => clearSessionCookies("kugou");
+export const clearKugouSession = (): void => {
+  const session = getKugouSession();
+  const device = {
+    ...(session.guid ? { guid: session.guid } : {}),
+    ...(session.dfid ? { dfid: session.dfid } : {}),
+  };
+  saveSessionCookies("kugou", device);
+};
 
 /** 2 分钟响应缓存 */
 const DEFAULT_TTL = 2 * 60 * 1000;
 const MAX_ENTRIES = 200;
-const NON_CACHEABLE = new Set(["login_qr_key", "login_qr_check", "user_detail"]);
+const NON_CACHEABLE = new Set(["login_qr_key", "login_qr_check", "user_detail", "song_url"]);
 
 interface CacheEntry {
   value: unknown;

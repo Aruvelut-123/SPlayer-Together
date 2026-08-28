@@ -11,6 +11,7 @@ export type Quality = "128k" | "320k" | "flac" | "flac24bit";
 export interface KGSong {
   id: string;
   audioId: number;
+  albumAudioId?: number;
   hash: string;
   name: string;
   artist: string;

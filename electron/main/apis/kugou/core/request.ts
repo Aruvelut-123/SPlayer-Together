@@ -85,7 +85,7 @@ export const kgGatewayRequest = async <T = KGRawBody>(
   const clienttime = Math.floor(Date.now() / 1000);
   const mid = getDeviceMid();
   const session = getSessionCookies("kugou");
-  const dfid = "-";
+  const dfid = session.dfid || "-";
   const uuid = "-";
 
   const defaultParams: Record<string, unknown> = {

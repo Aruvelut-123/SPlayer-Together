@@ -75,12 +75,13 @@ interface MobilePlaylist {
 }
 
 const searchMobile = (keywords: string, page: number, limit: number, searchType: number) =>
-  qmRequest<MobileSearchResponse>(
-    "music.search.SearchCgiService",
-    "DoSearchForQQMusicMobile",
-    { query: keywords, page_num: page, num_per_page: limit, search_type: searchType, grp: 1 },
-    { session: false },
-  );
+  qmRequest<MobileSearchResponse>("music.search.SearchCgiService", "DoSearchForQQMusicMobile", {
+    query: keywords,
+    page_num: page,
+    num_per_page: limit,
+    search_type: searchType,
+    grp: 1,
+  });
 
 const searchSongs = async (keywords: string, page: number, limit: number) => {
   const data = await searchMobile(keywords, page, limit, 0);

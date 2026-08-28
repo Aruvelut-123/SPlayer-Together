@@ -7,6 +7,7 @@ import { usePluginsStore } from "@/stores/plugins";
 import { useUserStore } from "@/stores/user";
 import { resolveNeteaseUrl } from "@/apis/song/netease";
 import { resolveQQMusicUrl } from "@/apis/song/qqmusic";
+import { resolveKugouUrl } from "@/apis/song/kugou";
 import { ErrorCode } from "@shared/types/errors";
 import { handleError } from "@/utils/errors";
 
@@ -47,11 +48,11 @@ const cacheKeyForTrack = (track: Track, songLevel: QualityLevel): string | null 
   if (track.source === "streaming" && track.serverId && track.originalId) {
     return `s:${track.serverId}:${track.originalId}:`;
   }
-  if ((track.source === "netease" || track.source === "qqmusic") && track.id) {
-    return `o:${track.source}:${track.id}:${songLevel}`;
+  if (track.source === "kugou" && track.id) {
+    return `o:kugou:${track.id}:${track.extId ?? ""}:${songLevel}`;
   }
   if (isOnlinePlatform(track.source) && track.id) {
-    return `o:${track.source}:${track.id}:`;
+    return `o:${track.source}:${track.id}:${songLevel}`;
   }
   return null;
 };
@@ -190,6 +191,18 @@ const resolveOnlineUrl = async (
       officialErrorCode = resolved.errorCode;
     } catch (err) {
       console.warn("[audio-source] official QQMusic URL resolve failed:", err);
+      officialErrorCode = ErrorCode.URL_RESOLVE_FAILED;
+    }
+  }
+  if (track.source === "kugou" && !options.skipOfficialOnline) {
+    try {
+      const resolved = await resolveKugouUrl(track, songLevel);
+      if (resolved.available) {
+        return { ok: true, url: resolved.url, isTrial: false, provider: "official" };
+      }
+      officialErrorCode = resolved.errorCode;
+    } catch (err) {
+      console.warn("[audio-source] official Kugou URL resolve failed:", err);
       officialErrorCode = ErrorCode.URL_RESOLVE_FAILED;
     }
   }

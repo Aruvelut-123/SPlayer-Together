@@ -4,6 +4,7 @@ import type { CoverItem } from "@/types/artist";
 export interface KGSong {
   id: string;
   audioId?: number;
+  albumAudioId?: number;
   hash: string;
   name: string;
   artist: string;
@@ -167,7 +168,7 @@ export const kgSongToTrack = (song: KGSong): Track => {
 
   return {
     id: song.hash || song.id,
-    extId: song.id,
+    extId: String(song.albumAudioId ?? song.id),
     source: "kugou",
     title: song.name,
     artists,

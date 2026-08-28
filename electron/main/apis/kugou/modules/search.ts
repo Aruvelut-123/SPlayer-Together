@@ -28,6 +28,7 @@ import type {
 interface MobileSong {
   hash?: string;
   audio_id?: number;
+  album_audio_id?: number;
   songname?: string;
   filename?: string;
   singername?: string;
@@ -68,6 +69,8 @@ interface MobileResp {
 
 interface LegacySong {
   Audioid: number;
+  MixSongID?: number;
+  AlbumAudioId?: number;
   SongName: string;
   Singers?: Array<{ id?: number | string; name?: string }>;
   AlbumName?: string;
@@ -177,6 +180,7 @@ const normalizeFromMobile = (raw: MobileSong): KGSong => {
   return {
     id: String(raw.audio_id || raw.hash || ""),
     audioId: raw.audio_id ?? 0,
+    albumAudioId: raw.album_audio_id,
     hash: raw.hash ?? "",
     name: decodeName(raw.songname || raw.filename || ""),
     artist: artistName,
@@ -235,6 +239,7 @@ const normalizeFromLegacy = (raw: LegacySong): KGSong => {
   return {
     id: String(raw.Audioid || raw.FileHash || ""),
     audioId: raw.Audioid,
+    albumAudioId: raw.MixSongID ?? raw.AlbumAudioId,
     hash: raw.FileHash,
     name: decodeName(raw.SongName),
     artist: artistName,

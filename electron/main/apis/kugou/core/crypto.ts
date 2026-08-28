@@ -2,7 +2,14 @@
  * KG 加密与签名工具
  */
 
-import { constants, createHash, publicEncrypt } from "node:crypto";
+import {
+  constants,
+  createCipheriv,
+  createDecipheriv,
+  createHash,
+  publicEncrypt,
+  randomBytes,
+} from "node:crypto";
 import { KG_APPID, KG_CLIENTVER } from "./config";
 
 /** KG Android 签名盐值 */
@@ -27,6 +34,31 @@ export const rsaEncryptKugou = (data: Record<string, unknown>): string => {
   return publicEncrypt({ key: KG_PUBLIC_KEY, padding: constants.RSA_NO_PADDING }, block).toString(
     "hex",
   );
+};
+
+export const rsaEncryptKugouPkcs1 = (data: Record<string, unknown>): string =>
+  publicEncrypt(
+    { key: KG_PUBLIC_KEY, padding: constants.RSA_PKCS1_PADDING },
+    Buffer.from(JSON.stringify(data)),
+  ).toString("hex");
+
+export const encryptKugouDeviceData = (
+  data: Record<string, unknown>,
+): { key: string; content: string } => {
+  const key = randomBytes(3).toString("hex");
+  const digest = cryptoMd5(key);
+  const cipher = createCipheriv("aes-128-cbc", digest.slice(0, 16), digest.slice(16, 32));
+  const content = Buffer.concat([cipher.update(JSON.stringify(data)), cipher.final()]).toString(
+    "base64",
+  );
+  return { key, content };
+};
+
+export const decryptKugouDeviceData = (content: Buffer, key: string): unknown => {
+  const digest = cryptoMd5(key);
+  const decipher = createDecipheriv("aes-128-cbc", digest.slice(0, 16), digest.slice(16, 32));
+  const text = Buffer.concat([decipher.update(content), decipher.final()]).toString("utf8");
+  return JSON.parse(text);
 };
 
 /**

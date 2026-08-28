@@ -26,6 +26,7 @@ interface RawArtistDetail {
 
 interface RawArtistAudio {
   audio_id?: number;
+  album_audio_id?: number;
   audio_name?: string;
   hash?: string;
   hash_128?: string;
@@ -130,6 +131,7 @@ const normalizeArtistSong = (
   return {
     id: String(raw.audio_id || raw.hash || ""),
     audioId: raw.audio_id ?? 0,
+    albumAudioId: raw.album_audio_id,
     hash: raw.hash_128 || raw.hash || "",
     name: decodeName(raw.audio_name || ""),
     artist: decodeName(artistStr),

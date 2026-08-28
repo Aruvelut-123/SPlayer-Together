@@ -77,6 +77,7 @@ interface MobileAlbumInfo {
 interface MobileAlbumSong {
   hash?: string;
   audio_id?: number;
+  album_audio_id?: number;
   songname?: string;
   filename?: string;
   singername?: string;
@@ -153,6 +154,7 @@ const normalizeAlbumSong = (raw: RawAlbumSongEntry, fallbackCover?: string): KGS
   return {
     id: String(base.audio_id || audio.hash || ""),
     audioId: base.audio_id ?? 0,
+    albumAudioId: base.album_audio_id,
     hash: audio.hash_128 || audio.hash || "",
     name: decodeName(base.audio_name || ""),
     artist: decodeName(artistStr),
@@ -212,6 +214,7 @@ const normalizeMobileAlbumSong = (raw: MobileAlbumSong, fallbackCover?: string):
   return {
     id: String(raw.audio_id || raw.hash || ""),
     audioId: raw.audio_id ?? 0,
+    albumAudioId: raw.album_audio_id,
     hash: raw.hash ?? "",
     name: decodeName(songName),
     artist: artistName,

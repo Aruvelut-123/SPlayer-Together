@@ -26,6 +26,7 @@ interface RawSpecialInfo {
 interface RawSpecialSong {
   hash?: string;
   audio_id?: number;
+  album_audio_id?: number;
   songname?: string;
   filename?: string;
   singername?: string;
@@ -107,6 +108,7 @@ const normalizeSpecialSong = (raw: RawSpecialSong, fallbackCover?: string): KGSo
   return {
     id: String(raw.audio_id || raw.hash || ""),
     audioId: raw.audio_id ?? 0,
+    albumAudioId: raw.album_audio_id,
     hash: raw.hash ?? "",
     name: formatSongName(filename, raw.songname),
     artist: artistName,
