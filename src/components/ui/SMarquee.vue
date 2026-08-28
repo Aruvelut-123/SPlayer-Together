@@ -45,7 +45,10 @@ onMounted(() => {
   resizeObserver = new ResizeObserver(check);
   if (containerRef.value) resizeObserver.observe(containerRef.value);
   if (textRef.value) resizeObserver.observe(textRef.value);
+  nextTick(check);
 });
+
+onUpdated(check);
 
 onUnmounted(() => {
   resizeObserver?.disconnect();
