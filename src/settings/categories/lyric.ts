@@ -260,6 +260,48 @@ const lyricCategory: SettingCategory = {
       ],
     },
     {
+      id: "lyricAMLLOptimize",
+      visible: () => lyricEngine() === "amll",
+      items: [
+        {
+          key: "amllCleanUnintentionalOverlaps",
+          type: "switch",
+          binding: { store: "settings", path: "lyric.amllCleanUnintentionalOverlaps" },
+          defaultValue: true,
+        },
+        {
+          key: "amllTryAdvanceStartTime",
+          type: "switch",
+          binding: { store: "settings", path: "lyric.amllTryAdvanceStartTime" },
+          defaultValue: true,
+        },
+        {
+          key: "amllConvertExcessiveBackgroundLines",
+          type: "switch",
+          binding: { store: "settings", path: "lyric.amllConvertExcessiveBackgroundLines" },
+          defaultValue: true,
+        },
+        {
+          key: "amllSyncMainAndBackgroundLines",
+          type: "switch",
+          binding: { store: "settings", path: "lyric.amllSyncMainAndBackgroundLines" },
+          defaultValue: true,
+        },
+        {
+          key: "amllNormalizeSpaces",
+          type: "switch",
+          binding: { store: "settings", path: "lyric.amllNormalizeSpaces" },
+          defaultValue: true,
+        },
+        {
+          key: "amllResetLineTimestamps",
+          type: "switch",
+          binding: { store: "settings", path: "lyric.amllResetLineTimestamps" },
+          defaultValue: true,
+        },
+      ],
+    },
+    {
       id: "lyricSpring",
       items: [
         {

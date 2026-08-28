@@ -132,6 +132,12 @@ export const useSettingsStore = defineStore(
       amllScaleSpringDamping: 20,
       amllScaleSpringStiffness: 100,
       amllScaleSpringSoft: false,
+      amllCleanUnintentionalOverlaps: true,
+      amllTryAdvanceStartTime: true,
+      amllConvertExcessiveBackgroundLines: true,
+      amllSyncMainAndBackgroundLines: true,
+      amllNormalizeSpaces: true,
+      amllResetLineTimestamps: true,
     });
 
     /** 系统配置 - 传递主进程 */

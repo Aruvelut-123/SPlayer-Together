@@ -100,6 +100,8 @@ export interface SettingSection {
   items: SettingItem[];
   /** 标题旁的徽标 */
   tag?: SettingTag;
+  /** 条件隐藏分区 */
+  visible?: () => boolean;
 }
 
 /** 设置分类 */

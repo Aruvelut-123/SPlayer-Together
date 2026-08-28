@@ -749,6 +749,7 @@
       "lyricExclude": "Metadata Stripping",
       "lyricGeneral": "Content & Style",
       "lyricDisplay": "Display Effects",
+      "lyricAMLLOptimize": "Lyric Optimization",
       "lyricSpring": "Spring Animation",
       "lyricLayout": "Layout & Opacity",
       "desktopLyric": "Desktop Lyric",
@@ -1085,6 +1086,30 @@
     "amllScaleSpringSoft": {
       "label": "Scale Soft Spring",
       "description": "Forces the active line scale animation to use a softer spring profile."
+    },
+    "amllCleanUnintentionalOverlaps": {
+      "label": "Clean Unintentional Overlaps",
+      "description": "Automatically trim minor unintentional timestamp overlaps between lines to avoid multiple active lines"
+    },
+    "amllTryAdvanceStartTime": {
+      "label": "Advance Animation Start Time",
+      "description": "Advance lyric entry animation (up to 1s) for smoother transitions"
+    },
+    "amllConvertExcessiveBackgroundLines": {
+      "label": "Convert Excessive Background Lines",
+      "description": "Convert consecutive multi-line background vocals into a single-line background vocal attached to the main line"
+    },
+    "amllSyncMainAndBackgroundLines": {
+      "label": "Sync Background Lines Timing",
+      "description": "Synchronize timing between main lines and background vocal lines"
+    },
+    "amllNormalizeSpaces": {
+      "label": "Normalize Spaces",
+      "description": "Collapse consecutive spaces in lyrics into a single space"
+    },
+    "amllResetLineTimestamps": {
+      "label": "Reset Line Timestamps",
+      "description": "Force line-level timestamps to match word-level timestamp boundaries"
     },
     "autoCenterCover": {
       "label": "Auto Center Cover",

@@ -147,6 +147,13 @@ export interface LyricSettings {
   amllScaleSpringDamping: number;
   amllScaleSpringStiffness: number;
   amllScaleSpringSoft: boolean;
+  /** AMLL 歌词优化 */
+  amllCleanUnintentionalOverlaps: boolean;
+  amllTryAdvanceStartTime: boolean;
+  amllConvertExcessiveBackgroundLines: boolean;
+  amllSyncMainAndBackgroundLines: boolean;
+  amllNormalizeSpaces: boolean;
+  amllResetLineTimestamps: boolean;
 }
 
 /** 播放器设置 */
