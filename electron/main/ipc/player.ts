@@ -1,7 +1,7 @@
-import { readFile } from "node:fs/promises";
 import { extname } from "node:path";
 import { app, ipcMain, powerMonitor } from "electron";
 import { sendToMain } from "@main/utils/broadcast";
+import { readFileAutoEncoding } from "@main/utils/encoding";
 import { wsBroadcast } from "@main/server/broadcast";
 import { toCacheUrl } from "@main/utils/protocol";
 import { toMs } from "@main/utils/time";
@@ -569,7 +569,7 @@ export const registerPlayerIpc = (): void => {
       if (!LYRIC_FILE_EXTS.has(ext)) {
         return fail(ErrorCode.UNKNOWN, new Error(`不支持的歌词文件类型: ${ext}`));
       }
-      const content = await readFile(filePath, "utf-8");
+      const content = await readFileAutoEncoding(filePath);
       return { success: true, data: content };
     } catch (error) {
       return fail(ErrorCode.UNKNOWN, error);
