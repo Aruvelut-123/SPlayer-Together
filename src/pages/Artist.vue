@@ -6,6 +6,7 @@ import { useUserStore } from "@/stores/user";
 import { toast } from "@/composables/useToast";
 import { loadArtist as loadArtistService } from "@/services/artistLoader";
 import { fetchArtistSongs } from "@/apis/artist/netease";
+import { fetchQQMusicArtistSongs } from "@/apis/artist/qqmusic";
 import { navigateToAlbum } from "@/utils/navigate";
 import SongList from "@/components/list/SongList.vue";
 import { formatTime } from "@/utils/time";
@@ -77,7 +78,11 @@ const loadArtist = async (): Promise<void> => {
       onUpdate: (next) => {
         if (myAbort.signal.aborted) return;
         artist.value = next;
-        if (next && source === "netease" && next.tracks.length >= 50) {
+        if (
+          next &&
+          ((source === "netease" && next.tracks.length >= 50) ||
+            (source === "qqmusic" && next.tracks.length < next.trackCount))
+        ) {
           hasMoreSongs.value = true;
         }
       },
@@ -92,11 +97,20 @@ const loadArtist = async (): Promise<void> => {
 
 /** 触底加载 */
 const onReachBottom = async (): Promise<void> => {
-  if (source !== "netease" || !hasMoreSongs.value || loadingMore.value || !artist.value) return;
+  if (
+    (source !== "netease" && source !== "qqmusic") ||
+    !hasMoreSongs.value ||
+    loadingMore.value ||
+    !artist.value
+  )
+    return;
   const current = artist.value;
   loadingMore.value = true;
   try {
-    const { tracks, more } = await fetchArtistSongs(decodeURIComponent(id), current.tracks.length);
+    const { tracks, more } =
+      source === "qqmusic"
+        ? await fetchQQMusicArtistSongs(decodeURIComponent(id), current.tracks.length)
+        : await fetchArtistSongs(decodeURIComponent(id), current.tracks.length);
     if (loadAbort?.signal.aborted || artist.value?.id !== current.id) return;
     if (tracks.length === 0) {
       hasMoreSongs.value = false;
@@ -105,7 +119,7 @@ const onReachBottom = async (): Promise<void> => {
     artist.value = {
       ...current,
       tracks: [...current.tracks, ...tracks],
-      trackCount: current.tracks.length + tracks.length,
+      trackCount: source === "qqmusic" ? current.trackCount : current.tracks.length + tracks.length,
     };
     hasMoreSongs.value = more;
   } finally {

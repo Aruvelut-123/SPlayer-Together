@@ -15,7 +15,7 @@ interface QualityCandidate {
 }
 
 const QQ_QUALITY_CANDIDATE_TEMPLATES: QualityCandidate[] = [
-  { prefix: "RS01", ext: ".flac", level: "hi-res", label: "Hi-Res FLAC" },
+  { prefix: "AI00", ext: ".flac", level: "hi-res", label: "Hi-Res FLAC" },
   { prefix: "F000", ext: ".flac", level: "lossless", label: "无损 FLAC" },
   { prefix: "M800", ext: ".mp3", level: "hq", label: "320k MP3" },
   { prefix: "M500", ext: ".mp3", level: "sq", label: "128k MP3" },

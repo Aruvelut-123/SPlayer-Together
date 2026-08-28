@@ -18,6 +18,9 @@ interface AlbumSong {
     size_ape?: number;
     size_flac?: number;
     size_192ogg?: number;
+    size_new?: number[];
+    hires_sample?: number;
+    hires_bitdepth?: number;
   };
   pay?: {
     pay_month?: number;
@@ -64,6 +67,9 @@ const album: QMModule = async (params) => {
         sizeApe: song.file?.size_ape ?? 0,
         sizeFlac: song.file?.size_flac ?? 0,
         sizeOgg: song.file?.size_192ogg ?? 0,
+        sizeHiRes: song.file?.size_new?.[0] ?? 0,
+        hiResSampleRate: song.file?.hires_sample ?? 0,
+        hiResBitDepth: song.file?.hires_bitdepth ?? 0,
       },
     ];
   });

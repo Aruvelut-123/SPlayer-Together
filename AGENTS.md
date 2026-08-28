@@ -197,6 +197,10 @@ In preload's `onEvent`, always `ipcRenderer.removeAllListeners()` before adding 
 
 Double quotes, semicolons, 100-char width, trailing commas.
 
+Before committing, run Prettier on every file included in the commit and verify the formatted
+working tree before creating the commit. Do not leave formatting-only changes from the current task
+outside the commit.
+
 ### Shared Types
 
 Put cross-process types (`LocaleCode / SystemConfig / StreamingServerType`, etc.) in `shared/types/`.

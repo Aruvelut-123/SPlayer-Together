@@ -78,6 +78,11 @@ interface FcgResponse {
   [key: string]: unknown;
 }
 
+interface QMRequestOptions {
+  /** 是否在请求前初始化客户端会话 */
+  session?: boolean;
+}
+
 /** 发起一次 fcg POST（自动注入 Cookie） */
 const postRaw = async (
   body: unknown,
@@ -149,22 +154,25 @@ const ensureSession = (): Promise<void> => {
  * @param module 业务 module（如 music.search.SearchCgiService）
  * @param method 业务 method（如 DoSearchForQQMusicMobile）
  * @param param  业务 param
+ * @param options 请求选项
  * @returns request.data 的业务数据段
  */
 export const qmRequest = async <T = unknown>(
   module: string,
   method: string,
   param: Record<string, unknown>,
+  options: QMRequestOptions = {},
 ): Promise<T> => {
-  await ensureSession();
+  const useSession = options.session !== false;
+  if (useSession) await ensureSession();
 
   const uin = getQQMusicUin();
   const comm = {
     ...getCommonParams(),
     ...(uin && uin !== "0" ? { uin } : {}),
-    ...(session.uid ? { uid: session.uid } : {}),
-    ...(session.sid ? { sid: session.sid } : {}),
-    ...(session.userip ? { userip: session.userip } : {}),
+    ...(useSession && session.uid ? { uid: session.uid } : {}),
+    ...(useSession && session.sid ? { sid: session.sid } : {}),
+    ...(useSession && session.userip ? { userip: session.userip } : {}),
   };
 
   const body = { comm, request: { module, method, param } };

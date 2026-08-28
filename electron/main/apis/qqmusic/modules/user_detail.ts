@@ -74,11 +74,7 @@ const userDetail: QMModule = async (_params) => {
     if (json.code === 0 && creator) {
       const nickname = creator.nick || `QQ用户_${uin.slice(-4)}`;
       const avatarUrl = creator.headpic || defaultAvatar;
-      const isVip = !!(
-        creator.is_vip ||
-        creator.is_super_vip ||
-        (creator.vip && creator.vip > 0)
-      );
+      const isVip = !!(creator.is_vip || creator.is_super_vip || (creator.vip && creator.vip > 0));
 
       coreLog.info("[qm-user-detail] 成功获取用户资料:", {
         uin,
