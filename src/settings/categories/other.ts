@@ -1,5 +1,5 @@
 import type { SettingCategory } from "@/types/settings-schema";
-import QQMusicPanel from "@/components/settings/custom/QQMusicPanel.vue";
+import PlatformAccount from "@/components/settings/custom/PlatformAccount.vue";
 import IconLucideSettings from "~icons/lucide/settings";
 
 const otherCategory: SettingCategory = {
@@ -12,7 +12,8 @@ const otherCategory: SettingCategory = {
         {
           key: "qmAccount",
           type: "custom",
-          component: QQMusicPanel,
+          component: PlatformAccount,
+          componentProps: { platform: "qqmusic" },
           fullWidth: true,
           keywords: [
             "settings.platformLogin.title",

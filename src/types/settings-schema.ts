@@ -69,6 +69,8 @@ export interface SettingItem {
   action?: (value?: unknown) => void | Promise<void>;
   /** custom 类型的组件 */
   component?: Component;
+  /** custom 类型组件的属性 */
+  componentProps?: Record<string, unknown>;
   /** custom：独占整行 */
   fullWidth?: boolean;
   /** 搜索用额外关键词（i18n keys） */

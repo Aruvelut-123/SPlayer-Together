@@ -1,27 +1,19 @@
 <script setup lang="ts">
 import { useDataStore } from "@/stores/data";
 import { toast } from "@/composables/useToast";
-import {
-  fetchQQMusicLoginStatus,
-  openQQMusicLoginWeb,
-  logoutQQMusic,
-  setQQMusicCookie,
-} from "@/apis/login/qqmusic";
-import IconLucideMusic from "~icons/lucide/music";
-import IconLucideUnplug from "~icons/lucide/unplug";
-import IconLucideLogIn from "~icons/lucide/log-in";
-import IconLucideKey from "~icons/lucide/key";
-import vipImg from "@/assets/images/vip.png";
+import { getPlatformAccountAdapter } from "@/apis/login/platform";
+import type { Platform } from "@shared/types/platform";
 
 defineOptions({ inheritAttrs: false });
 
 const { t } = useI18n();
 const dataStore = useDataStore();
 
-const PLATFORM = "QM";
-const PLATFORM_KEY = "qqmusic";
+const props = defineProps<{ platform: Platform }>();
+const adapter = computed(() => getPlatformAccountAdapter(props.platform));
+const platformName = computed(() => adapter.value.displayName);
 
-const profile = computed(() => dataStore.getPlatformProfile(PLATFORM_KEY));
+const profile = computed(() => dataStore.getPlatformProfile(props.platform));
 const loggingIn = ref(false);
 const confirmOpen = ref(false);
 const cookieModalOpen = ref(false);
@@ -37,8 +29,8 @@ watch(cookieModalOpen, (val) => {
 
 /** 刷新登录状态并同步 Store */
 const refresh = async (): Promise<void> => {
-  const latest = await fetchQQMusicLoginStatus();
-  dataStore.setPlatformProfile(PLATFORM_KEY, latest);
+  const latest = await adapter.value.fetchProfile();
+  dataStore.setPlatformProfile(props.platform, latest);
 };
 
 onMounted(refresh);
@@ -47,22 +39,22 @@ onMounted(refresh);
 const handleLogin = async (): Promise<void> => {
   loggingIn.value = true;
   try {
-    const ok = await openQQMusicLoginWeb();
+    const ok = await adapter.value.openWebLogin?.();
     if (ok) {
       await refresh();
       if (profile.value) {
         toast.success(
           t("settings.platformLogin.toast.loginSuccess", {
-            name: PLATFORM,
+            name: platformName.value,
             user: profile.value.nickname,
           }),
         );
       } else {
-        toast.error(t("settings.platformLogin.toast.loginFailed", { name: PLATFORM }));
+        toast.error(t("settings.platformLogin.toast.loginFailed", { name: platformName.value }));
       }
     }
   } catch (err) {
-    toast.error(t("settings.platformLogin.toast.loginFailed", { name: PLATFORM }));
+    toast.error(t("settings.platformLogin.toast.loginFailed", { name: platformName.value }));
     console.error(err);
   } finally {
     loggingIn.value = false;
@@ -72,9 +64,9 @@ const handleLogin = async (): Promise<void> => {
 /** 断开连接 / 登出 */
 const handleDisconnect = async (): Promise<void> => {
   confirmOpen.value = false;
-  await logoutQQMusic();
-  dataStore.clearPlatformProfile(PLATFORM_KEY);
-  toast.success(t("settings.platformLogin.toast.logoutDone", { name: PLATFORM }));
+  await adapter.value.logout();
+  dataStore.clearPlatformProfile(props.platform);
+  toast.success(t("settings.platformLogin.toast.logoutDone", { name: platformName.value }));
 };
 
 /** 手动输入 Cookie 提交 */
@@ -84,21 +76,21 @@ const handleManualCookieSubmit = async (): Promise<void> => {
 
   cookieSubmitting.value = true;
   try {
-    const ok = await setQQMusicCookie(cookieStr);
+    const ok = await adapter.value.setCookie?.(cookieStr);
     if (!ok) {
       toast.error(t("settings.platformLogin.toast.cookieInvalid"));
       return;
     }
 
-    const latest = await fetchQQMusicLoginStatus();
+    const latest = await adapter.value.fetchProfile();
     if (latest) {
-      dataStore.setPlatformProfile(PLATFORM_KEY, latest);
+      dataStore.setPlatformProfile(props.platform, latest);
       cookieModalOpen.value = false;
       manualCookie.value = "";
-      toast.success(t("settings.platformLogin.toast.cookieSuccess", { name: PLATFORM }));
+      toast.success(t("settings.platformLogin.toast.cookieSuccess", { name: platformName.value }));
     } else {
-      await logoutQQMusic();
-      dataStore.clearPlatformProfile(PLATFORM_KEY);
+      await adapter.value.logout();
+      dataStore.clearPlatformProfile(props.platform);
       toast.error(t("settings.platformLogin.toast.cookieInvalid"));
     }
   } catch (err) {
@@ -137,15 +129,17 @@ const handleManualCookieSubmit = async (): Promise<void> => {
           <div class="flex items-center gap-2 text-base">
             <span class="truncate">
               {{
-                profile ? profile.nickname : t("settings.platformLogin.title", { name: PLATFORM })
+                profile
+                  ? profile.nickname
+                  : t("settings.platformLogin.title", { name: platformName })
               }}
             </span>
-            <img v-if="profile?.isVip" :src="vipImg" alt="VIP" class="h-3.5 shrink-0" />
+            <STag v-if="!profile?.isVip" size="small" round>VIP</STag>
           </div>
           <div class="text-sm text-on-surface-variant/70 mt-0.5 truncate">
             {{
               profile
-                ? `UIN: ${profile.userId}${profile.isVip ? t("settings.platformLogin.vipTag") : ""}`
+                ? `${adapter.userIdLabel}: ${profile.userId}${profile.isVip ? t("settings.platformLogin.vipTag") : ""}`
                 : t("settings.platformLogin.desc")
             }}
           </div>
@@ -162,13 +156,19 @@ const handleManualCookieSubmit = async (): Promise<void> => {
           </SButton>
         </template>
         <template v-else>
-          <SButton variant="secondary" size="small" @click="cookieModalOpen = true">
+          <SButton
+            v-if="adapter.setCookie"
+            variant="secondary"
+            size="small"
+            @click="cookieModalOpen = true"
+          >
             <template #icon>
               <IconLucideKey class="size-3.5" />
             </template>
             {{ t("settings.platformLogin.manualCookie") }}
           </SButton>
           <SButton
+            v-if="adapter.openWebLogin"
             variant="secondary"
             size="small"
             type="primary"
@@ -187,13 +187,13 @@ const handleManualCookieSubmit = async (): Promise<void> => {
     <!-- 退出确认弹窗 -->
     <SDialog
       v-model:open="confirmOpen"
-      :title="t('settings.platformLogin.logoutTitle', { name: PLATFORM })"
+      :title="t('settings.platformLogin.logoutTitle', { name: platformName })"
       width="400px"
     >
       <p class="text-sm text-on-surface-variant">
         {{
           t("settings.platformLogin.logoutConfirm", {
-            name: PLATFORM,
+            name: platformName,
             user: profile?.nickname || "",
           })
         }}
@@ -206,10 +206,10 @@ const handleManualCookieSubmit = async (): Promise<void> => {
       </template>
     </SDialog>
 
-    <!-- 手动输入 Cookie 弹窗 -->
+    <!-- 手动输入 Cookie -->
     <SDialog
       v-model:open="cookieModalOpen"
-      :title="t('settings.platformLogin.cookieTitle', { name: PLATFORM })"
+      :title="t('settings.platformLogin.cookieTitle', { name: platformName })"
       width="450px"
     >
       <div class="flex flex-col gap-3 py-1">
