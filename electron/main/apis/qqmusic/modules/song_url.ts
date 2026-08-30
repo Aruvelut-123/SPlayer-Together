@@ -1,9 +1,12 @@
 /**
  * QM 单曲播放链接解析模块
+ *
+ * CDN 节点走 audioCdnDispatch，播放地址走 vkey.GetVkey（UrlGetVkey），
+ * 登录态注入 comm 的 qq/authst/tmeLoginType；无 media_mid 时 filename 用 mid 拼两次
  */
 
-import { getQQMusicCookies, getQQMusicUin } from "../core/request";
-import { QM_API_URL } from "../core/config";
+import { randomUUID } from "node:crypto";
+import { getQQMusicCookies, getQQMusicUin, qmRequest } from "../core/request";
 import { coreLog } from "@main/utils/logger";
 import type { QMModule } from "../core/types";
 
@@ -34,148 +37,94 @@ const getQualityCandidates = (preferredLevel: string): QualityCandidate[] => {
   return QQ_QUALITY_CANDIDATE_TEMPLATES;
 };
 
-const WEB_UA =
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
-
 interface MidUrlInfo {
   songmid: string;
   filename: string;
   purl?: string;
   result?: number;
-  errtype?: string;
 }
 
-interface FcgVkeyResponse {
-  code?: number;
-  req_0?: {
-    code?: number;
-    data?: {
-      retcode?: number;
-      msg?: string;
-      sip?: string[];
-      midurlinfo?: MidUrlInfo[];
-    };
-  };
+/** 0=成功；104003=无权限(未登录/等级不够)；104004=VKey 获取失败；104013=播放设备受限 */
+const RESULT_MESSAGES: Record<number, string> = {
+  104003: "无播放权限（需要 VIP 或登录）",
+  104004: "VKey 获取失败",
+  104013: "播放设备受限",
+};
+
+interface CdnDispatchData {
+  sip?: string[];
 }
 
-/** 极速探测音频直链在 CDN 上是否真实存在 (仅读取 1 字节状态码) */
-const probeAudioUrl = async (url: string): Promise<boolean> => {
+/** CDN 调度缓存；失败时短暂缓存空列表避免每次播放都重试 */
+let cdnCache: { sips: string[]; expireAt: number } | null = null;
+const CDN_FALLBACK = "https://isure.stream.qqmusic.qq.com/";
+
+const getCdnSip = async (): Promise<string> => {
+  if (cdnCache && cdnCache.expireAt > Date.now()) return cdnCache.sips[0] ?? CDN_FALLBACK;
   try {
-    const res = await fetch(url, {
-      method: "GET",
-      headers: {
-        Range: "bytes=0-0",
-        Referer: "https://y.qq.com/",
-        "User-Agent": WEB_UA,
-      },
-      signal: AbortSignal.timeout(1200),
-    });
-    return res.status === 200 || res.status === 206;
-  } catch {
-    return false;
+    const data = await qmRequest<CdnDispatchData>(
+      "music.audioCdnDispatch.cdnDispatch",
+      "GetCdnDispatch",
+      { guid: randomUUID().replace(/-/g, ""), uid: "0", use_new_domain: 1, use_ipv6: 1 },
+      { session: false },
+    );
+    const sips = (data?.sip ?? []).filter((sip) => sip.startsWith("https://"));
+    cdnCache = { sips, expireAt: Date.now() + 60 * 60 * 1000 };
+  } catch (err) {
+    coreLog.warn("[qm-song-url] CDN 调度失败，使用兜底节点:", err);
+    cdnCache = { sips: [], expireAt: Date.now() + 60 * 1000 };
   }
+  return cdnCache.sips[0] ?? CDN_FALLBACK;
 };
 
 const songUrl: QMModule = async (params) => {
   const mid = String(params.mid || params.id || "").trim();
   if (!mid) return { code: 400, message: "missing mid" };
-  const mediaMid = String(params.mediaMid || mid).trim();
+  // 无 media_mid 时上游规则是 mid 拼两次
+  const fileBase = String(params.mediaMid || "").trim() || `${mid}${mid}`;
 
   const targetLevel = String(params.level || "hq");
   const candidates = getQualityCandidates(targetLevel);
-  const filenames = candidates.map((c) => `${c.prefix}${mediaMid}${c.ext}`);
+  const filenames = candidates.map((c) => `${c.prefix}${fileBase}${c.ext}`);
 
   const cookies = getQQMusicCookies();
   const uin = getQQMusicUin();
-  const playbackKey =
-    cookies.qm_keyst ||
-    cookies.qqmusic_key ||
-    cookies.music_key ||
-    cookies.wxskey ||
-    cookies.pskey ||
-    "";
-  const hasAuth = !!playbackKey;
+  const musickey = cookies.qm_keyst || cookies.qqmusic_key || "";
+  const loginComm = musickey
+    ? { qq: uin, authst: musickey, tmeLoginType: Number(cookies.tmeLoginType) || 2 }
+    : {};
 
-  // 8 位随机数字 guid
-  const guid = String(10000000 + Math.floor(Math.random() * 90000000));
-
-  coreLog.debug("[qm-song-url] 发起直链解析:", mid, targetLevel);
-
-  const reqBody = {
-    comm: {
-      uin: uin && uin !== "0" ? Number(uin) || uin : 0,
-      format: "json",
-      ct: hasAuth ? 19 : 24,
-      cv: 0,
-      ...(hasAuth ? { authst: playbackKey } : {}),
-    },
-    req_0: {
-      module: "vkey.GetVkeyServer",
-      method: "CgiGetVkey",
-      param: {
-        guid,
-        songmid: filenames.map(() => mid),
-        songtype: filenames.map(() => 0),
-        uin: String(uin),
-        loginflag: 1,
-        platform: "20",
-        filename: filenames,
-      },
-    },
-  };
-
-  const cookieEntries = Object.entries(cookies).filter(([_, v]) => !!v);
-  const cookieStr = cookieEntries.map(([k, v]) => `${k}=${v}`).join("; ");
-
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-    Referer: "https://y.qq.com/",
-    Origin: "https://y.qq.com",
-    "User-Agent": WEB_UA,
-  };
-  if (cookieStr) {
-    headers.Cookie = cookieStr;
-  }
+  coreLog.debug("[qm-song-url] 发起直链解析:", mid, targetLevel, {
+    uin,
+    loggedIn: !!musickey,
+  });
 
   try {
-    const res = await fetch(QM_API_URL, {
-      method: "POST",
-      headers,
-      body: JSON.stringify(reqBody),
-      signal: AbortSignal.timeout(8000),
-    });
+    const data = await qmRequest<{ midurlinfo?: MidUrlInfo[] }>(
+      "music.vkey.GetVkey",
+      "UrlGetVkey",
+      {
+        uin: uin !== "0" ? uin : "",
+        filename: filenames,
+        guid: randomUUID().replace(/-/g, ""),
+        songmid: filenames.map(() => mid),
+        songtype: filenames.map(() => 0),
+        ctx: 0,
+      },
+      { comm: loginComm },
+    );
 
-    const json = (await res.json()) as FcgVkeyResponse;
-    const data = json.req_0?.data;
-    const infos = data?.midurlinfo || [];
+    const infos = data?.midurlinfo ?? [];
+    // 服务器已按权限过滤：purl 非空即授权，按音质顺位取第一个实现自动降级
+    const sip = await getCdnSip();
+    const matched = candidates
+      .map((cand) => {
+        const matchFilename = `${cand.prefix}${fileBase}${cand.ext}`;
+        const found = infos.find((item) => item.filename === matchFilename && !!item.purl);
+        return found ? { cand, url: `${sip}${found.purl}` } : undefined;
+      })
+      .find((item): item is NonNullable<typeof item> => !!item);
 
-    // 优先使用接口返回的 HTTPS 流媒体节点
-    const rawSips = data?.sip?.filter((sip) => sip.startsWith("https://")) ?? [];
-    const sip = rawSips[0] ?? "https://ws.stream.qqmusic.qq.com/";
-
-    coreLog.debug("[qm-song-url] 接口返回状态:", {
-      code: json.req_0?.code,
-      retcode: data?.retcode,
-      count: infos.length,
-    });
-
-    const availableCandidates = candidates.flatMap((cand) => {
-      const matchFilename = `${cand.prefix}${mediaMid}${cand.ext}`;
-      const found = infos.find((item) => item.filename === matchFilename && !!item.purl);
-      return found?.purl ? [{ cand, url: `${sip}${found.purl}` }] : [];
-    });
-
-    // 按音质顺位最多探测四个候选，首个可播放地址命中后立即返回
-    let matched: (typeof availableCandidates)[number] | undefined;
-    for (const candidate of availableCandidates.slice(0, 4)) {
-      if (await probeAudioUrl(candidate.url)) {
-        matched = candidate;
-        break;
-      }
-    }
-
-    // 网络探测可能误判，交给播放器做最终校验并沿用既有插件兜底
-    matched ??= availableCandidates[0];
     if (matched) {
       coreLog.info(
         `[qm-song-url] 成功命中直链: ${mid} -> ${matched.cand.label} (${matched.cand.level})`,
@@ -195,15 +144,17 @@ const songUrl: QMModule = async (params) => {
       };
     }
 
-    coreLog.warn("[qm-song-url] 官方直链未探测到任何可用音质，转入插件兜底:", {
+    const firstResult = infos.find((item) => item.filename === filenames[0])?.result;
+    const reason = RESULT_MESSAGES[firstResult ?? 0];
+    coreLog.warn("[qm-song-url] 未获取到可用音质:", {
       mid,
-      retcode: data?.retcode,
-      msg: data?.msg,
+      firstResult,
+      reason,
     });
 
     return {
       code: 403,
-      message: data?.msg || "无法获取播放链接，可能需要 VIP 或无版权",
+      message: reason || "无法获取播放链接，可能需要 VIP 或无版权",
       data: [{ id: mid, url: "" }],
     };
   } catch (err) {

@@ -48,7 +48,7 @@ export const mergeQQMusicCookies = (cookies: Record<string, string>): void => {
   userCookies = { ...current, ...cookies };
   saveSessionCookies("qqmusic", userCookies);
   invalidateSession();
-  coreLog.info("[qm-cookie] 更新并保存 Cookie 到数据库，包含字段:", Object.keys(userCookies));
+  coreLog.info(`[qm-cookie] 已保存 Cookie (${Object.keys(userCookies).length} 个字段)`);
 };
 
 /** 清空 QM cookies 登录态 */
@@ -81,6 +81,8 @@ interface FcgResponse {
 interface QMRequestOptions {
   /** 是否在请求前初始化客户端会话 */
   session?: boolean;
+  /** 追加到 comm 的字段（如 tmeLoginType） */
+  comm?: Record<string, unknown>;
 }
 
 /** 发起一次 fcg POST（自动注入 Cookie） */
@@ -173,6 +175,7 @@ export const qmRequest = async <T = unknown>(
     ...(useSession && session.uid ? { uid: session.uid } : {}),
     ...(useSession && session.sid ? { sid: session.sid } : {}),
     ...(useSession && session.userip ? { userip: session.userip } : {}),
+    ...(options.comm ?? {}),
   };
 
   const body = { comm, request: { module, method, param } };
@@ -198,3 +201,95 @@ export const qmRequest = async <T = unknown>(
 
 /** 调试用：取当前 session 快照 */
 export const getQMSession = (): Readonly<SessionCache> => session;
+
+/** LoginServer.Login 刷新后的凭据字段 */
+interface RefreshCredentialData {
+  musickey?: string;
+  openid?: string;
+  unionid?: string;
+  refresh_token?: string;
+  access_token?: string;
+  expired_at?: number;
+  musicid?: number;
+  str_musicid?: string;
+  refresh_key?: string;
+  musickeyCreateTime?: number;
+  encryptUin?: string;
+  loginType?: number;
+}
+
+/**
+ * 用 psrf_* cookie 调 LoginServer.Login（loginMode=2）刷新 musickey
+ * @returns 刷新成功（新 key 已写回 cookie）返回 true；失败返回 false
+ */
+export const refreshQQMusicCredential = async (): Promise<boolean> => {
+  const cookies = getQQMusicCookies();
+  const uin = getQQMusicUin();
+  const musickey = cookies.qm_keyst || cookies.qqmusic_key;
+  if (!uin || uin === "0" || !musickey) return false;
+
+  // 与上游一致按 musickey 前缀推断登录类型：W_X 开头为微信（1），否则 QQ（2）
+  const loginType = musickey.startsWith("W_X") ? 1 : 2;
+  const param: Record<string, unknown> = {
+    openid: cookies.psrf_qqopenid || cookies.wxopenid || "",
+    refresh_token: cookies.psrf_qqrefresh_token || cookies.wxrefresh_token || "",
+    refresh_key: cookies.qm_refresh_key || "",
+    musickey,
+    loginMode: 2,
+  };
+  if (loginType === 1) {
+    // 微信型：带 access_token / expired_in / str_musicid / unionid
+    param.access_token = cookies.psrf_qqaccess_token || "";
+    param.expired_in = Number(cookies.psrf_access_token_expiresAt) || 0;
+    param.str_musicid = cookies.euin || uin;
+    param.musicid = Number(uin);
+    param.unionid = cookies.psrf_qqunionid || "";
+  }
+
+  try {
+    // 直连而不走 qmRequest：避免业务码非零时的无意义重试，且能拿到完整拒绝原因
+    const resp = await postRaw({
+      comm: {
+        ...getCommonParams(),
+        ...(uin !== "0" ? { uin, qq: uin } : {}),
+        authst: musickey,
+        tmeLoginType: loginType,
+      },
+      request: {
+        module: "music.login.LoginServer",
+        method: "Login",
+        param,
+      },
+    });
+    const inner = resp.request;
+    if (resp.code !== 0 || inner?.code !== 0) {
+      coreLog.warn("[qm-refresh] 刷新被拒绝:", JSON.stringify(inner ?? resp));
+      return false;
+    }
+    const data = inner?.data as RefreshCredentialData | undefined;
+    if (!data?.musickey) return false;
+
+    const refreshed: Record<string, string> = {
+      qm_keyst: data.musickey,
+      qqmusic_key: data.musickey,
+      euin: data.encryptUin || "",
+      tmeLoginType: String(data.loginType ?? loginType),
+    };
+    if (data.openid) refreshed.psrf_qqopenid = data.openid;
+    if (data.unionid) refreshed.psrf_qqunionid = data.unionid;
+    if (data.refresh_token) refreshed.psrf_qqrefresh_token = data.refresh_token;
+    if (data.access_token) refreshed.psrf_qqaccess_token = data.access_token;
+    if (data.expired_at) refreshed.psrf_access_token_expiresAt = String(data.expired_at);
+    if (data.musickeyCreateTime)
+      refreshed.psrf_musickey_createtime = String(data.musickeyCreateTime);
+    // 网页 cookie 无此字段，首次刷新后落库供后续刷新复用
+    if (data.refresh_key) refreshed.qm_refresh_key = data.refresh_key;
+
+    mergeQQMusicCookies(refreshed);
+    coreLog.info("[qm-refresh] musickey 刷新成功", { uin });
+    return true;
+  } catch (err) {
+    coreLog.warn("[qm-refresh] musickey 刷新失败:", err);
+    return false;
+  }
+};
