@@ -160,7 +160,7 @@ const handleQrSuccess = async (): Promise<void> => {
           <div class="text-sm text-on-surface-variant/70 mt-0.5 truncate">
             {{
               profile
-                ? `${adapter.userIdLabel}: ${profile.userId}${profile.isVip ? t("settings.platformLogin.vipTag") : ""}`
+                ? `${adapter.userIdLabel}: ${profile.userId}`
                 : t("settings.platformLogin.desc")
             }}
           </div>
