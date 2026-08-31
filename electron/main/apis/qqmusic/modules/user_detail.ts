@@ -5,7 +5,7 @@
  * key 失效时先尝试刷新 musickey 再重试一次
  */
 
-import { getQQMusicCookies, getQQMusicUin, refreshQQMusicCredential } from "../core/request";
+import { getQQMusicCookies, getQQMusicUin } from "../core/request";
 import { coreLog } from "@main/utils/logger";
 import type { QMModule } from "../core/types";
 
@@ -69,6 +69,120 @@ const fetchProfile = async (uin: string): Promise<ProfileCreator | null> => {
   return json.data?.creator ?? null;
 };
 
+/** 获取用户信息 */
+const fetchCgiProfile = async (): Promise<ProfileCreator | null> => {
+  const cookies = getQQMusicCookies();
+  const uin = getQQMusicUin();
+  const musickey = cookies.qm_keyst || cookies.qqmusic_key || "";
+  const cookieEntries = Object.entries(cookies).filter(([_, v]) => !!v);
+  const cookieStr = cookieEntries.map(([k, v]) => `${k}=${v}`).join("; ");
+  const g_tk = hash33(musickey, 5381);
+
+  const body = {
+    comm: {
+      uin,
+      format: "json",
+      ct: 24,
+      cv: 4747474,
+      platform: "yqq.json",
+      chid: "0",
+      g_tk,
+      g_tk_new_20200303: g_tk,
+      inCharset: "utf-8",
+      outCharset: "utf-8",
+      notice: 0,
+      needNewCode: 1,
+    },
+    req_0: {
+      module: "music.UserInfo.userInfoServer",
+      method: "GetLoginUserInfo",
+      param: {},
+    },
+  };
+
+  try {
+    const res = await fetch("https://u.y.qq.com/cgi-bin/musicu.fcg", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Cookie: cookieStr,
+        Referer: "https://y.qq.com/",
+        Origin: "https://y.qq.com",
+        "User-Agent": WEB_UA,
+      },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(8000),
+    });
+    const json = (await res.json()) as {
+      code?: number;
+      req_0?: {
+        code?: number;
+        data?: {
+          userInfo?: {
+            uin?: string;
+            nick?: string;
+            nickname?: string;
+            name?: string;
+            headurl?: string;
+            avatar?: string;
+            headpic?: string;
+            logo?: string;
+            isVip?: boolean;
+            vipLevel?: number;
+          };
+          profile?: {
+            nick?: string;
+            headpic?: string;
+            info?: {
+              nick?: string;
+              nickname?: string;
+              logo?: string;
+              headurl?: string;
+              avatarUrl?: string;
+              is_vip?: number;
+              vip?: number;
+              vip_level?: number;
+            };
+          };
+        };
+      };
+    };
+
+    const reqData = json.req_0?.data;
+    if (json.code === 0 && json.req_0?.code === 0 && reqData) {
+      const user = reqData.userInfo;
+      const profile = reqData.profile;
+      const info = profile?.info;
+
+      const nick =
+        user?.nick || user?.nickname || user?.name || profile?.nick || info?.nick || info?.nickname;
+      const headpic =
+        user?.headurl ||
+        user?.headpic ||
+        user?.avatar ||
+        user?.logo ||
+        profile?.headpic ||
+        info?.logo ||
+        info?.headurl ||
+        info?.avatarUrl;
+      const isVip = user?.isVip ? 1 : info?.is_vip || (info?.vip && info.vip > 0) ? 1 : 0;
+      const vipLevel = user?.vipLevel ?? info?.vip_level ?? 0;
+
+      if (nick || headpic) {
+        return {
+          nick,
+          headpic,
+          is_vip: isVip,
+          vip_level: vipLevel,
+        };
+      }
+    }
+  } catch (err) {
+    coreLog.warn("[qm-user-detail] GetLoginUserInfo 接口请求失败:", err);
+  }
+  return null;
+};
+
 const userDetail: QMModule = async (_params) => {
   const uin = getQQMusicUin();
   const cookies = getQQMusicCookies();
@@ -91,35 +205,24 @@ const userDetail: QMModule = async (_params) => {
 
   let creator: ProfileCreator | null = null;
   try {
-    creator = await fetchProfile(uin);
-  } catch (err) {
-    coreLog.warn("[qm-user-detail] 获取用户资料失败，尝试刷新 musickey:", err);
-    if (!(await refreshQQMusicCredential())) {
-      return {
-        code: 301,
-        loggedIn: false,
-        message: "登录已过期，请重新登录",
-      };
-    }
+    creator = (await fetchCgiProfile()) ?? (await fetchProfile(uin));
+  } catch {
     try {
       creator = await fetchProfile(uin);
-    } catch (err) {
-      coreLog.warn("[qm-user-detail] 刷新后仍获取失败:", err);
-      return {
-        code: 301,
-        loggedIn: false,
-        message: "登录已过期，请重新登录",
-      };
+    } catch {
+      // 忽略
     }
   }
 
   const defaultAvatar = `https://q.qlogo.cn/headimg_dl?dst_uin=${uin}&spec=100`;
+  const isWx =
+    cookies.tmeLoginType === "1" || (cookies.qm_keyst && cookies.qm_keyst.startsWith("W_X"));
   return {
     code: 200,
     loggedIn: true,
     profile: {
       userId: uin,
-      nickname: creator?.nick || `QQ用户_${uin.slice(-4)}`,
+      nickname: creator?.nick || (isWx ? `微信用户_${uin.slice(-4)}` : `QQ用户_${uin.slice(-4)}`),
       avatarUrl: creator?.headpic || defaultAvatar,
       isVip: !!(creator?.is_vip || creator?.is_super_vip || (creator?.vip && creator.vip > 0)),
       vipLevel: creator?.vip_level ?? 0,

@@ -93,9 +93,7 @@ const postRaw = async (
   const cookies = getQQMusicCookies();
   const cookieEntries = Object.entries(cookies).filter(([_, v]) => !!v);
   const cookieStr =
-    cookieEntries.length > 0
-      ? cookieEntries.map(([k, v]) => `${k}=${v}`).join("; ")
-      : QM_HEADERS.Cookie;
+    cookieEntries.length > 0 ? cookieEntries.map(([k, v]) => `${k}=${v}`).join("; ") : undefined;
 
   const res = await fetch(QM_API_URL, {
     method: "POST",
@@ -169,9 +167,19 @@ export const qmRequest = async <T = unknown>(
   if (useSession) await ensureSession();
 
   const uin = getQQMusicUin();
+  const cookies = getQQMusicCookies();
+  const musickey = cookies.qm_keyst || cookies.qqmusic_key;
+  const loginType =
+    cookies.tmeLoginType !== undefined
+      ? Number(cookies.tmeLoginType)
+      : musickey?.startsWith("W_X")
+        ? 1
+        : 2;
+
   const comm = {
     ...getCommonParams(),
-    ...(uin && uin !== "0" ? { uin } : {}),
+    ...(uin && uin !== "0" ? { uin, qq: uin } : {}),
+    ...(musickey ? { authst: musickey, tmeLoginType: loginType } : {}),
     ...(useSession && session.uid ? { uid: session.uid } : {}),
     ...(useSession && session.sid ? { sid: session.sid } : {}),
     ...(useSession && session.userip ? { userip: session.userip } : {}),

@@ -184,7 +184,7 @@ export const login_qr_check: QMModule = async (params: QMParams) => {
         "music.login.LoginServer",
         "Login",
         { code: wxCode, strAppid: "wx48db31d50e334801" },
-        { comm: { tmeLoginType: 1 } },
+        { session: false, comm: { tmeLoginType: 1 } },
       );
 
       const uinStr = String(wxLoginData.musicid || wxLoginData.str_musicid || "").replace(/^o/, "");
@@ -267,7 +267,7 @@ export const login_qr_check: QMModule = async (params: QMParams) => {
     // 收集 ptqrlogin 返回的所有 cookies 并附带 qrsig
     const initialCookies = extractCookies(res, { qrsig: key });
 
-    // 1. 请求 check_sig（直接请求完整的 jumpUrl，并携带完整的会话 Cookie）
+    // 请求 check_sig 校验跳转并建立会话 Cookie
     coreLog.info("[qm-login] 正在执行 check_sig 授权...", { jumpUrl });
     const checkSigRes = await fetch(jumpUrl, {
       headers: {
@@ -292,7 +292,7 @@ export const login_qr_check: QMModule = async (params: QMParams) => {
       throw new Error("获取 p_skey 失败");
     }
 
-    // 2. 请求 authorize 换取 code
+    // 请求 authorize 换取授权 code
     const authBody = new URLSearchParams({
       response_type: "code",
       client_id: "100497308",
@@ -331,7 +331,7 @@ export const login_qr_check: QMModule = async (params: QMParams) => {
     }
     const code = codeMatch[1];
 
-    // 3. QQLogin 换取音乐凭据
+    // QQLogin 换取音乐凭据
     const qqLoginData = await qmRequest<{
       musickey?: string;
       musicid?: number | string;
@@ -343,7 +343,12 @@ export const login_qr_check: QMModule = async (params: QMParams) => {
       openid?: string;
       unionid?: string;
       expired_at?: number;
-    }>("QQConnectLogin.LoginServer", "QQLogin", { code }, { comm: { tmeLoginType: 2 } });
+    }>(
+      "QQConnectLogin.LoginServer",
+      "QQLogin",
+      { code },
+      { session: false, comm: { tmeLoginType: 2 } },
+    );
 
     const uinMatch = /(?:\?|&)uin=(.+?)&/.exec(jumpUrl);
     const uin = uinMatch?.[1] || "";
