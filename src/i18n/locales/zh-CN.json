@@ -1617,6 +1617,8 @@
       "desc": "登录后可获取对应平台播放地址",
       "loginWeb": "网页登录",
       "loginQr": "扫码登录",
+      "loginQrQQ": "QQ 扫码登录",
+      "loginQrWX": "微信扫码登录",
       "qrTitle": "扫码登录",
       "manualCookie": "Cookie 登录",
       "logout": "退出登录",

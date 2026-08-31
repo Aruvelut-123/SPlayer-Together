@@ -219,7 +219,7 @@ interface RefreshCredentialData {
 }
 
 /**
- * 用 psrf_* cookie 调 LoginServer.Login（loginMode=2）刷新 musickey
+ * 用存储的凭据调 LoginServer.Login（loginMode=2）刷新 musickey
  * @returns 刷新成功（新 key 已写回 cookie）返回 true；失败返回 false
  */
 export const refreshQQMusicCredential = async (): Promise<boolean> => {
@@ -228,22 +228,33 @@ export const refreshQQMusicCredential = async (): Promise<boolean> => {
   const musickey = cookies.qm_keyst || cookies.qqmusic_key;
   if (!uin || uin === "0" || !musickey) return false;
 
-  // 与上游一致按 musickey 前缀推断登录类型：W_X 开头为微信（1），否则 QQ（2）
-  const loginType = musickey.startsWith("W_X") ? 1 : 2;
-  const param: Record<string, unknown> = {
-    openid: cookies.psrf_qqopenid || cookies.wxopenid || "",
-    refresh_token: cookies.psrf_qqrefresh_token || cookies.wxrefresh_token || "",
-    refresh_key: cookies.qm_refresh_key || "",
-    musickey,
-    loginMode: 2,
-  };
+  const loginType = Number(cookies.tmeLoginType) || (musickey.startsWith("W_X") ? 1 : 2);
+  const refreshKey = cookies.qm_refresh_key || "";
+
+  let param: Record<string, unknown>;
   if (loginType === 1) {
-    // 微信型：带 access_token / expired_in / str_musicid / unionid
-    param.access_token = cookies.psrf_qqaccess_token || "";
-    param.expired_in = Number(cookies.psrf_access_token_expiresAt) || 0;
-    param.str_musicid = cookies.euin || uin;
-    param.musicid = Number(uin);
-    param.unionid = cookies.psrf_qqunionid || "";
+    // 微信型凭据刷新
+    param = {
+      openid: cookies.wxopenid || cookies.psrf_qqopenid || "",
+      refresh_token: cookies.wxrefresh_token || cookies.psrf_qqrefresh_token || "",
+      str_musicid: cookies.euin || uin,
+      musickey,
+      unionid: cookies.psrf_qqunionid || "",
+      refresh_key: refreshKey,
+      loginMode: 2,
+    };
+  } else {
+    // QQ 型凭据刷新
+    param = {
+      openid: cookies.psrf_qqopenid || cookies.wxopenid || "",
+      access_token: cookies.psrf_qqaccess_token || "",
+      refresh_token: cookies.psrf_qqrefresh_token || cookies.wxrefresh_token || "",
+      expired_in: Number(cookies.psrf_access_token_expiresAt) || 0,
+      musicid: Number(uin) || 0,
+      musickey,
+      refresh_key: refreshKey,
+      loginMode: 2,
+    };
   }
 
   try {
