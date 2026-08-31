@@ -91,7 +91,7 @@ fn bind_metadata_listener(
     registry: &RegistryRc,
     global: &pipewire::registry::GlobalObject<&pipewire::spa::utils::dict::DictRef>,
     state: &Rc<RefCell<WatchState>>,
-    notifications: &channel::Sender<()>,
+    notifications: &channel::Sender<bool>,
 ) -> Option<MetadataMonitor> {
     let Ok(metadata) = registry.bind::<Metadata, _>(global) else {
         return None;
@@ -120,7 +120,7 @@ fn bind_sink_listener(
     registry: &RegistryRc,
     global: &pipewire::registry::GlobalObject<&pipewire::spa::utils::dict::DictRef>,
     state: &Rc<RefCell<WatchState>>,
-    notifications: &channel::Sender<()>,
+    notifications: &channel::Sender<bool>,
 ) -> Option<SinkMonitor> {
     let Ok(node) = registry.bind::<Node, _>(global) else {
         return None;
