@@ -259,10 +259,6 @@ fn open_device_internal(
     requested_sample_rate: Option<u32>,
 ) -> Result<(cpal::Device, SupportedStreamConfig)> {
     let host = cpal::default_host();
-    // 跟随默认设备时解析成具体端点再打开：cpal 对默认设备句柄走
-    // `ActivateAudioInterfaceAsync` 激活虚拟默认设备，该 API 在设备插拔风暴中会持续返回
-    // `RPC_E_CHANGED_MODE`（0x80010106），具体端点走 `IMMDevice::Activate` 同步激活无此问题。
-    // 丢掉的虚拟设备自动重路由本就冗余：默认设备切换由 device_watcher 触发重建兜底
     let device = match device_id {
         Some(selector) => {
             find_device(&host, selector).with_context(|| format!("输出设备 '{selector}' 不存在"))?
@@ -273,56 +269,64 @@ fn open_device_internal(
             find_device(&host, &default_id).context("解析默认输出设备端点失败")?
         }
     };
-    let config = match requested_sample_rate {
-        Some(rate) => {
-            let default_config = device.default_output_config();
-            let default_format = default_config
-                .as_ref()
-                .ok()
-                .map(|config| config.sample_format());
-            let default_channels = default_config.as_ref().ok().map(|config| config.channels());
-            let at_rate = device.supported_output_configs().ok().and_then(|configs| {
-                let configs: Vec<_> = configs.collect();
-                configs
-                    .iter()
-                    .copied()
-                    .find(|range| {
-                        range.min_sample_rate() <= rate
-                            && rate <= range.max_sample_rate()
-                            && Some(range.sample_format()) == default_format
-                            && Some(range.channels()) == default_channels
-                    })
-                    .or_else(|| {
-                        configs.iter().copied().find(|range| {
-                            range.min_sample_rate() <= rate
-                                && rate <= range.max_sample_rate()
-                                && Some(range.sample_format()) == default_format
-                        })
-                    })
-                    .or_else(|| {
-                        configs.iter().copied().find(|range| {
-                            range.min_sample_rate() <= rate
-                                && rate <= range.max_sample_rate()
-                                && Some(range.channels()) == default_channels
-                        })
-                    })
-                    .or_else(|| {
-                        configs.iter().copied().find(|range| {
-                            range.min_sample_rate() <= rate && rate <= range.max_sample_rate()
-                        })
-                    })
-                    .map(|range| range.with_sample_rate(rate))
-            });
-            match at_rate {
-                Some(config) => config,
-                None => default_config.context("读取输出设备配置失败")?,
+    let default_config = device
+        .default_output_config()
+        .context("读取输出设备配置失败")?;
+    #[cfg(target_os = "windows")]
+    {
+        let _ = requested_sample_rate;
+        Ok((device, default_config))
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        let config = match requested_sample_rate {
+            Some(rate) => {
+                if rate == default_config.sample_rate() {
+                    default_config
+                } else {
+                    let default_format = default_config.sample_format();
+                    let default_channels = default_config.channels();
+                    let at_rate = device.supported_output_configs().ok().and_then(|configs| {
+                        let configs: Vec<_> = configs.collect();
+                        configs
+                            .iter()
+                            .copied()
+                            .find(|range| {
+                                range.min_sample_rate() <= rate
+                                    && rate <= range.max_sample_rate()
+                                    && range.sample_format() == default_format
+                                    && range.channels() == default_channels
+                            })
+                            .or_else(|| {
+                                configs.iter().copied().find(|range| {
+                                    range.min_sample_rate() <= rate
+                                        && rate <= range.max_sample_rate()
+                                        && range.sample_format() == default_format
+                                })
+                            })
+                            .or_else(|| {
+                                configs.iter().copied().find(|range| {
+                                    range.min_sample_rate() <= rate
+                                        && rate <= range.max_sample_rate()
+                                        && range.channels() == default_channels
+                                })
+                            })
+                            .or_else(|| {
+                                configs.iter().copied().find(|range| {
+                                    range.min_sample_rate() <= rate
+                                        && rate <= range.max_sample_rate()
+                                })
+                            })
+                            .map(|range| range.with_sample_rate(rate))
+                    });
+                    at_rate.unwrap_or(default_config)
+                }
             }
-        }
-        None => device
-            .default_output_config()
-            .context("读取输出设备配置失败")?,
-    };
-    Ok((device, config))
+            None => default_config,
+        };
+        Ok((device, config))
+    }
 }
 
 fn open_device(

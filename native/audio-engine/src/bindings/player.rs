@@ -216,7 +216,8 @@ impl AudioPlayer {
                 normalization_gain,
                 current_source,
                 was_playing,
-                output_sample_rate,
+                original_sample_rate,
+                output_sample_rate: _,
                 output_channels: _,
                 token,
                 equalizer,
@@ -226,10 +227,10 @@ impl AudioPlayer {
             let outcome: ReinitOutcome = tokio::task::spawn_blocking(move || {
                 let decoder_data = old_threads.join_aux().and_then(|h| h.join().ok());
 
-                // 优先沿用原输出采样率；设备回退到其它格式时在下方重建播放重采样器
+                // 优先按音源原始采样率协商新设备；设备不支持时回退到新设备默认格式
                 let output = match audio_output::AudioOutput::new(
                     device_id.as_deref(),
-                    Some(output_sample_rate),
+                    Some(original_sample_rate),
                     output_generation,
                     on_failure,
                 ) {
@@ -680,6 +681,7 @@ impl AudioPlayer {
             normalization_gain,
             current_source,
             was_playing,
+            original_sample_rate: _,
             output_sample_rate,
             output_channels,
             token,
