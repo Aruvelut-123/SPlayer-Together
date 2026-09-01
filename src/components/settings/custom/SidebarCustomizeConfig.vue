@@ -15,16 +15,6 @@ import { useStatusStore } from "@/stores/status";
 import { usePlaylistStore } from "@/stores/playlist";
 import { useUserStore } from "@/stores/user";
 import { dialog } from "@/composables/useDialog";
-import IconLucideGripVertical from "~icons/lucide/grip-vertical";
-import IconLucideEye from "~icons/lucide/eye";
-import IconLucideEyeOff from "~icons/lucide/eye-off";
-import IconLucideTrash2 from "~icons/lucide/trash-2";
-import IconLucidePlus from "~icons/lucide/plus";
-import IconLucideType from "~icons/lucide/type";
-import IconSpTypeOff from "~icons/sp/type-off";
-import IconLucideListMusic from "~icons/lucide/list-music";
-import IconLucideChevronRight from "~icons/lucide/chevron-right";
-import IconLucideChevronDown from "~icons/lucide/chevron-down";
 
 defineOptions({ inheritAttrs: false });
 
@@ -340,7 +330,7 @@ const handleReset = async (): Promise<void> => {
     :description="t('settings.sidebarCustomize.hint')"
     width="460px"
   >
-    <div class="flex flex-col gap-2.5 max-h-[62vh] overflow-y-auto pr-1">
+    <div class="flex flex-col gap-2.5">
       <span class="text-xs text-on-surface-variant/60">
         {{ t("settings.sidebarCustomize.nav") }}
       </span>
@@ -439,7 +429,7 @@ const handleReset = async (): Promise<void> => {
           </div>
         </SCard>
       </div>
-      <SButton variant="outline" dashed block size="small" @click="addGroup">
+      <SButton variant="secondary" block size="small" @click="addGroup">
         <template #icon><IconLucidePlus /></template>
         {{ t("settings.sidebarCustomize.addGroup") }}
       </SButton>

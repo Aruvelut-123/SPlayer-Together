@@ -5,7 +5,7 @@ import IconLucideUser from "~icons/lucide/user";
 import IconLucideDisc3 from "~icons/lucide/disc-3";
 import IconLucideFolder from "~icons/lucide/folder";
 import IconLucideChartPie from "~icons/lucide/chart-pie";
-import IconLucideServer from "~icons/lucide/server";
+import IconLucideLibrary from "~icons/lucide/library";
 import IconMaterialSymbolsFavoriteOutline from "~icons/material-symbols/favorite-outline-rounded";
 import IconLucideStar from "~icons/lucide/star";
 import IconLucideHistory from "~icons/lucide/history";
@@ -39,7 +39,7 @@ const SIDEBAR_NAV_ENTRIES: SidebarNavEntry[] = [
   { key: "/favorites", labelKey: "nav.favorites", icon: IconLucideStar, hideable: true },
   { key: "/cloud", labelKey: "nav.cloud", icon: IconLucideCloud, hideable: true },
   { key: "/download", labelKey: "nav.download", icon: IconLucideDownload, hideable: true },
-  { key: "/streaming", labelKey: "nav.streaming", icon: IconLucideServer, hideable: true },
+  { key: "/streaming", labelKey: "nav.streaming", icon: IconLucideLibrary, hideable: true },
   { key: "/history", labelKey: "nav.history", icon: IconLucideHistory, hideable: true },
 ];
 
@@ -49,8 +49,8 @@ export const SIDEBAR_NAV_META: Record<string, SidebarNavEntry> = Object.fromEntr
 );
 
 /**
- * 按存档顺序重排列表：存档中存在的项靠前（按存档顺序），
- * 其余项按自然顺序追加；空存档返回原列表
+ * 按存档顺序重排列表：存档中不存在的项排在最前
+ * 其余项按存档顺序跟随；空存档返回原列表
  * @param items - 自然顺序列表
  * @param order - 存档的 key 顺序
  * @returns 重排后的列表
@@ -58,15 +58,12 @@ export const SIDEBAR_NAV_META: Record<string, SidebarNavEntry> = Object.fromEntr
 export const applySavedOrder = <T extends { key: string }>(items: T[], order: string[]): T[] => {
   if (order.length === 0) return items;
   const map = new Map(items.map((item) => [item.key, item]));
-  const sorted: T[] = [];
+  const ordered: T[] = [];
   for (const key of order) {
     const item = map.get(key);
     if (!item) continue;
-    sorted.push(item);
+    ordered.push(item);
     map.delete(key);
   }
-  for (const item of items) {
-    if (map.has(item.key)) sorted.push(item);
-  }
-  return sorted;
+  return [...map.values(), ...ordered];
 };

@@ -198,7 +198,7 @@ const navItems = computed<SMenuItem[]>(() => {
   const merged: SMenuItem[] = [];
   segments.forEach((segment, index) => {
     const hasTitle = segment.title.length > 0;
-    if (index > 0 && (!hasTitle || appearance.sidebarNameWithDivider))
+    if (index > 0 && segment.items.length > 0 && (!hasTitle || appearance.sidebarNameWithDivider))
       merged.push({ key: `divider-group-${index}`, type: "divider" });
     if (hasTitle) {
       merged.push({
@@ -223,7 +223,8 @@ const menuItems = computed<SMenuItem[]>(() => {
     !hidden.has(SIDEBAR_GROUP_SUBSCRIBED) &&
     status.myPlaylistSource === "online" &&
     subscribedItems.value.length > 0;
-  if (showMy || showSubscribed) items.push({ key: "divider-playlist", type: "divider" });
+  if ((showMy || showSubscribed) && items[items.length - 1]?.type !== "divider")
+    items.push({ key: "divider-playlist", type: "divider" });
   if (showMy) {
     items.push({ key: "my-playlist-group", type: "group", render: renderMyHeader });
     items.push(...myPlaylistItems.value);
@@ -297,6 +298,46 @@ const activeKey = computed(() => {
 const onSelect = (key: string) => {
   router.push(key);
 };
+
+/**
+ * 歌单存档收敛：删除歌单或在线列表刷新后，剔除不再存在的歌单键，
+ * 防止隐藏/顺序存档随时间无限累积残留
+ * @param existing - 当前存在的歌单路由键集合
+ */
+const prunePlaylistArchive = (existing: ReadonlySet<string>): void => {
+  const isStale = (key: string): boolean => key.startsWith("/collection/") && !existing.has(key);
+  const hiddenKeysNext = appearance.sidebarHiddenKeys.filter((key) => !isStale(key));
+  if (hiddenKeysNext.length !== appearance.sidebarHiddenKeys.length)
+    appearance.sidebarHiddenKeys = hiddenKeysNext;
+  const order = appearance.sidebarPlaylistOrder;
+  const prune = (list: string[]): string[] => list.filter((key) => !isStale(key));
+  const myLocal = prune(order.myLocal);
+  const myOnline = prune(order.myOnline);
+  const subscribed = prune(order.subscribed);
+  if (
+    myLocal.length !== order.myLocal.length ||
+    myOnline.length !== order.myOnline.length ||
+    subscribed.length !== order.subscribed.length
+  ) {
+    appearance.sidebarPlaylistOrder = { myLocal, myOnline, subscribed };
+  }
+};
+
+// 本地歌单加载完成后即可收敛
+// 在线部分仅在已登录且列表非空时清理
+watch(
+  () => [playlistStore.playlists, userStore.isLoggedIn ? userStore.playlists : null] as const,
+  ([localLists, onlineLists]) => {
+    const existing = new Set<string>();
+    for (const pl of localLists) existing.add(`/collection/local/playlist/${pl.id}`);
+    if (onlineLists && onlineLists.length > 0) {
+      for (const pl of onlineLists) existing.add(`/collection/netease/playlist/${pl.id}`);
+    }
+    if (existing.size === 0) return;
+    prunePlaylistArchive(existing);
+  },
+  { deep: false },
+);
 
 onMounted(() => {
   if (!playlistStore.initialized) playlistStore.load();
