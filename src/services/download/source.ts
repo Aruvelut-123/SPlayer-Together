@@ -2,9 +2,10 @@ import type { Track } from "@shared/types/player";
 import type { QualityLevel } from "@/utils/quality";
 import { isPlatform } from "@shared/types/platform";
 import { useStreamingStore } from "@/stores/streaming";
-import { useSettingsStore } from "@/stores/settings";
 import { resolveByPlugin } from "@/services/audioSource";
 import { resolveNeteaseDownloadUrl } from "@/apis/song/netease";
+import { resolveQQMusicUrl } from "@/apis/song/qqmusic";
+import { resolveKugouUrl } from "@/apis/song/kugou";
 
 /** 下载源解析结果 */
 export interface DownloadSource {
@@ -24,6 +25,7 @@ export interface DownloadSource {
 export const resolveDownloadSource = async (
   track: Track,
   level: QualityLevel,
+  usePlaybackForDownload: boolean,
 ): Promise<DownloadSource | null> => {
   // 流媒体
   if (track.source === "streaming") {
@@ -39,12 +41,20 @@ export const resolveDownloadSource = async (
   // 官方接口
   if (track.source === "netease") {
     try {
-      const usePlayback = useSettingsStore().system.download.usePlaybackForDownload;
-      const resolved = await resolveNeteaseDownloadUrl(track, level, usePlayback);
+      const resolved = await resolveNeteaseDownloadUrl(track, level, usePlaybackForDownload);
       if (resolved) return resolved;
     } catch {
       // 官方失败回落插件
     }
+  }
+  // 官方播放直链
+  if (track.source === "qqmusic") {
+    const resolved = await resolveQQMusicUrl(track, level);
+    if (resolved.available) return { url: resolved.url };
+  }
+  if (track.source === "kugou") {
+    const resolved = await resolveKugouUrl(track, level);
+    if (resolved.available) return { url: resolved.url };
   }
   // 其他播放源走插件
   if (isPlatform(track.source)) {

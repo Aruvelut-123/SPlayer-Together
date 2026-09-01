@@ -41,9 +41,13 @@ enum ReinitOutcome {
     OutputFailed { error: anyhow::Error },
 }
 
-/// load 被更新的 load/stop 取代时的错误文案
-/// 主进程 IPC 按此文案识别并映射为 LOAD_SUPERSEDED（正常竞态，前端静默），改动需同步
-const LOAD_SUPERSEDED_REASON: &str = "load 已被更新的 load 取代";
+/// load 被更新的 load/stop 取代时的标准错误标签与文案
+const LOAD_SUPERSEDED_REASON: &str = "[Cancelled] load 已被更新的 load 取代";
+
+/// 判断是否为取消/抢占错误
+fn is_cancelled_napi_error(error: &Error) -> bool {
+    error.reason.starts_with("[Cancelled]")
+}
 
 /// NAPI 错误由 `IntoNapiResult` 以稳定类别前缀编码，恢复路径据此避免把设备失败误报为音源失效。
 fn is_device_napi_error(error: &Error) -> bool {
@@ -92,6 +96,9 @@ pub struct JsMusicMetadata {
 /// 音频输出设备信息
 #[napi(object)]
 pub struct JsAudioDevice {
+    /// 稳定设备 ID（cpal `DeviceId` 的字符串形式）
+    pub id: String,
+    /// 显示名
     pub name: String,
     /// 是否为系统默认设备
     pub is_default: bool,
@@ -174,165 +181,194 @@ impl AudioPlayer {
     pub async fn reinit_output(&self) -> Result<()> {
         info!("重新初始化音频输出设备");
 
-        let take = {
+        let (
+            seek_take_opt,
+            fallback_source,
+            position,
+            was_playing_fallback,
+            output_generation,
+            on_failure,
+            device_id,
+        ) = {
             let mut player = self.inner.lock();
-            // position 需在 take 前读取（take 会 drain 共享缓冲）
             let position = player.position();
-            let seek_take = match player.take_for_async_seek() {
-                Some(t) => t,
-                // 空闲 / 已停止 / 正在异步加载：无播放可恢复，仅需让后续 load 重新打开输出
-                None => return Ok(()),
-            };
-            let device_name = player.selected_device_name().map(String::from);
+            let is_playing = player.state() == PlayerState::Playing;
+            let device_id = player.selected_device().map(String::from);
             let output_generation = player.reserve_output_generation();
             let on_failure = player.make_failure_callback(output_generation);
+            let seek_take = player.take_for_async_seek();
+            let fallback_source = player.current_source().map(String::from);
             (
                 seek_take,
-                device_name,
+                fallback_source,
                 position,
+                is_playing,
                 output_generation,
                 on_failure,
+                device_id,
             )
         };
-        let (
-            SeekTake {
+
+        if let Some(take) = seek_take_opt {
+            let SeekTake {
                 old_threads,
                 normalization_enabled,
                 normalization_gain,
                 current_source,
                 was_playing,
-                output_sample_rate,
+                original_sample_rate,
+                output_sample_rate: _,
                 output_channels: _,
                 token,
                 equalizer,
                 tempo,
-            },
-            device_name,
-            position,
-            output_generation,
-            on_failure,
-        ) = take;
+            } = take;
 
-        let outcome: ReinitOutcome = tokio::task::spawn_blocking(move || {
-            let decoder_data = old_threads.join_aux().and_then(|h| h.join().ok());
+            let outcome: ReinitOutcome = tokio::task::spawn_blocking(move || {
+                let decoder_data = old_threads.join_aux().and_then(|h| h.join().ok());
 
-            // 优先沿用原输出采样率；设备回退到其它格式时在下方重建播放重采样器
-            let output = match audio_output::AudioOutput::new(
-                device_name.as_deref(),
-                Some(output_sample_rate),
-                output_generation,
-                on_failure,
-            ) {
-                Ok(output) => output,
-                Err(error) => return ReinitOutcome::OutputFailed { error },
-            };
-            let Some(mut decoder_data) = decoder_data else {
-                return ReinitOutcome::Reload {
-                    source: current_source,
-                    was_playing,
+                // 优先按音源原始采样率协商新设备；设备不支持时回退到新设备默认格式
+                let output = match audio_output::AudioOutput::new(
+                    device_id.as_deref(),
+                    Some(original_sample_rate),
+                    output_generation,
+                    on_failure,
+                ) {
+                    Ok(output) => output,
+                    Err(error) => return ReinitOutcome::OutputFailed { error },
                 };
-            };
-            if !decoder_data.seek(position) {
-                return ReinitOutcome::Reload {
-                    source: current_source,
-                    was_playing,
+                let Some(mut decoder_data) = decoder_data else {
+                    return ReinitOutcome::Reload {
+                        source: current_source,
+                        was_playing,
+                    };
                 };
-            }
-            if let Err(error) =
-                decoder_data.reconfigure_player_output(output.sample_rate(), output.channels())
-            {
-                warn!(error = %error, "输出格式变化后重建重采样器失败");
-                return ReinitOutcome::Reload {
-                    source: current_source,
-                    was_playing,
-                };
-            }
-
-            let shared = crate::shared::Shared::new(output.sample_rate(), output.channels());
-            shared.set_normalization_enabled(normalization_enabled);
-            shared.set_normalization_gain(normalization_gain);
-            equalizer
-                .lock()
-                .set_output_format(output.sample_rate(), output.channels());
-            equalizer.lock().reset_state();
-            tempo
-                .lock()
-                .set_output_format(output.sample_rate(), output.channels());
-            tempo.lock().reset();
-            let handle = match crate::decoder::resume_decode(
-                decoder_data,
-                std::sync::Arc::clone(&shared),
-                equalizer,
-                tempo,
-            ) {
-                Ok(handle) => handle,
-                Err(error) => {
-                    warn!(error = %error, "输出重建后启动解码线程失败");
+                if !decoder_data.seek(position) {
                     return ReinitOutcome::Reload {
                         source: current_source,
                         was_playing,
                     };
                 }
-            };
-
-            ReinitOutcome::Resumed {
-                shared,
-                handle,
-                output: Box::new(output),
-            }
-        })
-        .await
-        .map_err(|e| Error::from_reason(format!("reinit task join error: {e}")))?;
-
-        match outcome {
-            ReinitOutcome::Resumed {
-                shared,
-                handle,
-                output,
-            } => {
-                let mut player = self.inner.lock();
-                let committed = player
-                    .commit_seeked(token, position, shared, handle, Some(*output))
-                    .into_napi()?;
-                if !committed {
-                    info!("reinit 已被更新的 load/seek/stop 取代，丢弃结果");
+                if let Err(error) =
+                    decoder_data.reconfigure_player_output(output.sample_rate(), output.channels())
+                {
+                    warn!(error = %error, "输出格式变化后重建重采样器失败");
+                    return ReinitOutcome::Reload {
+                        source: current_source,
+                        was_playing,
+                    };
                 }
-                Ok(())
-            }
-            ReinitOutcome::Reload {
-                source,
-                was_playing,
-            } => {
-                if !self.inner.lock().is_load_token_current(token) {
-                    return Ok(());
-                }
-                if let Some(src) = source {
-                    let is_remote = src.starts_with("http://") || src.starts_with("https://");
-                    if let Err(e) = self.load(src, Some(was_playing)).await {
-                        if e.reason == LOAD_SUPERSEDED_REASON {
-                            return Ok(());
-                        }
-                        // 远端源恢复重开失败（多半 URL 过期）：发 sourceError 交 JS 重解析
-                        if is_remote && !is_device_napi_error(&e) {
-                            self.inner.lock().emit_source_error();
-                            return Ok(());
-                        }
-                        return Err(e);
+
+                let shared = crate::shared::Shared::new(output.sample_rate(), output.channels());
+                shared.set_normalization_enabled(normalization_enabled);
+                shared.set_normalization_gain(normalization_gain);
+                equalizer
+                    .lock()
+                    .set_output_format(output.sample_rate(), output.channels());
+                equalizer.lock().reset_state();
+                tempo
+                    .lock()
+                    .set_output_format(output.sample_rate(), output.channels());
+                tempo.lock().reset();
+                let handle = match crate::decoder::resume_decode(
+                    decoder_data,
+                    std::sync::Arc::clone(&shared),
+                    equalizer,
+                    tempo,
+                ) {
+                    Ok(handle) => handle,
+                    Err(error) => {
+                        warn!(error = %error, "输出重建后启动解码线程失败");
+                        return ReinitOutcome::Reload {
+                            source: current_source,
+                            was_playing,
+                        };
                     }
+                };
+
+                ReinitOutcome::Resumed {
+                    shared,
+                    handle,
+                    output: Box::new(output),
                 }
-                Ok(())
-            }
-            ReinitOutcome::OutputFailed { error } => {
-                let mut player = self.inner.lock();
-                if !player.is_load_token_current(token) {
+            })
+            .await
+            .map_err(|e| Error::from_reason(format!("reinit task join error: {e}")))?;
+
+            match outcome {
+                ReinitOutcome::Resumed {
+                    shared,
+                    handle,
+                    output,
+                } => {
+                    let mut player = self.inner.lock();
+                    let committed = player
+                        .commit_seeked(token, position, shared, handle, Some(*output))
+                        .into_napi()?;
+                    if !committed {
+                        info!("reinit 已被更新的 load/seek/stop 取代，丢弃结果");
+                    }
                     return Ok(());
                 }
-                // 保留曲目与位置，进入暂停态，交给 JS 侧有限重试或用户手动操作
-                player.enter_paused_for_recovery();
-                warn!(error = %error, "输出重建失败，播放器进入暂停态");
-                Err(error).into_napi()
+                ReinitOutcome::Reload {
+                    source,
+                    was_playing,
+                } => {
+                    if !self.inner.lock().is_load_token_current(token) {
+                        return Ok(());
+                    }
+                    if let Some(src) = source {
+                        let is_remote = src.starts_with("http://") || src.starts_with("https://");
+                        if let Err(e) = self.load(src, Some(was_playing)).await {
+                            if is_cancelled_napi_error(&e) {
+                                return Ok(());
+                            }
+                            // 远端源恢复重开失败（多半 URL 过期）：发 sourceError 交 JS 重解析
+                            if is_remote && !is_device_napi_error(&e) {
+                                self.inner.lock().emit_source_error();
+                                return Ok(());
+                            }
+                            return Err(e);
+                        }
+                        if position > 0.0 {
+                            let _ = self.seek(position).await;
+                        }
+                    }
+                    return Ok(());
+                }
+                ReinitOutcome::OutputFailed { error } => {
+                    let mut player = self.inner.lock();
+                    if !player.is_load_token_current(token) {
+                        return Ok(());
+                    }
+                    // 保留曲目与位置，进入暂停态，交给 JS 侧有限重试或用户手动操作
+                    player.enter_paused_for_recovery();
+                    warn!(error = %error, "输出重建失败，播放器进入暂停态");
+                    return Err(error).into_napi();
+                }
             }
         }
+
+        // 没有 decoder_thread（例如上次 reinit 失败），但存在待恢复的曲目，走重新加载
+        if let Some(src) = fallback_source {
+            let is_remote = src.starts_with("http://") || src.starts_with("https://");
+            if let Err(e) = self.load(src, Some(was_playing_fallback)).await {
+                if is_cancelled_napi_error(&e) {
+                    return Ok(());
+                }
+                if is_remote && !is_device_napi_error(&e) {
+                    self.inner.lock().emit_source_error();
+                    return Ok(());
+                }
+                return Err(e);
+            }
+            if position > 0.0 {
+                let _ = self.seek(position).await;
+            }
+            return Ok(());
+        }
+
+        Ok(())
     }
 
     /// 设置封面缓存目录（在 load 前调用一次即可）
@@ -399,11 +435,12 @@ impl AudioPlayer {
     }
 
     /// 注册系统音频设备变化回调，不支持的平台由主进程轮询
-    #[napi(ts_args_type = "callback: () => void")]
-    pub fn on_device_change(&self, callback: Function<(), ()>) -> Result<()> {
+    /// 回调参数为 true 表示默认输出设备切换，false 表示设备列表变化
+    #[napi(ts_args_type = "callback: (defaultChanged: boolean) => void")]
+    pub fn on_device_change(&self, callback: Function<bool, ()>) -> Result<()> {
         let tsfn = callback.build_threadsafe_function().build()?;
-        let watcher = device_watcher::DeviceWatcher::new(Box::new(move || {
-            tsfn.call((), ThreadsafeFunctionCallMode::NonBlocking);
+        let watcher = device_watcher::DeviceWatcher::new(Box::new(move |default_changed| {
+            tsfn.call(default_changed, ThreadsafeFunctionCallMode::NonBlocking);
         }))
         .into_napi()?;
         *self.device_watcher.lock() = Some(watcher);
@@ -446,7 +483,7 @@ impl AudioPlayer {
             load_token,
             cover_dir,
             normalization_enabled,
-            device_name,
+            device_id,
             output_generation,
             failure_callback,
             equalizer,
@@ -462,7 +499,7 @@ impl AudioPlayer {
                 player.load_token_handle(),
                 player.cover_cache_dir().map(String::from),
                 player.is_normalization_enabled(),
-                player.selected_device_name().map(String::from),
+                player.selected_device().map(String::from),
                 output_generation,
                 failure_callback,
                 player.equalizer_handle(),
@@ -483,7 +520,7 @@ impl AudioPlayer {
             }
             // 输出采样率协商：音源原始采样率被设备支持时按精确采样率打开
             let output = audio_output::AudioOutput::new(
-                device_name.as_deref(),
+                device_id.as_deref(),
                 Some(prepared.original_sample_rate()),
                 output_generation,
                 failure_callback,
@@ -571,12 +608,17 @@ impl AudioPlayer {
     /// 恢复播放。如果已停止或播放结束，自动从头重新加载
     #[napi]
     pub async fn play(&self) -> Result<()> {
-        let revival_source = self.inner.lock().play().into_napi()?;
+        let (revival_source, position) = {
+            let mut player = self.inner.lock();
+            let pos = player.position();
+            let src = player.play().into_napi()?;
+            (src, pos)
+        };
         if let Some(source) = revival_source {
             let is_remote = source.starts_with("http://") || source.starts_with("https://");
             if let Err(e) = self.load(source, Some(true)).await {
                 // 复活加载被更新的 load/stop 取代不是错误：已有更新的操作接管播放
-                if e.reason == LOAD_SUPERSEDED_REASON {
+                if is_cancelled_napi_error(&e) {
                     return Ok(());
                 }
                 // 远端源复活失败（多半 URL 过期）：发 sourceError 交 JS 重解析（命中本地缓存 / 拿新 URL）
@@ -586,6 +628,9 @@ impl AudioPlayer {
                 }
                 return Err(e);
             }
+            if position > 0.0 {
+                let _ = self.seek(position).await;
+            }
         }
         Ok(())
     }
@@ -594,6 +639,12 @@ impl AudioPlayer {
     #[napi]
     pub fn pause(&self) {
         self.inner.lock().pause();
+    }
+
+    /// 立即暂停播放，用于输出设备切换前阻止短暂串音
+    #[napi]
+    pub fn pause_immediately(&self) {
+        self.inner.lock().pause_immediately();
     }
 
     /// 停止播放并释放资源
@@ -630,6 +681,7 @@ impl AudioPlayer {
             normalization_gain,
             current_source,
             was_playing,
+            original_sample_rate: _,
             output_sample_rate,
             output_channels,
             token,
@@ -691,7 +743,7 @@ impl AudioPlayer {
                 if let Some(src) = current_source {
                     let is_remote = src.starts_with("http://") || src.starts_with("https://");
                     if let Err(e) = self.load(src, Some(was_playing)).await {
-                        if e.reason == LOAD_SUPERSEDED_REASON {
+                        if is_cancelled_napi_error(&e) {
                             return Ok(());
                         }
                         // 远端源回退重开失败（多半 URL 过期）：发 sourceError 交 JS 重解析
@@ -847,7 +899,11 @@ impl AudioPlayer {
     pub fn get_output_devices(&self) -> Vec<JsAudioDevice> {
         audio_output::list_output_devices()
             .into_iter()
-            .map(|(name, is_default)| JsAudioDevice { name, is_default })
+            .map(|(id, name, is_default)| JsAudioDevice {
+                id,
+                name,
+                is_default,
+            })
             .collect()
     }
 
@@ -857,18 +913,25 @@ impl AudioPlayer {
         audio_output::default_device_name()
     }
 
-    /// 切换输出设备（传 None/undefined 使用系统默认）
+    /// 获取系统默认输出设备稳定 ID
     #[napi]
-    pub async fn set_output_device(&self, device_name: Option<String>) -> Result<()> {
-        info!(device = ?device_name, "切换输出设备");
-        self.inner.lock().set_output_device(device_name);
+    pub fn get_default_device_id(&self) -> Option<String> {
+        audio_output::default_device_id()
+    }
+
+    /// 切换输出设备（传设备 ID，None/undefined 使用系统默认）
+    #[napi]
+    pub async fn set_output_device(&self, device_id: Option<String>) -> Result<()> {
+        self.inner.lock().set_output_device(device_id);
         self.reinit_output().await
     }
 
-    /// 获取当前选择的输出设备名称（None = 系统默认）
+    /// 获取当前选择的输出设备 ID（None = 跟随系统默认）
+    ///
+    /// 旧配置存的是显示名，此处原样返回，由 `open_device` 回退解析
     #[napi]
     pub fn get_selected_device_name(&self) -> Option<String> {
-        self.inner.lock().selected_device_name().map(String::from)
+        self.inner.lock().selected_device().map(String::from)
     }
 
     /// 设置播放速度（自动 clamp 到 [0.5, 2.0]）

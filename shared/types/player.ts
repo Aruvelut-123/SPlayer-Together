@@ -86,6 +86,8 @@ export interface Track {
   id: string;
   /** 平台二级 id */
   extId?: string;
+  /** 平台媒体文件 id */
+  mediaId?: string;
   /** 歌曲来源 */
   source: TrackSource;
   /** 本地路径 */
@@ -148,6 +150,12 @@ export interface TrackDetail {
 
 /** 播放器加载后从音频流提取出的可覆盖元数据 */
 export interface MediaInfo {
+  /** 标题 */
+  title?: string;
+  /** 歌手 */
+  artists?: Artist[];
+  /** 专辑 */
+  album?: Album;
   /** 时长（毫秒） */
   duration: number;
   /** 缩略封面（cache:// URL 或 base64） */
@@ -182,11 +190,15 @@ export interface PlayerStatus {
   position: number;
   duration: number;
   volume: number;
+  speed: number;
   isFinished: boolean;
 }
 
 /** 音频输出设备 */
 export interface AudioDevice {
+  /** 稳定设备 ID（cpal `DeviceId`，形如 `wasapi:{0.0.0...}`），持久化与选中判断都用它 */
+  id: string;
+  /** 显示名，可能重复、可被用户改名，仅用于展示 */
   name: string;
   isDefault: boolean;
 }
@@ -239,6 +251,8 @@ export interface PlayerApi {
   seek: (positionMs: number) => Promise<IpcResponse>;
   /** 设置音量（0.0 ~ 1.0） */
   setVolume: (volume: number) => Promise<IpcResponse>;
+  /** 设置输出设备切换时暂停播放 */
+  setPauseOnDeviceSwitch: (enabled: boolean) => Promise<IpcResponse>;
   /** 获取当前音量 */
   getVolume: () => Promise<IpcResponse<number>>;
   /** 获取播放状态快照 */
@@ -275,9 +289,9 @@ export interface PlayerApi {
   getOutputDevices: () => Promise<IpcResponse<AudioDevice[]>>;
   /** 获取系统默认输出设备名称 */
   getDefaultDeviceName: () => Promise<IpcResponse<string | null>>;
-  /** 切换输出设备（传 null 使用系统默认） */
-  setOutputDevice: (deviceName: string | null) => Promise<IpcResponse>;
-  /** 获取当前选择的输出设备名称 */
+  /** 切换输出设备（传设备 ID，null 使用系统默认） */
+  setOutputDevice: (deviceId: string | null, pauseBeforeSwitch?: boolean) => Promise<IpcResponse>;
+  /** 获取当前选择的输出设备 ID（None = 跟随系统默认） */
   getSelectedDeviceName: () => Promise<IpcResponse<string | null>>;
   /** 同步播放模式到托盘 */
   syncPlayMode: (repeatMode: string, shuffleMode: string) => void;

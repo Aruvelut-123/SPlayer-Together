@@ -366,7 +366,7 @@
     }
   },
   "login": {
-    "qrTipWaiting": "Open the Cloud Music app and scan the QR code",
+    "qrTipWaiting": "Open the app and scan the QR code",
     "qrTipScanned": "Scanned, please confirm in the app",
     "qrTipExpired": "QR code expired, refreshing",
     "qrTipDone": "Signed in",
@@ -476,7 +476,10 @@
       "loading": "Starting Personal FM…",
       "entered": "Personal FM started",
       "already": "Already in Personal FM",
-      "failed": "Failed to start Personal FM, please try again later"
+      "failed": "Failed to start Personal FM, please try again later",
+      "modeSettings": "Personal FM Mode",
+      "modeTooltip": "FM Mode & Scene",
+      "modeSettingsTip": "Select preferred recommendation mode and scene"
     },
     "lyricOffset": {
       "title": "Lyric Offset",
@@ -556,7 +559,7 @@
       "selected": "{count} selected",
       "invert": "Invert",
       "addToQueue": "Add to Queue",
-      "download": "Download",
+      "download": "Batch Download",
       "exit": "Exit"
     },
     "delete": {
@@ -647,8 +650,7 @@
     "clearFinished": "Clear finished",
     "clearConfirmTitle": "Clear finished tasks",
     "clearConfirmContent": "This removes all completed and failed task records from the list. Downloaded files on disk are kept. Continue?",
-    "tabAll": "All",
-    "tabActive": "Downloading",
+    "tabActive": "Queue",
     "tabError": "Errors",
     "tabDone": "Completed",
     "colStatus": "Status",
@@ -734,6 +736,8 @@
       "about": "About"
     },
     "section": {
+      "platformLogin": "Platform Login",
+      "platformConfig": "Platform Config",
       "network": "Network & Proxy",
       "aboutApp": "About",
       "specialThanks": "Special Thanks",
@@ -750,6 +754,7 @@
       "lyricExclude": "Metadata Stripping",
       "lyricGeneral": "Content & Style",
       "lyricDisplay": "Display Effects",
+      "lyricAMLLOptimize": "Lyric Optimization",
       "lyricSpring": "Spring Animation",
       "lyricLayout": "Layout & Opacity",
       "desktopLyric": "Desktop Lyric",
@@ -931,9 +936,32 @@
       "label": "Auto-Upgrade Lyric Format",
       "description": "Fetch a higher-ranked format from other platforms when the current one is low"
     },
+    "preferPluginLyric": {
+      "label": "Prefer Plugin Lyrics",
+      "description": "Request plugin lyrics concurrently and auto-replace if a higher-ranked format is returned"
+    },
     "detectBackgroundLyrics": {
       "label": "Auto-Detect Background Lyrics",
       "description": "Detect backing vocals from brackets. Disable this if lyrics are misdetected"
+    },
+    "cjkTransform": {
+      "label": "Chinese Conversion",
+      "description": "Convert lyric text between Simplified and Traditional Chinese or Japanese Kanji",
+      "none": "Off",
+      "s2t": "Simplified → Traditional",
+      "t2s": "Traditional → Simplified",
+      "s2tw": "Simplified → Traditional (Taiwan)",
+      "tw2s": "Traditional (Taiwan) → Simplified",
+      "s2hk": "Simplified → Traditional (Hong Kong)",
+      "hk2s": "Traditional (Hong Kong) → Simplified",
+      "s2twp": "Simplified → Traditional (Taiwan)",
+      "tw2sp": "Traditional (Taiwan) → Simplified",
+      "t2tw": "Traditional → Traditional (Taiwan)",
+      "tw2t": "Traditional (Taiwan) → Traditional",
+      "t2hk": "Traditional → Traditional (Hong Kong)",
+      "hk2t": "Traditional (Hong Kong) → Traditional",
+      "jp2t": "Japanese Shinjitai → Traditional",
+      "t2jp": "Traditional → Japanese Shinjitai"
     },
     "enableOnlineTTMLLyric": {
       "label": "Enable Online TTML Lyrics",
@@ -1030,7 +1058,9 @@
       "restartRequiredTitle": "Restart Required",
       "restartRequiredContent": "This setting requires an app restart. Save and relaunch now?",
       "testChannelTitle": "Switch to a Test Channel",
-      "testChannelContent": "Beta and Alpha channels receive test releases early. Alpha releases may be highly unstable. Switch anyway?"
+      "testChannelContent": "Beta and Alpha channels receive test releases early. Alpha releases may be highly unstable. Switch anyway?",
+      "kugouLoginVersionTitle": "Switch KG Login Version",
+      "kugouLoginVersionContent": "After switching, the current credentials will not match the new version. You must log out and scan the QR code again, or VIP privileges and high-quality playback will stop working. Switch anyway?"
     },
     "useAMSpring": {
       "label": "Spring Animation Debug Switch",
@@ -1067,6 +1097,30 @@
     "amllScaleSpringSoft": {
       "label": "Scale Soft Spring",
       "description": "Forces the active line scale animation to use a softer spring profile."
+    },
+    "amllCleanUnintentionalOverlaps": {
+      "label": "Clean Unintentional Overlaps",
+      "description": "Automatically trim minor unintentional timestamp overlaps between lines to avoid multiple active lines"
+    },
+    "amllTryAdvanceStartTime": {
+      "label": "Advance Animation Start Time",
+      "description": "Advance lyric entry animation (up to 1s) for smoother transitions"
+    },
+    "amllConvertExcessiveBackgroundLines": {
+      "label": "Convert Excessive Background Lines",
+      "description": "Convert consecutive multi-line background vocals into a single-line background vocal attached to the main line"
+    },
+    "amllSyncMainAndBackgroundLines": {
+      "label": "Sync Background Lines Timing",
+      "description": "Synchronize timing between main lines and background vocal lines"
+    },
+    "amllNormalizeSpaces": {
+      "label": "Normalize Spaces",
+      "description": "Collapse consecutive spaces in lyrics into a single space"
+    },
+    "amllResetLineTimestamps": {
+      "label": "Reset Line Timestamps",
+      "description": "Force line-level timestamps to match word-level timestamp boundaries"
     },
     "autoCenterCover": {
       "label": "Auto Center Cover",
@@ -1591,6 +1645,28 @@
         "disconnected": "Disconnected from Last.fm"
       }
     },
+    "platformLogin": {
+      "title": "Log in to {name} Account",
+      "desc": "Log in to retrieve playback streams directly from the platform",
+      "loginWeb": "Web Login",
+      "loginQr": "QR Login",
+      "loginQrQQ": "QQ QR Login",
+      "loginQrWX": "WeChat QR Login",
+      "qrTitle": "Scan to Log In",
+      "manualCookie": "Cookie Login",
+      "logout": "Log Out",
+      "logoutTitle": "Log Out from {name}",
+      "logoutConfirm": "Are you sure you want to log out of current {name} account ({user})?",
+      "cookieTitle": "Set {name} Cookie",
+      "cookiePlaceholder": "Please enter Cookie",
+      "toast": {
+        "loginSuccess": "{name} login successful: {user}",
+        "loginFailed": "{name} login failed, please try again",
+        "logoutDone": "Logged out from {name}",
+        "cookieSuccess": "{name} Cookie set successfully",
+        "cookieInvalid": "Invalid Cookie, please check and retry"
+      }
+    },
     "rememberWindowState": {
       "label": "Remember Window State",
       "description": "Restore window size, position and maximized state on next launch"
@@ -1652,6 +1728,12 @@
     "neteaseRealIp": {
       "label": "Use Real IP",
       "description": "May be restricted overseas or in some regions; enable this to try to resolve it"
+    },
+    "kugouLoginVersion": {
+      "label": "KG Login Version",
+      "description": "Re-login is required after switching",
+      "standard": "Standard",
+      "concept": "Concept"
     },
     "neteaseScrobbleEnabled": {
       "label": "Enable scrobble",
@@ -2148,6 +2230,7 @@
     "SCAN_DIR_NOT_SELECTED": "No directory selected",
     "TAG_READ_FAILED": "Failed to read tags",
     "TAG_WRITE_FAILED": "Failed to write tags",
+    "MAX_CONSECUTIVE_FAILURES": "Too many consecutive playback failures",
     "UNKNOWN": "Operation failed"
   },
   "tagEditor": {

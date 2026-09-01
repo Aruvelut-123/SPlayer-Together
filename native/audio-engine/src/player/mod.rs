@@ -62,8 +62,8 @@ pub struct InnerPlayer {
     /// FFT 推送定时器的停止信号和线程句柄
     fft_timer_stop: Option<Arc<AtomicBool>>,
     fft_timer_handle: Option<JoinHandle<()>>,
-    /// 用户选择的输出设备名称（None = 系统默认）
-    selected_device_name: Option<String>,
+    /// 用户选择的输出设备（设备 ID，None = 跟随系统默认）
+    selected_device: Option<String>,
     /// 音量归一化开关
     normalization_enabled: bool,
     /// 跨曲目共享的均衡器（load/seek 时交给 DSP 线程）
@@ -77,6 +77,8 @@ pub struct InnerPlayer {
     load_token: Arc<AtomicU64>,
     /// 当前输出流代次。错误回调仅允许上报与此值一致的输出，避免旧流销毁后的迟到事件重建新流。
     output_generation: Arc<AtomicU64>,
+    /// 当前音频源的原始采样率
+    original_sample_rate: u32,
     /// 正在打开的网络音源中断句柄，确保切歌和 stop 能取消元数据探测
     pending_load_handle: Option<HttpCancelHandle>,
 }
@@ -96,7 +98,7 @@ impl InnerPlayer {
             let generation = self.reserve_output_generation();
             let on_failure = self.make_failure_callback(generation);
             self.output = Some(AudioOutput::new(
-                self.selected_device_name.as_deref(),
+                self.selected_device.as_deref(),
                 requested_sample_rate,
                 generation,
                 on_failure,
@@ -170,7 +172,7 @@ impl InnerPlayer {
             fft_enabled: Arc::new(AtomicBool::new(false)),
             fft_timer_stop: None,
             fft_timer_handle: None,
-            selected_device_name: None,
+            selected_device: None,
             normalization_enabled: false,
             equalizer: Arc::new(Mutex::new(Equalizer::new(
                 initial_rate,
@@ -182,19 +184,20 @@ impl InnerPlayer {
             ))),
             load_token: Arc::new(AtomicU64::new(0)),
             output_generation: Arc::new(AtomicU64::new(0)),
+            original_sample_rate: decoder::DEFAULT_TARGET_SAMPLE_RATE,
             pending_load_handle: None,
         })
     }
 
     /// 切换输出设备（下一次重建设备时生效）
-    pub fn set_output_device(&mut self, device_name: Option<String>) {
-        info!(device = ?device_name, "切换输出设备");
-        self.selected_device_name = device_name;
+    pub fn set_output_device(&mut self, device_id: Option<String>) {
+        info!(device = ?device_id, "切换输出设备");
+        self.selected_device = device_id;
     }
 
-    /// 获取当前选择的输出设备名称（None = 系统默认）
-    pub fn selected_device_name(&self) -> Option<&str> {
-        self.selected_device_name.as_deref()
+    /// 获取当前选择的输出设备（None = 跟随系统默认）
+    pub fn selected_device(&self) -> Option<&str> {
+        self.selected_device.as_deref()
     }
 
     /// 注册事件回调（支持热替换：先停止旧的定时器/渐变，确保旧回调的 Arc 引用尽快释放）
@@ -232,6 +235,11 @@ impl InnerPlayer {
         self.normalization_enabled
     }
 
+    /// 当前音频源路径/地址
+    pub fn current_source(&self) -> Option<&str> {
+        self.current_source.as_deref()
+    }
+
     /// 恢复播放。Paused 时渐入恢复；Stopped/Idle/已播完时返回 Some(source)，
     /// 由 NAPI 绑定层走 async load 复活——网络源的打开可达数秒，不能在锁内同步执行
     pub fn play(&mut self) -> Result<Option<String>> {
@@ -247,6 +255,11 @@ impl InnerPlayer {
             PlayerState::Playing => Ok(None),
             // 暂停状态：渐入恢复
             PlayerState::Paused => {
+                // 如果没有有效的播放链路或解码线程，交给调用方从当前音源重载复活
+                if self.playback.is_none() || self.decoder_thread.is_none() {
+                    return Ok(self.current_source.clone());
+                }
+
                 // 先取消未完成的渐出：否则其完成回调可能在 sink.play() 之后执行
                 // sink.pause()，导致状态 Playing 但实际无声
                 self.cancel_fade();
@@ -284,21 +297,36 @@ impl InnerPlayer {
         });
 
         // 立即启动非阻塞渐出，避免被后续 stop_*_timer 的 join 阻塞
-        // fade 完成后在回调中执行 sink.pause + 恢复音量
-        let target_volume = self.target_volume;
+        // fade 完成后在回调中执行 sink.pause（保持静音，不恢复音量以免串音或爆音）
         let playback_for_callback = self.playback.as_ref().map(Arc::clone);
         self.start_fade(
-            target_volume,
+            self.target_volume,
             0.0,
             Some(Box::new(move || {
                 if let Some(playback) = playback_for_callback {
                     playback.pause();
-                    playback.set_volume(target_volume);
                 }
             })),
         );
 
         // 渐出已在后台运行，再同步停止定时器（join 开销不会影响音频淡出时序）
+        self.stop_position_timer();
+        self.stop_fft_timer();
+    }
+
+    /// 立即暂停播放，用于切换输出设备前阻止短暂串音
+    pub fn pause_immediately(&mut self) {
+        if self.state != PlayerState::Playing {
+            return;
+        }
+        self.cancel_fade();
+        if let Some(ref playback) = self.playback {
+            playback.pause();
+        }
+        self.state = PlayerState::Paused;
+        self.emit(PlayerEvent::StateChanged {
+            state: PlayerState::Paused,
+        });
         self.stop_position_timer();
         self.stop_fft_timer();
     }

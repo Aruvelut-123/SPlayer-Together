@@ -1,5 +1,6 @@
 import type { PlaybackContext, Track } from "@shared/types/player";
 import type { TagEditRequest, TagWriteOutcome } from "@shared/types/tagEditor";
+import type { PersonalFmOptions } from "@/types/netease";
 import { handleEvent } from "./events";
 import type { RepeatMode, ShuffleMode } from "@/stores/status";
 import { useMediaStore } from "@/stores/media";
@@ -27,6 +28,7 @@ import { installPlayStats } from "./stats";
 import { useFavorite } from "@/composables/useFavorite";
 import { extractColorFromUrl } from "@/utils/color";
 import { handleError, isSkippableError } from "@/utils/errors";
+import { ErrorCode } from "@shared/types/errors";
 import { shouldSkipDjTrack } from "@/utils/preset/djMode";
 import { toast } from "@/composables/useToast";
 import i18n from "@/i18n";
@@ -81,8 +83,12 @@ const skipOnFailure = async (myToken: number, getCurrentToken: () => number): Pr
     consecutiveFailures >= MAX_CONSECUTIVE_FAILURES ||
     consecutiveFailures >= queue.queueLength.value
   ) {
+    const reachedMax = consecutiveFailures >= MAX_CONSECUTIVE_FAILURES;
     consecutiveFailures = 0;
     await onQueueEnded();
+    if (reachedMax) {
+      handleError(ErrorCode.MAX_CONSECUTIVE_FAILURES);
+    }
     return;
   }
   setTimeout(() => {
@@ -152,6 +158,10 @@ export const load = async (
       // 把引擎提取的 mediaInfo 与已有 Track 合并；身份字段保留
       media.enrichTrack(mediaInfo, detail);
       const enriched = media.track;
+      // 更新队列中的 Track 元数据
+      if (enriched) {
+        queue.updateQueueTracks([enriched]);
+      }
       // 避免重复请求
       if (!isOnline) {
         lyricLoader.loadForTrack(detail);
@@ -292,36 +302,45 @@ const loadTrack = async (track: Track | null, context?: PlaybackContext): Promis
   void window.api.player.stop();
   // 是否可跳曲
   let shouldSkip = false;
-  const loaded = await loadTrackSourceWithFallback(
-    track,
-    context,
-    true,
-    () => myToken === trackToken,
-    false,
-    preloaded?.source,
-  );
-  if (loaded.status === "cancelled") return;
-  if (loaded.status === "unresolved") {
-    const status = useStatusStore();
-    status.currentSource = null;
-    status.state = "idle";
-    void window.api.player.stop();
-    useMediaStore().setLyric(null, null);
-    shouldSkip = true;
-  } else {
-    const { result, resolved } = loaded;
-    if (!result.ok && result.error && isSkippableError(result.error)) {
-      handleError(result.error);
+  try {
+    const loaded = await loadTrackSourceWithFallback(
+      track,
+      context,
+      true,
+      () => myToken === trackToken,
+      false,
+      preloaded?.source,
+    );
+    if (loaded.status === "cancelled") return;
+    if (loaded.status === "unresolved") {
+      const status = useStatusStore();
+      status.currentSource = null;
+      status.state = "idle";
+      void window.api.player.stop();
+      useMediaStore().setLyric(null, null);
       shouldSkip = true;
-    } else if (result.ok) {
-      // 用户主动触发的成功播放记入历史；initPlayer 的恢复路径走 load() 不经此处
-      void useHistoryStore().record(track);
-      if (resolved.cacheRequest) {
-        cacheScheduler.schedule(track.id, resolved.cacheRequest);
+    } else {
+      const { result, resolved } = loaded;
+      if (!result.ok && result.error && isSkippableError(result.error)) {
+        handleError(result.error);
+        shouldSkip = true;
+      } else if (result.ok) {
+        // 用户主动触发的成功播放记入历史；initPlayer 的恢复路径走 load() 不经此处
+        void useHistoryStore().record(track);
+        if (resolved.cacheRequest) {
+          cacheScheduler.schedule(track.id, resolved.cacheRequest);
+        }
+        scheduleNextTrackPreload();
+      } else if (result.error) {
+        handleError(result.error);
       }
-      scheduleNextTrackPreload();
-    } else if (result.error) {
-      handleError(result.error);
+    }
+  } finally {
+    if (myToken === trackToken) {
+      const status = useStatusStore();
+      if (shouldSkip || status.state !== "playing") {
+        status.trackLoading = false;
+      }
     }
   }
   if (shouldSkip) await skipOnFailure(myToken, () => trackToken);
@@ -445,9 +464,10 @@ export const pause = async (): Promise<void> => {
 
 /** 停止播放并重置进度 */
 export const stop = async (): Promise<void> => {
+  const status = useStatusStore();
+  status.trackLoading = false;
   const result = await window.api.player.stop();
   if (result.success) {
-    const status = useStatusStore();
     status.state = "stopped";
     status.position = 0;
     playback.reset();
@@ -567,15 +587,14 @@ export const refreshDevices = async (): Promise<void> => {
 
 /**
  * 切换音频输出设备
- * @param deviceName - 设备名称，传 null 跟随系统默认
+ * @param deviceId - 设备 ID，传 null 跟随系统默认
  */
-export const switchDevice = async (deviceName: string | null): Promise<void> => {
-  const result = await window.api.player.setOutputDevice(deviceName);
-  if (!result.success) return;
+export const switchDevice = async (deviceId: string | null): Promise<void> => {
   const settings = useSettingsStore();
-  settings.player.outputDevice = deviceName;
-  // 是否暂停播放
-  if (settings.player.pauseOnDeviceSwitch && useStatusStore().state === "playing") await pause();
+  const pauseBeforeSwitch =
+    settings.player.pauseOnDeviceSwitch && useStatusStore().state === "playing";
+  const result = await window.api.player.setOutputDevice(deviceId, pauseBeforeSwitch);
+  if (result.success) settings.player.outputDevice = deviceId;
 };
 
 /**
@@ -694,10 +713,14 @@ export const exitHeartMode = (): void => {
   useStatusStore().heartMode = false;
 };
 
-/** 进入私人 FM */
-export const playPersonalFm = async (): Promise<boolean> => {
+/**
+ * 启动私人 FM 播放
+ * @param options - 可选的 FM 模式与场景选项
+ * @returns 是否成功进入并开始播放
+ */
+export const playPersonalFm = async (options?: PersonalFmOptions): Promise<boolean> => {
   const status = useStatusStore();
-  const track = await fm.start();
+  const track = await fm.start(options);
   if (!track) return false;
   status.fmMode = true;
   // 心动 / FM 互斥
@@ -706,7 +729,9 @@ export const playPersonalFm = async (): Promise<boolean> => {
   return true;
 };
 
-/** 私人 FM 减少推荐 */
+/**
+ * 标记当前私人 FM 曲目为不喜欢并切到下一首
+ */
 export const dislikeFmTrack = async (): Promise<void> => {
   if (!useStatusStore().fmMode) return;
   const playedSec = Math.max(0, Math.round(playback.getCurrentTime() / 1000));
@@ -770,11 +795,12 @@ export const prevTrack = async (): Promise<void> => {
 
 /** 队列播放结束，通知主进程停止并更新状态 */
 const onQueueEnded = async (): Promise<void> => {
+  const status = useStatusStore();
+  status.trackLoading = false;
   playback.setPlaying(false);
   playback.reset();
   // 通知主进程停止音频引擎
   await window.api.player.stop();
-  const status = useStatusStore();
   status.state = "stopped";
   status.position = status.duration;
 };
@@ -960,6 +986,50 @@ export const playNow = async (item: Track, context?: PlaybackContext): Promise<v
 };
 
 /**
+ * 将本地音频文件路径转为轻量 Track 对象
+ * @param filePath - 本地音频绝对路径
+ */
+export const createLocalTrack = (filePath: string): Track => {
+  const fileName = filePath.split(/[/\\]/).pop() || filePath;
+  const title = fileName.replace(/\.[^/.]+$/, "");
+  return {
+    id: `local:${filePath}`,
+    title,
+    artists: [],
+    source: "local",
+    path: filePath,
+    duration: 0,
+  };
+};
+
+/**
+ * 直接播放一个本地音频文件
+ * @param filePath - 本地音频绝对路径
+ */
+export const playFile = async (filePath: string): Promise<void> => {
+  const item = createLocalTrack(filePath);
+  await playNow(item, {
+    originId: "local-file",
+    originType: "track",
+    originName: "本地文件",
+  });
+};
+
+/**
+ * 批量播放多个本地音频文件
+ * @param filePaths - 本地音频绝对路径列表
+ */
+export const playFiles = async (filePaths: string[]): Promise<void> => {
+  if (filePaths.length === 0) return;
+  const tracks = filePaths.map(createLocalTrack);
+  await playFrom(tracks, 0, {
+    originId: "local-files",
+    originType: "track",
+    originName: "本地文件",
+  });
+};
+
+/**
  * 移动队列中的歌曲位置，自动调整 playIndex
  * @param fromIndex - 原位置
  * @param toIndex - 目标位置
@@ -1012,7 +1082,13 @@ export const initPlayer = async (): Promise<void> => {
   }
   // 刷新设备列表并恢复上次选择的输出设备
   await refreshDevices();
+  await window.api.player.setPauseOnDeviceSwitch(settings.player.pauseOnDeviceSwitch);
   if (settings.player.outputDevice) {
+    // 1.0.0 及更早版本存的是显示名，就地换成稳定 ID；设备当前不在线时保留原值等下次启动
+    const legacy = useStatusStore().outputDevices.find(
+      (device) => device.name === settings.player.outputDevice,
+    );
+    if (legacy) settings.player.outputDevice = legacy.id;
     await window.api.player.setOutputDevice(settings.player.outputDevice);
   }
   // 先订阅事件，确保 load 触发播放后 position 事件能被接收
@@ -1040,34 +1116,41 @@ export const initPlayer = async (): Promise<void> => {
   } catch (error) {
     console.error("[player] requestSnapshot failed", error);
   }
+  // 下一首预载的监听器
+  installNextTrackPreloadWatchers();
+  scheduleNextTrackPreload();
+};
+
+/** 恢复上次播放状态 */
+export const restoreLastTrack = async (): Promise<void> => {
+  const status = useStatusStore();
+  const settings = useSettingsStore();
+  const media = useMediaStore();
   const lastTrack = status.currentTrack;
-  if (lastTrack) {
-    const lastPosition = status.position;
-    media.setTrack(lastTrack);
-    media.setPlaybackContext(status.currentPlaybackContext);
-    lyricLoader.beginLoad();
-    const loaded = await loadTrackSourceWithFallback(
-      lastTrack,
-      status.currentPlaybackContext,
-      settings.system.player.autoPlay,
-      () => true,
-    );
-    if (loaded.status === "loaded" && loaded.result.ok) {
-      if (settings.system.player.rememberLastTrack && lastPosition > 0) {
-        await seek(lastPosition);
-      }
-      if (loaded.resolved.cacheRequest) {
-        cacheScheduler.schedule(lastTrack.id, loaded.resolved.cacheRequest);
-      }
-    } else {
-      status.state = "idle";
+  if (!lastTrack) {
+    status.state = "idle";
+    return;
+  }
+  const lastPosition = status.position;
+  media.setTrack(lastTrack);
+  media.setPlaybackContext(status.currentPlaybackContext);
+  lyricLoader.beginLoad();
+  const loaded = await loadTrackSourceWithFallback(
+    lastTrack,
+    status.currentPlaybackContext,
+    settings.system.player.autoPlay,
+    () => true,
+  );
+  if (loaded.status === "loaded" && loaded.result.ok) {
+    if (settings.system.player.rememberLastTrack && lastPosition > 0) {
+      await seek(lastPosition);
+    }
+    if (loaded.resolved.cacheRequest) {
+      cacheScheduler.schedule(lastTrack.id, loaded.resolved.cacheRequest);
     }
   } else {
     status.state = "idle";
   }
-  // 下一首预载的监听器
-  installNextTrackPreloadWatchers();
-  scheduleNextTrackPreload();
 };
 
 /** 清理事件订阅 */

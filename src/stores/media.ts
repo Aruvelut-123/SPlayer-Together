@@ -9,6 +9,7 @@ import { extractLyricAuthors } from "@/utils/lyric/author";
 import { applyLyricExclude } from "@/utils/lyric/lyricStripper";
 import { normalizeLyricLines } from "@/utils/lyric/normalize";
 import { applyProfanityUncensor } from "@/utils/preset/profanity";
+import { applyLyricCjkTransform } from "@/utils/lyric/cjkTransform";
 
 export const useMediaStore = defineStore("media", () => {
   watchLyricPreference();
@@ -76,16 +77,28 @@ export const useMediaStore = defineStore("media", () => {
   };
 
   /**
-   * 把 audio-engine 解析出的元数据合并到当前 Track 上。
-   * 保留身份字段（id/source/serverId/originalId/platform/path）；
-   * 对未设置/空值的展示字段做兜底填充（duration/quality）。
-   * streaming 源的 cover/title/artist/album 已经是服务器返回的权威值，绝不被引擎覆盖。
+   * 把 audio-engine 解析出的元数据合并到当前 Track 上
+   * 保留身份字段（id/source/serverId/originalId/platform/path）
+   * 对未设置/空值的展示字段做兜底填充（duration/quality）
+   * streaming 源的 cover/title/artist/album 已经是服务器返回的权威值，绝不被引擎覆盖
    */
   const enrichTrack = (info: MediaInfo, newDetail?: TrackDetail): void => {
     if (!track.value) return;
     const isStreaming = track.value.source === "streaming";
+    // 标题为文件名去后缀派生（如拖拽播放）时，让位给引擎提取的内嵌标签标题
+    const fileName = track.value.path?.split(/[\\/]/).pop() ?? "";
+    const stem = fileName.replace(/\.[^.]+$/, "");
+    const hasExplicitTitle = !!track.value.title && track.value.title !== stem;
+    const hasExplicitArtists = track.value.artists && track.value.artists.length > 0;
     track.value = {
       ...track.value,
+      title: hasExplicitTitle ? track.value.title : info.title || track.value.title,
+      artists: hasExplicitArtists
+        ? track.value.artists
+        : info.artists && info.artists.length > 0
+          ? info.artists
+          : track.value.artists,
+      album: track.value.album ?? info.album,
       duration: track.value.duration > 0 ? track.value.duration : info.duration,
       cover: isStreaming ? track.value.cover : (track.value.cover ?? info.cover),
       quality: track.value.quality ?? info.quality,
@@ -119,6 +132,19 @@ export const useMediaStore = defineStore("media", () => {
     syncToMain();
   };
 
+  /** 简繁转换竞态 token */
+  let transformToken = 0;
+
+  // 监听简繁转换及强迫症设置变化并重新解析当前歌词
+  watch(
+    () => [useSettingsStore().lyric.cjkTransform, useSettingsStore().preset.uncensorProfanity],
+    () => {
+      if (activeLyric.value && lyricContent.value) {
+        setLyric(activeLyric.value, lyricContent.value);
+      }
+    },
+  );
+
   /**
    * 原子写入歌词
    * @param source - 歌词源
@@ -126,9 +152,9 @@ export const useMediaStore = defineStore("media", () => {
    */
   const setLyric = (source: LyricData, input: LyricInput | null): void => {
     let nextLines: LyricLine[] = [];
+    const settings = useSettingsStore();
     if (source && input) {
       try {
-        const settings = useSettingsStore();
         const lines = parseLyric(input, source.format, settings.locale, {
           detectBackground: settings.lyric.detectBackgroundLyrics,
         });
@@ -154,6 +180,17 @@ export const useMediaStore = defineStore("media", () => {
     lyricIndex.value = -1;
     lyricLoading.value = false;
     syncToMain();
+
+    // 应用 OpenCC 简繁转换
+    const cjkMode = settings.lyric.cjkTransform;
+    if (hasContent && cjkMode && cjkMode !== "none") {
+      const token = ++transformToken;
+      applyLyricCjkTransform(nextLines, cjkMode).then((transformed) => {
+        if (token !== transformToken) return;
+        parsedLyric.value = transformed;
+        syncToMain();
+      });
+    }
   };
 
   /**
