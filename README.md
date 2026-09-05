@@ -18,6 +18,8 @@
 </div>
 
 > ⚠️ **Development Notice**: Almost all code changes in this repository were made by **DeepSeek Harness** (an AI coding agent) on behalf of the maintainer. Review the code yourself before using it in production.
+>
+> **Independence notice:** SPlayer Together is an independently maintained fork by `Aruvelut-123`. It is not an official SPlayer-Dev, SPlayer Next, or SPlayer project, and is not affiliated with, authorized by, maintained by, or endorsed by those projects. See [`NOTICE.md`](./NOTICE.md) for details.
 
 ---
 

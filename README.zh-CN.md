@@ -18,6 +18,8 @@
 </div>
 
 > ⚠️ **开发声明**：本仓库几乎所有的代码改动均由 **DeepSeek Harness**（AI 编码代理）代表维护者完成。生产环境使用前请自行审查代码。
+>
+> **独立项目声明：** SPlayer Together 是由 `Aruvelut-123` 独立维护的分支项目，不是 SPlayer-Dev、SPlayer Next 或原始 SPlayer 项目的官方版本，与其不存在隶属、授权、维护或背书关系。详情请参阅 [`NOTICE.md`](./NOTICE.md)。
 
 ---
 

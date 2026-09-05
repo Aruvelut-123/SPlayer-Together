@@ -12,7 +12,9 @@ SPlayer Together is a free and open-source cross-platform desktop music player. 
 
 ## 1. Definitions
 
-- **Developer:** The copyright holders and open-source contributors, including the `SPlayer-Dev` GitHub organization and project author.
+> **Independent-project notice:** SPlayer Together is an independently maintained and distributed fork by `Aruvelut-123`. It is not an official SPlayer-Dev, SPlayer Next, or original SPlayer release, and is not affiliated with, authorized by, maintained by, or endorsed by those projects. Upstream names, copyrights, and license notices remain with their respective rights holders.
+
+- **Developer:** The independent maintainer `Aruvelut-123` and the open-source contributors to this fork. The upstream `SPlayer-Dev` project and its contributors are not developers of this fork unless explicitly stated.
 - **User / you:** Any individual or organization that installs or uses the software.
 - **Local content:** Audio stored on your devices or storage you are authorized to access.
 - **Online platform:** A public online music service operated independently by a third party.
@@ -33,7 +35,7 @@ SPlayer Together is licensed under the GNU Affero General Public License v3.0. T
 
 When copying, modifying, or redistributing the software, comply with AGPL-3.0, including preserving notices, providing corresponding source where required, identifying modifications, and not imposing incompatible additional restrictions. If a modified version is offered for remote network interaction, AGPL-3.0 section 13 may require offering its complete corresponding source to those users.
 
-The official source repository is <https://github.com/SPlayer-Dev/SPlayer-Next>. This agreement explains functionality, third-party risks, trademarks, and applicable law; it does not reduce rights granted by AGPL-3.0. If a conflict exists, AGPL-3.0 prevails.
+The source and release repository for this fork is <https://github.com/Aruvelut-123/SPlayer-Together>. It is based on <https://github.com/SPlayer-Dev/SPlayer-Next> but is not an official upstream release. This agreement explains functionality, third-party risks, trademarks, and applicable law; it does not reduce rights granted by AGPL-3.0. If a conflict exists, AGPL-3.0 prevails.
 
 ## 4. Scope and acceptable use
 

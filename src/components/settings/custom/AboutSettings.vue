@@ -138,11 +138,13 @@ onMounted(async () => {
         login: "imsyy",
         htmlUrl: "https://github.com/imsyy",
         avatar: "https://avatars.githubusercontent.com/u/67524584?v=4&size=64",
+        source: "upstream",
       },
       {
-        login: "SPlayer-Dev",
-        htmlUrl: "https://github.com/SPlayer-Dev",
-        avatar: "https://avatars.githubusercontent.com/u/137995816?v=4&size=64",
+        login: "Baymaxawa",
+        htmlUrl: "https://github.com/Aruvelut-123",
+        avatar: "https://github.com/Aruvelut-123.png?size=64",
+        source: "fork",
       },
     ];
   }
@@ -248,11 +250,13 @@ onMounted(async () => {
             <div class="text-sm font-medium text-on-surface truncate">{{ dev.login }}</div>
             <div class="text-xs text-on-surface-variant/60 truncate">
               {{
-                dev.login === "imsyy"
-                  ? "Original Author"
-                  : dev.login === "Baymaxawa"
-                    ? "Author"
-                    : "Contributor"
+                dev.login === "Baymaxawa"
+                  ? "Fork Author"
+                  : dev.login === "imsyy"
+                    ? "Original Author"
+                    : dev.source === "upstream"
+                      ? "Upstream Contributor"
+                      : "Contributor"
               }}
             </div>
           </div>
