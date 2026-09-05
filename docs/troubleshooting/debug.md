@@ -22,8 +22,8 @@
 
 日志位于用户数据目录下的 `app-data/logs/`：
 
-| 系统    | 路径                                                        |
-| ------- | ----------------------------------------------------------- |
+| 系统    | 路径                                                            |
+| ------- | --------------------------------------------------------------- |
 | Windows | `%APPDATA%\SPlayer Together\app-data\logs\`                     |
 | macOS   | `~/Library/Application Support/SPlayer Together/app-data/logs/` |
 | Linux   | `~/.config/SPlayer Together/app-data/logs/`                     |

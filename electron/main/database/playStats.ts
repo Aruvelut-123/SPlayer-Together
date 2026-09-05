@@ -9,6 +9,7 @@ import type {
   PlayEventInput,
   FavoriteEventInput,
   PlayStatsSummary,
+  SourcePlayStats,
   TopTrack,
   DailyPlayStats,
   HourlyPlayStats,
@@ -105,6 +106,7 @@ const EMPTY_SUMMARY: PlayStatsSummary = {
   totalListenedMs: 0,
   weekPlayCount: 0,
   totalPlayCount: 0,
+  totalPlayedTracks: 0,
   weekFavoriteAdds: 0,
   streakDays: 0,
 };
@@ -135,6 +137,11 @@ export const getStatsSummary = (): PlayStatsSummary => {
       )
       .all() as { day: string }[];
 
+    const playedTracks = scalar(
+      "SELECT COUNT(DISTINCT source || ':' || COALESCE(json_extract(track_json, '$.serverId'), '') || ':' || track_id) AS value FROM play_history WHERE started_at >= ?",
+      0,
+    );
+
     return {
       todayListenedMs: scalar(listenedSince, dayStart),
       weekListenedMs: scalar(listenedSince, weekStart),
@@ -146,6 +153,7 @@ export const getStatsSummary = (): PlayStatsSummary => {
       totalListenedMs: scalar(listenedSince, 0),
       weekPlayCount: scalar(playCountSince, weekStart),
       totalPlayCount: scalar(playCountSince, 0),
+      totalPlayedTracks: playedTracks,
       weekFavoriteAdds: scalar(
         "SELECT COUNT(*) AS value FROM favorite_history WHERE action = 'add' AND at >= ?",
         weekStart,
@@ -158,14 +166,33 @@ export const getStatsSummary = (): PlayStatsSummary => {
   }
 };
 
-/** 取最常播放的曲目（含播放次数），按次数倒序；读盘失败返回空 */
+/**
+ * 按来源取播放量（本地、在线平台与流媒体全部计入）
+ * @returns 各来源的播放次数与收听时长，按播放次数倒序
+ */
+export const getPlaySourceBreakdown = (): SourcePlayStats[] => {
+  try {
+    return getDb()
+      .prepare(
+        `SELECT source, COUNT(*) AS playCount, COALESCE(SUM(listened_ms), 0) AS listenedMs
+         FROM play_history
+         GROUP BY source
+         ORDER BY playCount DESC`,
+      )
+      .all() as SourcePlayStats[];
+  } catch (error) {
+    libraryLog.error("读取来源播放统计失败:", error);
+    return [];
+  }
+};
+
+/** 取最常播放的曲目（含播放次数），按次数倒序；本地与在线来源全部计入；读盘失败返回空 */
 export const getTopTracks = (limit: number): TopTrack[] => {
   try {
     const rows = getDb()
       .prepare(
         `SELECT track_json, COUNT(*) AS plays
          FROM play_history
-         WHERE source != 'streaming'
          GROUP BY source, track_id
          ORDER BY plays DESC, MAX(started_at) DESC
          LIMIT ?`,
@@ -233,7 +260,7 @@ export const getPlayHistoryHourly = (): HourlyPlayStats[] => {
 };
 
 /**
- * 取本地与在线来源中最常播放的专辑
+ * 取本地与在线来源（含流媒体）中最常播放的专辑
  * @param limit - 取前 N 条
  * @returns 专辑播放排行
  */
@@ -243,8 +270,7 @@ export const getTopAlbums = (limit: number): TopAlbum[] => {
       .prepare(
         `SELECT track_json, COUNT(*) AS plays
          FROM play_history
-         WHERE source != 'streaming'
-           AND TRIM(COALESCE(json_extract(track_json, '$.album.name'), '')) != ''
+         WHERE TRIM(COALESCE(json_extract(track_json, '$.album.name'), '')) != ''
          GROUP BY source,
                   COALESCE(
                     json_extract(track_json, '$.album.id'),
@@ -268,7 +294,7 @@ export const getTopAlbums = (limit: number): TopAlbum[] => {
 };
 
 /**
- * 取本地与在线来源中最常播放的歌手
+ * 取本地与在线来源（含流媒体）中最常播放的歌手
  * @param limit - 取前 N 条
  * @returns 歌手播放排行
  */
@@ -278,8 +304,7 @@ export const getTopArtists = (limit: number): TopArtist[] => {
       .prepare(
         `SELECT track_json, artist.value AS artist_json, COUNT(*) AS plays
          FROM play_history, json_each(play_history.track_json, '$.artists') artist
-         WHERE play_history.source != 'streaming'
-           AND TRIM(COALESCE(json_extract(artist.value, '$.name'), '')) != ''
+         WHERE TRIM(COALESCE(json_extract(artist.value, '$.name'), '')) != ''
          GROUP BY play_history.source,
                   COALESCE(
                     json_extract(artist.value, '$.id'),

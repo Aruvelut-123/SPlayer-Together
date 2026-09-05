@@ -1,5 +1,10 @@
 out
 dist
+.pytest_cache
+server/downloads
+server/.update-staging
+server/backups
+server/update-state.json
 
 pnpm-lock.yaml
 LICENSE.md

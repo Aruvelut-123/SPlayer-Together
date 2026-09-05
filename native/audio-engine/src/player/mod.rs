@@ -62,8 +62,8 @@ pub struct InnerPlayer {
     /// FFT 推送定时器的停止信号和线程句柄
     fft_timer_stop: Option<Arc<AtomicBool>>,
     fft_timer_handle: Option<JoinHandle<()>>,
-    /// 用户选择的输出设备名称（None = 系统默认）
-    selected_device_name: Option<String>,
+    /// 用户选择的输出设备（设备 ID，None = 跟随系统默认）
+    selected_device: Option<String>,
     /// 音量归一化开关
     normalization_enabled: bool,
     /// 跨曲目共享的均衡器（load/seek 时交给 DSP 线程）
@@ -77,6 +77,8 @@ pub struct InnerPlayer {
     load_token: Arc<AtomicU64>,
     /// 当前输出流代次。错误回调仅允许上报与此值一致的输出，避免旧流销毁后的迟到事件重建新流。
     output_generation: Arc<AtomicU64>,
+    /// 当前音频源的原始采样率
+    original_sample_rate: u32,
     /// 正在打开的网络音源中断句柄，确保切歌和 stop 能取消元数据探测
     pending_load_handle: Option<HttpCancelHandle>,
 }
@@ -96,7 +98,7 @@ impl InnerPlayer {
             let generation = self.reserve_output_generation();
             let on_failure = self.make_failure_callback(generation);
             self.output = Some(AudioOutput::new(
-                self.selected_device_name.as_deref(),
+                self.selected_device.as_deref(),
                 requested_sample_rate,
                 generation,
                 on_failure,
@@ -170,7 +172,7 @@ impl InnerPlayer {
             fft_enabled: Arc::new(AtomicBool::new(false)),
             fft_timer_stop: None,
             fft_timer_handle: None,
-            selected_device_name: None,
+            selected_device: None,
             normalization_enabled: false,
             equalizer: Arc::new(Mutex::new(Equalizer::new(
                 initial_rate,
@@ -182,19 +184,20 @@ impl InnerPlayer {
             ))),
             load_token: Arc::new(AtomicU64::new(0)),
             output_generation: Arc::new(AtomicU64::new(0)),
+            original_sample_rate: decoder::DEFAULT_TARGET_SAMPLE_RATE,
             pending_load_handle: None,
         })
     }
 
     /// 切换输出设备（下一次重建设备时生效）
-    pub fn set_output_device(&mut self, device_name: Option<String>) {
-        info!(device = ?device_name, "切换输出设备");
-        self.selected_device_name = device_name;
+    pub fn set_output_device(&mut self, device_id: Option<String>) {
+        info!(device = ?device_id, "切换输出设备");
+        self.selected_device = device_id;
     }
 
-    /// 获取当前选择的输出设备名称（None = 系统默认）
-    pub fn selected_device_name(&self) -> Option<&str> {
-        self.selected_device_name.as_deref()
+    /// 获取当前选择的输出设备（None = 跟随系统默认）
+    pub fn selected_device(&self) -> Option<&str> {
+        self.selected_device.as_deref()
     }
 
     /// 注册事件回调（支持热替换：先停止旧的定时器/渐变，确保旧回调的 Arc 引用尽快释放）

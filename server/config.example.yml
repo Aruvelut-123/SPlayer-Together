@@ -5,3 +5,10 @@ port: 8000
 admin:
   username: admin
   password: change-me
+
+# 服务器自更新（从 GitHub 最新 release 拉取 server.py / webui.py / requirements.txt）
+update:
+  enabled: false # 是否启用自更新（检查 + 管理后台安装）
+  github_repo: "" # 更新源仓库，格式 owner/repo，例如 Kimstry/ListenTogether
+  github_token: "" # 可选：私有仓库或提高 API 限额（仅用于读取 release 与 raw 文件）
+  check_interval_minutes: 60 # 后台自动检查间隔（分钟）

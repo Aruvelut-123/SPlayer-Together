@@ -264,6 +264,10 @@
       "paste": "粘贴",
       "pasteSearch": "粘贴并搜索"
     },
+    "menu": {
+      "hideFromSidebar": "在侧边栏中隐藏",
+      "customizeSidebar": "自定义侧边栏"
+    },
     "link": {
       "song": "直接播放「{id}」",
       "album": "前往专辑「{id}」",
@@ -409,8 +413,8 @@
   },
   "login": {
     "title": "登录",
-    "qrTipWaiting": "请打开云音乐 APP 扫码登录",
-    "qrTipScanned": "扫描成功，请在客户端确认登录",
+    "qrTipWaiting": "请打开 APP 扫码登录",
+    "qrTipScanned": "扫描成功，请在 APP 中确认登录",
     "qrTipExpired": "二维码已过期，正在重试",
     "qrTipDone": "登录成功",
     "qrTipUnknown": "状态异常，请重试",
@@ -519,7 +523,10 @@
       "loading": "正在开启私人 FM…",
       "entered": "已开启私人 FM",
       "already": "已处于私人 FM",
-      "failed": "私人 FM 开启失败，请稍后重试"
+      "failed": "私人 FM 开启失败，请稍后重试",
+      "modeSettings": "私人 FM 模式选择",
+      "modeTooltip": "FM 模式与场景",
+      "modeSettingsTip": "选择喜好的推荐模式与场景"
     },
     "lyricOffset": {
       "title": "歌词偏移",
@@ -776,6 +783,8 @@
       "about": "关于软件"
     },
     "section": {
+      "platformLogin": "平台登录",
+      "platformConfig": "平台配置",
       "network": "网络代理",
       "aboutApp": "关于软件",
       "specialThanks": "特别致谢",
@@ -783,7 +792,6 @@
       "community": "社区与资讯",
       "update": "更新",
       "language": "语言",
-      "playback": "播放器",
       "playControl": "播放控制",
       "audioSource": "播放音源",
       "scrobble": "听歌打卡",
@@ -792,6 +800,7 @@
       "lyricExclude": "歌词排除",
       "lyricGeneral": "内容样式",
       "lyricDisplay": "显示效果",
+      "lyricAMLLOptimize": "歌词优化",
       "lyricSpring": "弹簧动画",
       "lyricLayout": "布局与透明度",
       "desktopLyric": "桌面歌词",
@@ -801,6 +810,8 @@
       "appearanceStyle": "外观风格",
       "layout": "布局",
       "font": "字体",
+      "playerBar": "播放栏",
+      "nowPlaying": "播放页",
       "media": "媒体控制",
       "device": "输出设备",
       "hotkeys": "快捷键",
@@ -975,9 +986,32 @@
       "label": "自动升级歌词格式",
       "description": "当前歌词格式较低时，从其他平台获取更高级的格式覆盖"
     },
+    "preferPluginLyric": {
+      "label": "优先使用插件歌词",
+      "description": "开启后同时请求插件歌词，若返回更优格式则自动替换"
+    },
     "detectBackgroundLyrics": {
       "label": "自动识别背景歌词",
       "description": "根据括号识别背景人声，误判时可关闭"
+    },
+    "cjkTransform": {
+      "label": "繁简转换",
+      "description": "对歌词文本进行简繁中文或日文汉字转换",
+      "none": "不转换",
+      "s2t": "简体 → 繁体",
+      "t2s": "繁体 → 简体",
+      "s2tw": "简体 → 台湾正体",
+      "tw2s": "台湾正体 → 简体",
+      "s2hk": "简体 → 香港繁体",
+      "hk2s": "香港繁体 → 简体",
+      "s2twp": "简体 → 台湾正体",
+      "tw2sp": "台湾正体 → 简体",
+      "t2tw": "繁体 → 台湾正体",
+      "tw2t": "台湾正体 → 繁体",
+      "t2hk": "繁体 → 香港繁体",
+      "hk2t": "香港繁体 → 繁体",
+      "jp2t": "日本新字体 → 繁体",
+      "t2jp": "繁体 → 日本新字体"
     },
     "enableOnlineTTMLLyric": {
       "label": "启用在线 TTML 歌词",
@@ -1074,7 +1108,9 @@
       "restartRequiredTitle": "需要重启应用",
       "restartRequiredContent": "此设置需要重启应用后生效。确定保存并立即重启吗？",
       "testChannelTitle": "切换到测试通道",
-      "testChannelContent": "Beta 与 Alpha 通道会提前收到测试版本，其中 Alpha 版本可能非常不稳定。确定切换吗？"
+      "testChannelContent": "Beta 与 Alpha 通道会提前收到测试版本，其中 Alpha 版本可能非常不稳定。确定切换吗？",
+      "kugouLoginVersionTitle": "切换 KG 登录版本",
+      "kugouLoginVersionContent": "切换后当前登录凭据与新版本不匹配，需退出登录并重新扫码，否则会员权益与高音质解析会失效。确定切换吗？"
     },
     "useAMSpring": {
       "label": "弹簧动画调试开关",
@@ -1111,6 +1147,30 @@
     "amllScaleSpringSoft": {
       "label": "缩放强制软弹簧",
       "description": "启用后将强制使用较软的焦点行缩放弹簧动效"
+    },
+    "amllCleanUnintentionalOverlaps": {
+      "label": "清洗时间重叠",
+      "description": "自动截断两行之间非刻意的微小时间重叠，避免多行同时高亮"
+    },
+    "amllTryAdvanceStartTime": {
+      "label": "提前入场动画",
+      "description": "尝试让歌词入场动画提前开始（最多 1 秒），使过渡更加平滑"
+    },
+    "amllConvertExcessiveBackgroundLines": {
+      "label": "合并背景人声",
+      "description": "将多行连续背景人声转换为单行背景人声与主歌词行的形式"
+    },
+    "amllSyncMainAndBackgroundLines": {
+      "label": "同步背景人声时间",
+      "description": "自动同步主歌词与背景人声的时间轴"
+    },
+    "amllNormalizeSpaces": {
+      "label": "规范化空格",
+      "description": "将歌词文本中的多个连续空格合并为单个空格"
+    },
+    "amllResetLineTimestamps": {
+      "label": "重设行时间戳",
+      "description": "将行级时间戳强制重设为字级时间戳范围"
     },
     "autoCenterCover": {
       "label": "自动居中封面",
@@ -1456,6 +1516,10 @@
       "default": "默认",
       "fullscreen": "全屏封面"
     },
+    "coverLyricRatio": {
+      "label": "封面/歌词占比",
+      "description": "播放页封面与歌词区域的宽度比例"
+    },
     "themeMode": {
       "label": "主题模式",
       "description": "应用的颜色主题",
@@ -1526,6 +1590,23 @@
     "sidebarPlaylistCover": {
       "label": "歌单显示封面",
       "description": "侧边栏的歌单项以歌单封面替代默认图标"
+    },
+    "sidebarCustomize": {
+      "label": "自定义侧边栏",
+      "description": "调整侧边栏导航项的分组、顺序与显示",
+      "hint": "拖动手柄调整顺序与分组，点击眼睛切换显示",
+      "nav": "导航项",
+      "groups": "歌单分组",
+      "group": "分组 {n}",
+      "addGroup": "新增分组",
+      "emptyGroup": "拖动导航项到此处",
+      "noPlaylists": "暂无歌单",
+      "keepEmptyDivider": "空分组保留分隔线",
+      "nameWithDivider": "分组名与分隔线叠加显示",
+      "showName": "在侧栏显示分组名",
+      "confirmResetTitle": "确认恢复默认？",
+      "confirmResetDesc": "分组、命名、排序与显隐都将重置为默认！",
+      "featureDisabled": "功能未开启"
     },
     "showStatsInSidebar": {
       "label": "显示播放统计入口",
@@ -1618,6 +1699,28 @@
         "disconnected": "已断开 Last.fm 连接"
       }
     },
+    "platformLogin": {
+      "title": "登录 {name} 账号",
+      "desc": "登录后可获取对应平台播放地址",
+      "loginWeb": "网页登录",
+      "loginQr": "扫码登录",
+      "loginQrQQ": "QQ 扫码登录",
+      "loginQrWX": "微信扫码登录",
+      "qrTitle": "扫码登录",
+      "manualCookie": "Cookie 登录",
+      "logout": "退出登录",
+      "logoutTitle": "退出 {name} 登录",
+      "logoutConfirm": "确定要退出当前 {name} 账号（{user}）吗？",
+      "cookieTitle": "设置 {name} Cookie",
+      "cookiePlaceholder": "请输入 Cookie",
+      "toast": {
+        "loginSuccess": "{name} 登录成功：{user}",
+        "loginFailed": "{name} 登录失败，请重试",
+        "logoutDone": "已退出 {name} 登录",
+        "cookieSuccess": "{name} Cookie 设置成功",
+        "cookieInvalid": "Cookie 无效，请检查后重试"
+      }
+    },
     "rememberWindowState": {
       "label": "记忆窗口状态",
       "description": "下次启动时恢复窗口的大小、位置和最大化状态"
@@ -1684,6 +1787,12 @@
     "neteaseRealIp": {
       "label": "使用真实IP地址",
       "description": "在海外或部分地区可能会受到限制，可开启此处尝试解决"
+    },
+    "kugouLoginVersion": {
+      "label": "KG 登录版本",
+      "description": "切换后需重新扫码登录",
+      "standard": "标准版",
+      "concept": "概念版"
     },
     "neteaseScrobbleEnabled": {
       "label": "启用听歌打卡",
@@ -2169,7 +2278,20 @@
     "favoriteHour": "你最喜欢在 {hour}:00 听歌，共计 {count} 首",
     "noPlayHistory": "暂无播放时段数据",
     "listeningActivity": "聆听足迹",
-    "last90Days": "近 90 天"
+    "last90Days": "近 90 天",
+    "playOverview": "播放总览",
+    "playOverviewHint": "本地与在线播放均计入",
+    "playTimes": "播放次数",
+    "listenedDuration": "收听时长",
+    "playedSongs": "听过歌曲",
+    "weekPlays": "本周播放",
+    "listenStreak": "连续收听",
+    "playUnit": "次",
+    "dayUnit": "天",
+    "source": {
+      "local": "本地",
+      "streaming": "媒体源"
+    }
   },
   "errors": {
     "dialogTitle": "出错了",
@@ -2194,6 +2316,7 @@
     "SCAN_DIR_NOT_SELECTED": "未选择目录",
     "TAG_READ_FAILED": "读取标签失败",
     "TAG_WRITE_FAILED": "写入标签失败",
+    "MAX_CONSECUTIVE_FAILURES": "连续播放失败次数过多",
     "UNKNOWN": "操作失败"
   },
   "tagEditor": {

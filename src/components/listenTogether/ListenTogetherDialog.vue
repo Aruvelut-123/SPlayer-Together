@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import { useListenTogetherStore } from "@/stores/listenTogether";
-import { useUserStore } from "@/stores/user";
 import { toast } from "@/composables/useToast";
 import IconLucideCopy from "~icons/lucide/copy";
 import IconLucideRadio from "~icons/lucide/radio";
+import IconLucideUsers from "~icons/lucide/users";
 import IconLucideUserPlus from "~icons/lucide/user-plus";
 import IconLucideLogOut from "~icons/lucide/log-out";
-import IconLucideUsers from "~icons/lucide/users";
 import IconLucideLoaderCircle from "~icons/lucide/loader-circle";
 import IconLucideLogIn from "~icons/lucide/log-in";
 
@@ -15,15 +14,14 @@ const emit = defineEmits<{ "update:open": [value: boolean] }>();
 
 const { t } = useI18n();
 const store = useListenTogetherStore();
-const user = useUserStore();
 const { connection, role, code, members, hostId, sharedState, permissions, lastError } =
   storeToRefs(store);
 
 const joinCode = ref("");
 const loginOpen = ref(false);
 
-/** 是否已登录网易云：一起听要求登录后才可使用 */
-const notLoggedIn = computed(() => !user.isLoggedIn);
+/** 任一音乐平台已登录即可使用一起听 */
+const notLoggedIn = computed(() => !store.loggedIn);
 
 /** 成员权限开关变化后同步到服务器 */
 const handlePermissionChange = (): void => {
@@ -49,8 +47,8 @@ const isHost = computed(() => role.value === "host");
 /** 创建 / 加入请求进行中，防止重复点击 */
 const busy = ref(false);
 
-/** 当前网易云账号名（一起听昵称固定使用账号名，不可修改） */
-const accountName = computed(() => user.profile?.nickname ?? "");
+/** 当前登录平台账号名（一起听昵称固定使用账号名，不可修改） */
+const accountName = computed(() => store.nickname);
 
 /** 单个成员的权限覆盖（无覆盖时回退全局默认） */
 const memberPerms = (memberId: string) => {
@@ -79,7 +77,10 @@ const sharedTrackText = computed(() => {
 
 const handleCreate = async (): Promise<void> => {
   if (busy.value) return;
-  if (notLoggedIn.value) { loginOpen.value = true; return; }
+  if (notLoggedIn.value) {
+    loginOpen.value = true;
+    return;
+  }
   busy.value = true;
   try {
     await store.createRoom();
@@ -90,7 +91,10 @@ const handleCreate = async (): Promise<void> => {
 
 const handleJoin = async (): Promise<void> => {
   if (busy.value || !joinCode.value.trim()) return;
-  if (notLoggedIn.value) { loginOpen.value = true; return; }
+  if (notLoggedIn.value) {
+    loginOpen.value = true;
+    return;
+  }
   busy.value = true;
   try {
     await store.joinRoom(joinCode.value);
@@ -140,7 +144,13 @@ const copyCode = async (): Promise<void> => {
       <SDivider class="my-1" />
 
       <div class="flex items-center gap-2">
-        <SButton type="primary" class="flex-1" :loading="busy" :disabled="busy" @click="handleCreate">
+        <SButton
+          type="primary"
+          class="flex-1"
+          :loading="busy"
+          :disabled="busy"
+          @click="handleCreate"
+        >
           <template #icon><IconLucideRadio /></template>
           {{ t("listenTogether.createRoom") }}
         </SButton>
@@ -205,7 +215,11 @@ const copyCode = async (): Promise<void> => {
             <div class="flex flex-col min-w-0">
               <span class="text-sm truncate">{{ sharedTrackText }}</span>
               <span class="text-xs text-on-surface-variant/70">
-                {{ sharedState.state === "playing" ? t("listenTogether.syncing") : t("listenTogether.paused") }}
+                {{
+                  sharedState.state === "playing"
+                    ? t("listenTogether.syncing")
+                    : t("listenTogether.paused")
+                }}
               </span>
             </div>
           </div>
@@ -258,13 +272,17 @@ const copyCode = async (): Promise<void> => {
             </span>
             <!-- 房主可单独为每个成员设置权限 -->
             <template v-if="isHost && member.id !== hostId">
-              <span class="text-xs text-on-surface-variant/60">{{ t("listenTogether.memberControl") }}</span>
+              <span class="text-xs text-on-surface-variant/60">
+                {{ t("listenTogether.memberControl") }}
+              </span>
               <SSwitch
                 :size="18"
                 :model-value="memberPerms(member.id).control"
                 @update:model-value="setMemberPerm(member.id, 'control', $event)"
               />
-              <span class="text-xs text-on-surface-variant/60">{{ t("listenTogether.memberEdit") }}</span>
+              <span class="text-xs text-on-surface-variant/60">
+                {{ t("listenTogether.memberEdit") }}
+              </span>
               <SSwitch
                 :size="18"
                 :model-value="memberPerms(member.id).edit"

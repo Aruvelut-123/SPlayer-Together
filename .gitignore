@@ -26,6 +26,11 @@ package-lock.json
 *.pfx
 *.p12
 
-# 服务器配置（含管理员凭据与密钥白名单，避免泄露）
+# 服务器配置与运行时更新文件（避免提交凭据、下载包和备份）
 server/config.yml
+server/downloads/
+server/.update-staging/
+server/backups/
+server/update-state.json
+server/.pytest_cache/
 __pycache__/

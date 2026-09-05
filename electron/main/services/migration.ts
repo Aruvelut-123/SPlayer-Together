@@ -16,7 +16,9 @@ const UPSTREAM_NAMES = ["splayer-next", "Splayer-Next", "SPlayer-Next"];
 /** 从当前 userData 的父目录推算上游 userData 候选路径 */
 const upstreamConfigPaths = (): string[] => {
   const parent = path.dirname(app.getPath("userData"));
-  return UPSTREAM_NAMES.map((name) => path.join(parent, name, "app-data", "config", "settings.json"));
+  return UPSTREAM_NAMES.map((name) =>
+    path.join(parent, name, "app-data", "config", "settings.json"),
+  );
 };
 
 /** 检查是否存在可迁移的 SPlayer Next 设置 */

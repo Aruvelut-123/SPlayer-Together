@@ -37,12 +37,14 @@ The development shell is Git Bash on Windows. Write all terminal commands in bas
 
 ### Native Modules (Rust + NAPI-RS)
 
-Four `.node` modules in `native/`, built via `scripts/build-native.ts`, lazy-loaded by `electron/main/utils/nativeLoader.ts`. NAPI-RS auto-generates `index.d.ts`, imported via path aliases `@splayer/audio-engine`, `@splayer/audio-capture`, `@splayer/media-ctrl`, `@splayer/taskbar-lyric`.
+Six `.node` modules in `native/`, built via `scripts/build-native.ts`, lazy-loaded by `electron/main/utils/nativeLoader.ts`. NAPI-RS auto-generates `index.d.ts`, imported via path aliases `@splayer/audio-engine`, `@splayer/audio-capture`, `@splayer/media-ctrl`, `@splayer/taskbar-lyric`, `@splayer/taskbar-thumbnail`, `@splayer/opencc`.
 
-- `audio-engine` — `ffmpeg_audio` decode (static FFmpeg) + rodio playback + FFT + cover extraction. URLs wrapped as `Read + Seek` via `ffmpeg_audio::HttpAudioSource` (using `HttpCancelHandle` for cancellation/reset) — TLS handled in Rust (`reqwest` + `rustls`), cross-platform with no system deps. Pushes events (state/position/ended/outputStalled) via ThreadsafeFunction. Has load_token race protection and an `HttpCancelHandle` handle injected into `HttpAudioSource` for instant stop and reset.
+- `audio-engine` — `ffmpeg_audio` decode (static FFmpeg) + cpal playback + FFT + cover extraction. URLs wrapped as `Read + Seek` via `ffmpeg_audio::HttpAudioSource` (using `HttpCancelHandle` for cancellation/reset) — TLS handled in Rust (`reqwest` + `rustls`), cross-platform with no system deps. Pushes events (state/position/ended/outputStalled) via ThreadsafeFunction. Has load_token race protection and an `HttpCancelHandle` handle injected into `HttpAudioSource` for instant stop and reset.
 - `audio-capture` — System sound / microphone capture for song recognition. Windows via WASAPI Loopback; Linux via PulseAudio (`libpulse-binding`, needs `libpulse-dev` at build time — CI `dev.yml`/`release.yml` install it). Collects 8 kHz mono f32 PCM.
 - `media-ctrl` — Cross-platform system media controls (Windows SMTC / Linux MPRIS / macOS MPNowPlaying) + Discord RPC.
 - `taskbar-lyric` — Windows taskbar lyric text rendering with RegistryWatcher / UiaWatcher / TrayWatcher.
+- `taskbar-thumbnail` — Windows taskbar thumbnail / SMTC 预览辅助。
+- `opencc` — 歌词简繁转换（OpenCC 词库内嵌，供 `src/utils/lyric/cjkTransform.ts` 调用）。
 
 ### Playback Data Flow
 
@@ -184,6 +186,8 @@ Never hand-write native module types — import from `@splayer/*`. Use `shallowR
 ### Auto-imports
 
 In Vue components, `vue / pinia / vue-router / @vueuse/core / vue-i18n` are auto-imported, and UI components in `src/components/` are auto-registered.
+Icon components used only in Vue templates are auto-imported. Do not manually import them in
+`<script setup>`; import an icon explicitly only when it is referenced by script code.
 
 ### Logging (Main Process)
 
@@ -196,6 +200,10 @@ In preload's `onEvent`, always `ipcRenderer.removeAllListeners()` before adding 
 ### Prettier
 
 Double quotes, semicolons, 100-char width, trailing commas.
+
+Before committing, run Prettier on every file included in the commit and verify the formatted
+working tree before creating the commit. Do not leave formatting-only changes from the current task
+outside the commit.
 
 ### Shared Types
 

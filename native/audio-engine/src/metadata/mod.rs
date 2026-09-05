@@ -4,6 +4,7 @@ use ffmpeg_audio::SourceAudioInfo;
 
 mod cover;
 mod editor;
+mod folder_cover;
 mod lyrics;
 mod tag_fields;
 

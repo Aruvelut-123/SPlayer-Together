@@ -18,14 +18,20 @@ import asyncio
 import json
 import logging
 import os
+import re
 import secrets
+import shutil
 import string
+import subprocess
+import sys
+import threading
 import time
+import urllib.parse
 from pathlib import Path
 from typing import Any
 
 import yaml
-from aiohttp import web
+from aiohttp import ClientSession, ClientTimeout, web
 
 from webui import render_admin_page
 
@@ -48,17 +54,47 @@ ROOM_TTL_MS = 2 * 60 * 1000
 # 后台清理任务间隔
 CLEANUP_INTERVAL_MS = 30_000
 
+# 服务器自身版本（与 changelogs/<version>.md 对应）
+SERVER_VERSION = "1.2.0"
+
+# 更新包静态目录（setup / portable exe 放这里供 /downloads 下载）
+DOWNLOADS_DIR = BASE_DIR / "downloads"
+DOWNLOADS_DIR.mkdir(exist_ok=True)
+# 更新日志按版本文件目录（供 /api/admin/update/changelog 读取）
+CHANGELOGS_DIR = BASE_DIR / "changelogs"
+# 自更新源文件：从最新 release 的 tag 拉取 raw 文件后原子替换
+UPDATE_FILES = ("server.py", "webui.py", "requirements.txt")
+# 下载暂存目录（全部校验通过后才替换到 BASE_DIR）
+UPDATE_STAGING_DIR = BASE_DIR / ".update-staging"
+# 替换前的备份目录（backups/<旧版本>-<时间戳>/）
+BACKUP_DIR = BASE_DIR / "backups"
+# 更新状态持久化文件（重启后仍能告诉管理端“有新版本待安装”）
+UPDATE_STATE_FILE = BASE_DIR / "update-state.json"
+
+# 更新源：GitHub Releases
+RELEASES_API_URL = "https://api.github.com/repos/{repo}/releases/latest"
+RELEASE_PAGE_URL = "https://github.com/{repo}/releases/latest"
+RAW_FILE_URL = "https://raw.githubusercontent.com/{repo}/{tag}/{file}"
+RELEASE_TIMEOUT_S = 30
+# 启动后首次自动检查的延迟（秒）
+UPDATE_STARTUP_CHECK_DELAY_S = 5
+
+# 版本号（用于 changelog 查询参数）与 server.py 中的版本定义
+VERSION_RE = re.compile(r"^\d+\.\d+\.\d+$")
+SERVER_VERSION_RE = re.compile(r"""^SERVER_VERSION\s*=\s*["']([^"']+)["']""", re.M)
+REQUIREMENT_RE = re.compile(r"^[A-Za-z0-9._-]+(\[[A-Za-z0-9,._ -]+\])?([=<>!~]=?[^\s;#]+)?$")
+
 DEFAULT_CONFIG: dict[str, Any] = {
     "host": "0.0.0.0",
     "port": 8000,
+    "update": {
+        "enabled": False,           # 是否启用服务器自更新
+        "github_repo": "",          # 更新源仓库 owner/repo
+        "github_token": "",         # 可选：私有仓库 / 提高 API 限额
+        "check_interval_minutes": 60,  # 后台检查间隔（分钟）
+    },
     "admin": {"username": "admin", "password": "change-me"},
 }
-
-# 更新包静态目录（setup/portable exe 放这里供 /downloads 下载）
-DOWNLOADS_DIR = BASE_DIR / "downloads"
-DOWNLOADS_DIR.mkdir(exist_ok=True)
-# 更新日志按版本文件目录（供客户端 /api/changelog 读取，已弃用，保留兼容）
-CHANGELOGS_DIR = BASE_DIR / "changelogs"
 
 
 def now_ms() -> int:
@@ -72,7 +108,41 @@ def load_config() -> dict[str, Any]:
         data = yaml.safe_load(CONFIG_FILE.read_text(encoding="utf-8")) or {}
     config = {**DEFAULT_CONFIG, **data}
     config["admin"] = {**DEFAULT_CONFIG["admin"], **(data.get("admin") or {})}
+    config["update"] = {**DEFAULT_CONFIG["update"], **(data.get("update") or {})}
     return config
+
+
+def update_config() -> dict[str, Any]:
+    """当前生效的更新相关配置（兼容 repo / check_interval 简写）"""
+    cfg = CONFIG.get("update") or {}
+    merged = {**DEFAULT_CONFIG["update"], **{k: v for k, v in cfg.items() if v is not None}}
+    if not merged.get("github_repo") and merged.get("repo"):
+        merged["github_repo"] = merged["repo"]
+    if cfg.get("check_interval") is not None and cfg.get("check_interval_minutes") is None:
+        merged["check_interval_minutes"] = cfg["check_interval"]
+    return merged
+
+
+def update_cfg_value(key: str, fallback: Any) -> Any:
+    """读取单个更新配置项，缺省或空值时回退到默认"""
+    value = update_config().get(key, fallback)
+    return fallback if value is None else value
+
+
+def update_cfg_bool(key: str) -> bool:
+    return bool(update_cfg_value(key, False))
+
+
+def update_cfg_int(key: str, fallback: int) -> int:
+    try:
+        return int(update_cfg_value(key, fallback))
+    except (TypeError, ValueError):
+        return fallback
+
+
+def update_cfg_str(key: str) -> str:
+    value = update_cfg_value(key, "")
+    return str(value).strip()
 
 
 CONFIG = load_config()
@@ -83,6 +153,480 @@ admin_tokens: set[str] = set()
 
 # code -> Room
 rooms: dict[str, "Room"] = {}
+
+
+# --------------------------------------------------------------------------
+# 服务器自身更新：状态模型
+# --------------------------------------------------------------------------
+
+
+class UpdateError(RuntimeError):
+    """自更新失败，消息可直接展示给管理端"""
+
+
+# 更新状态机：idle -> checking -> up_to_date | available
+#                        -> downloading -> ready -> installing -> installed
+# 任一环节失败都会转入 error，并带上可展示的中文错误信息
+UPDATE_STATE: dict[str, Any] = {
+    "status": "idle",          # idle | checking | up_to_date | available | downloading | ready | installing | installed | error
+    "currentVersion": SERVER_VERSION,
+    "latestVersion": "",
+    "tagName": "",
+    "releaseUrl": "",
+    "releaseName": "",
+    "releaseNotes": "",
+    "checkedAt": 0,
+    "stagedFiles": [],
+    "error": "",
+}
+
+class UpdateLock:
+    """更新任务锁：按当前事件循环惰性创建，避免跨事件循环复用报错"""
+
+    def __init__(self) -> None:
+        self._lock: asyncio.Lock | None = None
+        self._loop: asyncio.AbstractEventLoop | None = None
+
+    def _current(self) -> asyncio.Lock:
+        loop = asyncio.get_running_loop()
+        if self._lock is None or self._loop is not loop:
+            self._lock, self._loop = asyncio.Lock(), loop
+        return self._lock
+
+    def locked(self) -> bool:
+        """当前事件循环内是否有更新任务在跑"""
+        return self._lock is not None and self._loop is asyncio.get_running_loop() and self._lock.locked()
+
+    async def __aenter__(self) -> "UpdateLock":
+        await self._current().acquire()
+        return self
+
+    async def __aexit__(self, *_exc: Any) -> None:
+        self._current().release()
+
+
+# 同一时刻只允许一个检查 / 下载 / 安装任务
+update_lock = UpdateLock()
+# 下载取消标记（拉取每个文件前检查，关闭时置位）
+update_cancel = threading.Event()
+
+
+def set_update_status(**fields: Any) -> None:
+    """更新状态字段（同时刷新 currentVersion）"""
+    UPDATE_STATE.update(fields)
+    UPDATE_STATE["currentVersion"] = SERVER_VERSION
+
+
+def update_public_view() -> dict[str, Any]:
+    """管理端看到的更新状态"""
+    return {
+        **{k: UPDATE_STATE[k] for k in UPDATE_STATE if k != "currentVersion"},
+        "currentVersion": SERVER_VERSION,
+        "updateAvailable": bool(
+            UPDATE_STATE["latestVersion"]
+            and version_is_newer(UPDATE_STATE["latestVersion"], SERVER_VERSION)
+        ),
+        "enabled": update_cfg_bool("enabled"),
+        "githubRepo": update_cfg_str("github_repo"),
+        "githubRepoConfigured": bool(update_cfg_str("github_repo")),
+        "checkIntervalMinutes": update_cfg_int("check_interval_minutes", 60),
+    }
+
+
+def client_update_view() -> dict[str, Any]:
+    """客户端看到的版本信息（只暴露版本号与“有待安装更新”这一事实）"""
+    pending = UPDATE_STATE["status"] in ("ready", "installing") and bool(UPDATE_STATE["latestVersion"])
+    return {
+        "name": "splayer-together-server",
+        "version": SERVER_VERSION,
+        "updateAvailable": pending,
+        "pendingVersion": UPDATE_STATE["latestVersion"] if pending else "",
+    }
+
+
+def save_update_state() -> None:
+    """把已暂存待安装的更新信息写入 update-state.json，供重启后恢复"""
+    if UPDATE_STATE["status"] != "ready" or not UPDATE_STATE["stagedFiles"]:
+        return
+    payload = {
+        "latestVersion": UPDATE_STATE["latestVersion"],
+        "tagName": UPDATE_STATE["tagName"],
+        "stagedFiles": list(UPDATE_STATE["stagedFiles"]),
+        "checkedAt": UPDATE_STATE["checkedAt"],
+        "releaseUrl": UPDATE_STATE["releaseUrl"],
+    }
+    try:
+        UPDATE_STATE_FILE.write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+    except OSError as exc:
+        log.warning("写入 %s 失败：%s", UPDATE_STATE_FILE.name, exc)
+
+
+def clear_update_state_file() -> None:
+    try:
+        UPDATE_STATE_FILE.unlink()
+    except FileNotFoundError:
+        pass
+    except OSError as exc:
+        log.warning("删除 %s 失败：%s", UPDATE_STATE_FILE.name, exc)
+
+
+def staged_path(file_name: str) -> Path:
+    """暂存目录内的文件路径（只允许已知文件名，拒绝路径穿越）"""
+    if file_name not in UPDATE_FILES:
+        raise UpdateError(f"未知的更新文件：{file_name}")
+    return UPDATE_STAGING_DIR / file_name
+
+
+def staged_files_complete() -> bool:
+    """暂存目录中是否已有一整套更新文件"""
+    return all(staged_path(name).is_file() for name in UPDATE_FILES)
+
+
+def restore_update_state() -> None:
+    """启动时读取 update-state.json：若暂存文件仍在且版本更新，则恢复为 ready"""
+    if not UPDATE_STATE_FILE.exists():
+        return
+    try:
+        data = json.loads(UPDATE_STATE_FILE.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        log.warning("读取 %s 失败：%s", UPDATE_STATE_FILE.name, exc)
+        return
+    version = str(data.get("latestVersion", "") or "")
+    staged = [str(n) for n in (data.get("stagedFiles") or []) if str(n) in UPDATE_FILES]
+    if not version or not staged or not version_is_newer(version, SERVER_VERSION):
+        clear_update_state_file()
+        return
+    UPDATE_STAGING_DIR.mkdir(exist_ok=True)
+    missing = [n for n in staged if not staged_path(n).is_file()]
+    if missing:
+        log.warning("上次下载的更新文件缺失 %s，丢弃待安装状态", ", ".join(missing))
+        clear_update_state_file()
+        return
+    set_update_status(
+        status="ready",
+        latestVersion=version,
+        tagName=str(data.get("tagName", "") or f"v{version}"),
+        releaseUrl=str(data.get("releaseUrl", "") or ""),
+        stagedFiles=staged,
+        checkedAt=int(data.get("checkedAt", 0) or 0),
+        error="",
+    )
+    log.info("检测到上次下载但未安装的更新 %s，状态恢复为 ready", version)
+
+
+def version_is_newer(candidate: str, current: str) -> bool:
+    """比较版本号：candidate 是否比 current 新（非标准格式回退到字符串比较）"""
+    a, b = parse_version(candidate), parse_version(current)
+    if a is not None and b is not None:
+        return a > b
+    return str(candidate).lstrip("vV") > str(current).lstrip("vV")
+
+
+def parse_version(version: str) -> tuple[int, ...] | None:
+    """解析 ``1.2.3`` / ``v1.2.3`` / ``1.2.3-beta.1`` 为数字元组，失败返回 None"""
+    text = str(version).strip().lstrip("vV").split("+")[0]
+    core = text.split("-")[0]
+    if not core:
+        return None
+    parts: list[int] = []
+    for chunk in core.split("."):
+        if not chunk.isdigit():
+            return None
+        parts.append(int(chunk))
+    return tuple(parts)
+
+
+# --------------------------------------------------------------------------
+# 服务器自身更新：检查 / 下载 / 安装 / 重启
+# --------------------------------------------------------------------------
+
+
+def github_headers() -> dict[str, str]:
+    """GitHub API 请求头（可选 token 提高限额并支持私有仓库）"""
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "User-Agent": f"splayer-together-server/{SERVER_VERSION}",
+    }
+    token = update_cfg_str("github_token")
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    return headers
+
+
+def require_repo() -> str:
+    """读取并校验 update.github_repo"""
+    repo = update_cfg_str("github_repo")
+    if not repo or "/" not in repo:
+        raise UpdateError("未配置 update.github_repo（格式 owner/repo）")
+    return repo.strip("/")
+
+
+async def fetch_json(url: str) -> dict[str, Any]:
+    """GET 并解析 JSON"""
+    try:
+        async with ClientSession(timeout=ClientTimeout(total=RELEASE_TIMEOUT_S)) as session:
+            async with session.get(url, headers=github_headers()) as resp:
+                if resp.status == 404:
+                    raise UpdateError("仓库或最新版本不存在，请检查 update.github_repo")
+                if resp.status == 403:
+                    raise UpdateError("GitHub API 访问受限（403），可配置 update.github_token")
+                if resp.status != 200:
+                    raise UpdateError(f"请求 GitHub API 失败：HTTP {resp.status}")
+                return await resp.json(content_type=None)
+    except UpdateError:
+        raise
+    except Exception as exc:  # 网络 / 解析异常统一转成可展示消息
+        raise UpdateError(f"访问 GitHub API 失败：{exc}") from exc
+
+
+async def fetch_raw_text(path: str, tag: str) -> str:
+    """从指定 tag 拉取仓库内的 raw 文本文件"""
+    repo = require_repo()
+    url = RAW_FILE_URL.format(repo=repo, tag=urllib.parse.quote(tag), file=urllib.parse.quote(path))
+    try:
+        async with ClientSession(timeout=ClientTimeout(total=RELEASE_TIMEOUT_S)) as session:
+            async with session.get(url, headers=github_headers()) as resp:
+                if resp.status != 200:
+                    raise UpdateError(f"下载 {path} 失败：HTTP {resp.status}")
+                return await resp.text()
+    except UpdateError:
+        raise
+    except Exception as exc:
+        raise UpdateError(f"下载 {path} 失败：{exc}") from exc
+
+
+async def fetch_latest_release() -> dict[str, Any]:
+    """查询 GitHub 最新 release，返回规范化后的版本信息"""
+    repo = require_repo()
+    data = await fetch_json(RELEASES_API_URL.format(repo=repo))
+    tag = str(data.get("tag_name", "") or "").strip()
+    if not tag:
+        raise UpdateError("最新版本缺少 tag_name")
+    release_version = tag.lstrip("vV")
+    # 客户端 release 不一定包含服务器改动，必须读取 tag 内的 server.py 判断服务器版本。
+    server_text = await fetch_raw_text("server.py", tag)
+    match = SERVER_VERSION_RE.search(server_text)
+    if match is None:
+        raise UpdateError("release 中的 server.py 缺少 SERVER_VERSION 定义")
+    server_version = match.group(1).lstrip("vV")
+    return {
+        "version": server_version,
+        "releaseVersion": release_version,
+        "tagName": tag,
+        "releaseUrl": str(data.get("html_url", "") or RELEASE_PAGE_URL.format(repo=repo)),
+        "releaseName": str(data.get("name", "") or tag),
+        "releaseNotes": str(data.get("body", "") or ""),
+    }
+
+
+def validate_release_file(name: str, text: str, version: str) -> None:
+    """校验下载到的文件：非空、语法可编译、依赖行可识别、版本与 release 一致"""
+    if not text.strip():
+        raise UpdateError(f"{name} 内容为空，已放弃更新")
+    if name.endswith(".py"):
+        try:
+            compile(text, name, "exec")
+        except SyntaxError as exc:
+            raise UpdateError(f"{name} 语法校验失败：{exc}") from exc
+        if name == "server.py":
+            match = SERVER_VERSION_RE.search(text)
+            if match is None:
+                raise UpdateError("server.py 缺少 SERVER_VERSION 定义，已放弃更新")
+            got = match.group(1).lstrip("vV")
+            if got != version.lstrip("vV"):
+                raise UpdateError(f"server.py 版本 {got} 与 release 版本 {version} 不一致")
+    elif name == "requirements.txt":
+        for line in text.splitlines():
+            line = line.split("#", 1)[0].strip()
+            if line and not REQUIREMENT_RE.match(line):
+                raise UpdateError(f"requirements.txt 含无法识别的依赖行：{line}")
+
+
+async def download_release_files(tag: str, version: str) -> list[str]:
+    """把 UPDATE_FILES 全部拉到暂存目录并逐个校验，返回已暂存的文件名"""
+    if update_cancel.is_set():
+        raise UpdateError("服务器正在关闭，更新已取消")
+    UPDATE_STAGING_DIR.mkdir(exist_ok=True)
+    staged: list[str] = []
+    for name in UPDATE_FILES:
+        text = await fetch_raw_text(name, tag)
+        validate_release_file(name, text, version)
+        staged_path(name).write_text(text, encoding="utf-8")
+        staged.append(name)
+        log.debug("已下载并校验 %s（tag %s）", name, tag)
+    return staged
+
+
+def backup_current_files() -> Path:
+    """把将被替换的文件备份到 backups/<当前版本>-<时间戳>/"""
+    target = BACKUP_DIR / f"{SERVER_VERSION}-{time.strftime('%Y%m%d-%H%M%S')}"
+    target.mkdir(parents=True, exist_ok=True)
+    for name in UPDATE_FILES:
+        src = BASE_DIR / name
+        if src.is_file():
+            shutil.copy2(src, target / name)
+    return target
+
+
+def install_staged_files(staged: list[str]) -> None:
+    """把暂存文件移动到工作目录（同分区 rename，近似原子替换）"""
+    for name in staged:
+        shutil.move(str(staged_path(name)), str(BASE_DIR / name))
+
+
+def spawn_restart_process() -> None:
+    """用当前解释器与参数重新拉起服务器进程（脱离当前进程组）"""
+    script = str(Path(sys.argv[0]).resolve()) if sys.argv and sys.argv[0] else str(BASE_DIR / "server.py")
+    args = [sys.executable, script, *sys.argv[1:]]
+    kwargs: dict[str, Any] = {"cwd": str(BASE_DIR), "stdin": subprocess.DEVNULL}
+    if os.name == "nt":
+        kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS
+    else:
+        kwargs["start_new_session"] = True
+    log.warning("重启服务器进程：%s", " ".join(args))
+    subprocess.Popen(args, **kwargs)
+
+
+def restart_process() -> None:
+    """拉起新进程后立即退出旧进程（不调用 atexit，避免清理任务再次阻塞）"""
+    update_cancel.set()
+    try:
+        spawn_restart_process()
+    except OSError as exc:
+        log.error("重启失败，请手动重启服务器：%s", exc)
+        return
+    os._exit(0)
+
+
+def schedule_restart(delay_s: float = 1.0) -> None:
+    """延迟重启：先让当前 HTTP 响应返回"""
+    asyncio.get_running_loop().call_later(delay_s, restart_process)
+
+
+async def check_for_update() -> dict[str, Any]:
+    """检查 GitHub 最新 release 并刷新状态，返回管理端视图"""
+    if update_lock.locked():
+        raise UpdateError("已有更新任务正在进行，请稍后再试")
+    async with update_lock:
+        set_update_status(status="checking", error="")
+        try:
+            latest = await fetch_latest_release()
+        except UpdateError as exc:
+            set_update_status(status="error", error=str(exc))
+            raise
+        newer = version_is_newer(latest["version"], SERVER_VERSION)
+        set_update_status(
+            status="available" if newer else "up_to_date",
+            latestVersion=latest["version"],
+            tagName=latest["tagName"],
+            releaseUrl=latest["releaseUrl"],
+            releaseName=latest["releaseName"],
+            releaseNotes=latest["releaseNotes"],
+            checkedAt=now_ms(),
+            error="",
+        )
+        if newer:
+            log.info("发现新版本 %s（当前 %s）", latest["version"], SERVER_VERSION)
+        else:
+            log.info("检查完成：当前已是最新版本 %s", SERVER_VERSION)
+    return update_public_view()
+
+
+async def apply_update() -> dict[str, Any]:
+    """下载（若尚未暂存）→ 校验 → 备份 → 替换，成功后安排重启"""
+    if not update_cfg_bool("enabled"):
+        raise UpdateError("服务器自更新未启用（config.yml 中 update.enabled: true）")
+    if update_lock.locked():
+        raise UpdateError("已有更新任务正在进行，请稍后再试")
+    async with update_lock:
+        try:
+            version = str(UPDATE_STATE["latestVersion"] or "")
+            tag = str(UPDATE_STATE["tagName"] or "")
+            if not version or not tag:
+                latest = await fetch_latest_release()
+                version, tag = latest["version"], latest["tagName"]
+                set_update_status(
+                    latestVersion=version,
+                    tagName=tag,
+                    releaseUrl=latest["releaseUrl"],
+                    releaseName=latest["releaseName"],
+                    releaseNotes=latest["releaseNotes"],
+                    checkedAt=now_ms(),
+                )
+            if not version_is_newer(version, SERVER_VERSION):
+                raise UpdateError(f"当前已是最新版本（{SERVER_VERSION}），无需更新")
+            if not staged_files_complete():
+                set_update_status(status="downloading", stagedFiles=[], error="")
+                staged = await download_release_files(tag, version)
+            else:
+                staged = list(UPDATE_FILES)
+                log.info("复用已下载的更新文件（tag %s）", tag)
+            set_update_status(status="ready", stagedFiles=staged)
+            save_update_state()
+            set_update_status(status="installing")
+            backup = backup_current_files()
+            install_staged_files(staged)
+            clear_update_state_file()
+            set_update_status(status="installed", stagedFiles=[], error="")
+            log.warning(
+                "已安装更新 %s → %s（备份于 %s），服务器即将重启",
+                SERVER_VERSION,
+                version,
+                backup.relative_to(BASE_DIR).as_posix(),
+            )
+            schedule_restart()
+        except UpdateError as exc:
+            set_update_status(status="error", error=str(exc))
+            raise
+        except Exception as exc:  # 备份 / 写盘等意外错误
+            set_update_status(status="error", error=f"更新失败：{exc}")
+            raise UpdateError(f"更新失败：{exc}") from exc
+    return update_public_view()
+
+
+async def update_check_loop() -> None:
+    """后台周期性检查最新版本（仅在 update.enabled 时启动）"""
+    await asyncio.sleep(UPDATE_STARTUP_CHECK_DELAY_S)
+    while True:
+        try:
+            await check_for_update()
+        except asyncio.CancelledError:
+            raise
+        except UpdateError as exc:
+            log.warning("自动检查更新失败：%s", exc)
+        except Exception as exc:
+            log.warning("自动检查更新异常：%s", exc)
+        interval = max(1, update_cfg_int("check_interval_minutes", 60)) * 60
+        await asyncio.sleep(interval)
+
+
+async def start_update_checker(app: web.Application) -> None:
+    """启动钩子：恢复待安装状态并按配置启动周期检查"""
+    update_cancel.clear()
+    restore_update_state()
+    if not update_cfg_bool("enabled"):
+        log.info("服务器自更新未启用（config.yml: update.enabled）")
+        return
+    if not update_cfg_str("github_repo"):
+        log.warning("已启用自更新但未配置 update.github_repo，检查任务不会启动")
+        return
+    app["update_task"] = asyncio.create_task(update_check_loop())
+    log.info(
+        "自更新检查任务已启动（仓库 %s，间隔 %s 分钟）",
+        update_cfg_str("github_repo"),
+        update_cfg_int("check_interval_minutes", 60),
+    )
+
+
+async def stop_update_checker(app: web.Application) -> None:
+    """关闭钩子：取消检查任务并置位下载取消标记"""
+    update_cancel.set()
+    task = app.get("update_task")
+    if task is not None:
+        task.cancel()
+        log.info("自更新检查任务已停止")
 
 
 class Room:
@@ -533,6 +1077,81 @@ async def handle_admin_page(request: web.Request) -> web.StreamResponse:
     return web.Response(text=render_admin_page(), content_type="text/html")
 
 
+# --------------------------------------------------------------------------
+# 服务器自身更新：HTTP 接口
+# --------------------------------------------------------------------------
+
+
+async def handle_version(request: web.Request) -> web.Response:
+    """公开版本信息（客户端据此提示有新版本待安装）"""
+    return web.json_response(client_update_view())
+
+
+async def handle_admin_update_status(request: web.Request) -> web.Response:
+    """查看当前更新状态"""
+    if not admin_authed(request):
+        return web.json_response({"error": "unauthorized"}, status=401)
+    return web.json_response(update_public_view())
+
+
+async def handle_admin_update_check(request: web.Request) -> web.Response:
+    """立即检查一次 GitHub 最新版本"""
+    if not admin_authed(request):
+        return web.json_response({"error": "unauthorized"}, status=401)
+    try:
+        view = await check_for_update()
+    except UpdateError as exc:
+        return web.json_response({"error": str(exc)}, status=400)
+    return web.json_response(view)
+
+
+async def handle_admin_update_apply(request: web.Request) -> web.Response:
+    """下载并安装最新版本（校验通过后备份替换，随后自动重启）"""
+    if not admin_authed(request):
+        return web.json_response({"error": "unauthorized"}, status=401)
+    try:
+        view = await apply_update()
+    except UpdateError as exc:
+        return web.json_response({"error": str(exc)}, status=400)
+    log.warning("管理员触发服务器自更新：%s", view["latestVersion"])
+    return web.json_response(view)
+
+
+async def handle_admin_update_restart(request: web.Request) -> web.Response:
+    """立即重启服务器（先返回响应，再拉起新进程）"""
+    if not admin_authed(request):
+        return web.json_response({"error": "unauthorized"}, status=401)
+    log.warning("管理员触发服务器重启")
+    schedule_restart()
+    return web.json_response({"ok": True, "message": "服务器将在 1 秒后重启"})
+
+
+async def handle_admin_update_changelog(request: web.Request) -> web.Response:
+    """查看某版本的更新日志：优先本地 changelogs/<version>.md，其次从仓库拉取"""
+    if not admin_authed(request):
+        return web.json_response({"error": "unauthorized"}, status=401)
+    version = request.query.get("version", "").strip() or str(
+        UPDATE_STATE["latestVersion"] or SERVER_VERSION
+    )
+    if not VERSION_RE.match(version):
+        return web.json_response({"error": "版本号格式不正确"}, status=400)
+    local = CHANGELOGS_DIR / f"{version}.md"
+    if local.is_file():
+        return web.json_response(
+            {
+                "version": version,
+                "source": "local",
+                "markdown": local.read_text(encoding="utf-8"),
+            }
+        )
+    tag = str(UPDATE_STATE["tagName"] or "") or f"v{version}"
+    try:
+        text = await fetch_raw_text(f"changelogs/{version}.md", tag)
+    except UpdateError:
+        return web.json_response({"error": f"未找到 {version} 的更新日志"}, status=404)
+    return web.json_response({"version": version, "source": "github", "markdown": text})
+
+
 async def index(_request: web.Request) -> web.Response:
     return web.Response(text="SPlayer Together relay server")
 
@@ -542,6 +1161,7 @@ def build_app() -> web.Application:
     app.router.add_get("/", index)
     app.router.add_get("/admin", handle_admin_page)
     app.router.add_static("/downloads", DOWNLOADS_DIR, show_index=True)
+    app.router.add_get("/api/version", handle_version)
     app.router.add_post("/api/rooms", handle_create)
     app.router.add_post("/api/rooms/{code}/join", handle_join)
     app.router.add_post("/api/rooms/{code}/state", handle_push_state)
@@ -556,8 +1176,15 @@ def build_app() -> web.Application:
     app.router.add_post("/api/admin/reload", handle_admin_reload)
     app.router.add_get("/api/admin/rooms", handle_admin_rooms_list)
     app.router.add_post("/api/admin/rooms/{code}/dissolve", handle_admin_room_dissolve)
+    app.router.add_get("/api/admin/update/status", handle_admin_update_status)
+    app.router.add_post("/api/admin/update/check", handle_admin_update_check)
+    app.router.add_post("/api/admin/update/apply", handle_admin_update_apply)
+    app.router.add_post("/api/admin/update/restart", handle_admin_update_restart)
+    app.router.add_get("/api/admin/update/changelog", handle_admin_update_changelog)
     app.on_startup.append(start_cleanup)
     app.on_cleanup.append(stop_cleanup)
+    app.on_startup.append(start_update_checker)
+    app.on_cleanup.append(stop_update_checker)
     return app
 
 
@@ -567,7 +1194,8 @@ def main() -> None:
     host = str(CONFIG["host"])
     port = int(CONFIG["port"])
     log.info(
-        "SPlayer Together 中继服务器启动：http://%s:%s（管理后台 /admin）",
+        "SPlayer Together 中继服务器启动 v%s：http://%s:%s（管理后台 /admin）",
+        SERVER_VERSION,
         host,
         port,
     )

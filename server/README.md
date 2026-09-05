@@ -40,8 +40,13 @@ python -m pytest test_server.py -v
 host: 0.0.0.0
 port: 8000
 admin:
-  username: admin      # WebUI 登录用户名
-  password: change-me  # WebUI 登录密码，务必修改
+  username: admin # WebUI 登录用户名
+  password: change-me # WebUI 登录密码，务必修改
+update:
+  enabled: false # 是否启用服务器自更新
+  github_repo: "" # 更新源仓库 owner/repo
+  github_token: "" # 可选：私有仓库 / 提高 API 限额
+  check_interval_minutes: 60 # 后台自动检查间隔（分钟）
 ```
 
 > `config.yml` 已被 `.gitignore` 忽略，不会提交到仓库，避免泄露管理员凭据。
@@ -52,6 +57,7 @@ admin:
 
 - 查看进行中的房间（房主、在线人数、当前曲目）
 - 一键解散房间
+- 检查 / 下载并安装 / 重启升级到最新版本，并查看更新日志
 
 WebUI 与所有管理接口都需要管理员登录（session token）后才能使用。
 
@@ -60,22 +66,52 @@ WebUI 与所有管理接口都需要管理员登录（session token）后才能�
 房间操作需携带成员请求头：`X-Member-Id` + `X-Token`
 （创建 / 加入成功后由服务器返回这两个值）。
 
-| 方法 | 路径 | 说明 |
-| ---- | ---- | ---- |
-| POST | `/api/rooms` | 创建一起听房间（房主），body `{"name": "昵称"}` |
-| POST | `/api/rooms/{code}/join` | 加入房间，body `{"name": "昵称"}` |
-| POST | `/api/rooms/{code}/state` | 推送播放状态（房主/获权成员），body 含 `track/state/positionMs/playIndex/repeatMode/shuffleMode`，可选 `baseSeq` 乐观锁 |
-| GET | `/api/rooms/{code}/state` | 拉取房间快照（状态 / 成员 / 队列 / 报告 / 权限） |
-| POST | `/api/rooms/{code}/queue` | 推送播放列表，body `{"tracks": [...]}` |
-| POST | `/api/rooms/{code}/permissions` | 房主设置成员权限（全局或 per-member） |
-| POST | `/api/rooms/{code}/transfer` | 房主将房主身份转移给其他成员 |
-| POST | `/api/rooms/{code}/report` | 成员上报无法播放，房主下次拉取时收到 |
-| POST | `/api/rooms/{code}/leave` | 离开房间（房主离开自动转移房主） |
-| POST | `/api/admin/login` | 管理员登录，返回 token |
-| POST | `/api/admin/logout` | 管理员退出登录 |
-| POST | `/api/admin/reload` | 重新加载 `config.yml`，需 `X-Admin-Token` |
-| GET | `/api/admin/rooms` | 房间列表（仅进行中的房间），需 `X-Admin-Token` |
-| POST | `/api/admin/rooms/{code}/dissolve` | 解散房间，需 `X-Admin-Token` |
+| 方法 | 路径                               | 说明                                                                                                                    |
+| ---- | ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| POST | `/api/rooms`                       | 创建一起听房间（房主），body `{"name": "昵称"}`                                                                         |
+| POST | `/api/rooms/{code}/join`           | 加入房间，body `{"name": "昵称"}`                                                                                       |
+| POST | `/api/rooms/{code}/state`          | 推送播放状态（房主/获权成员），body 含 `track/state/positionMs/playIndex/repeatMode/shuffleMode`，可选 `baseSeq` 乐观锁 |
+| GET  | `/api/rooms/{code}/state`          | 拉取房间快照（状态 / 成员 / 队列 / 报告 / 权限）                                                                        |
+| POST | `/api/rooms/{code}/queue`          | 推送播放列表，body `{"tracks": [...]}`                                                                                  |
+| POST | `/api/rooms/{code}/permissions`    | 房主设置成员权限（全局或 per-member）                                                                                   |
+| POST | `/api/rooms/{code}/transfer`       | 房主将房主身份转移给其他成员                                                                                            |
+| POST | `/api/rooms/{code}/report`         | 成员上报无法播放，房主下次拉取时收到                                                                                    |
+| POST | `/api/rooms/{code}/leave`          | 离开房间（房主离开自动转移房主）                                                                                        |
+| GET  | `/api/version`                     | 公开版本信息（当前版本 / 是否有待安装更新），无需登录                                                                   |
+| POST | `/api/admin/login`                 | 管理员登录，返回 token                                                                                                  |
+| POST | `/api/admin/logout`                | 管理员退出登录                                                                                                          |
+| POST | `/api/admin/reload`                | 重新加载 `config.yml`，需 `X-Admin-Token`                                                                               |
+| GET  | `/api/admin/rooms`                 | 房间列表（仅进行中的房间），需 `X-Admin-Token`                                                                          |
+| POST | `/api/admin/rooms/{code}/dissolve` | 解散房间，需 `X-Admin-Token`                                                                                            |
+| GET  | `/api/admin/update/status`         | 服务器更新状态，需 `X-Admin-Token`                                                                                      |
+| POST | `/api/admin/update/check`          | 立即检查 GitHub 最新 release，需 `X-Admin-Token`                                                                        |
+| POST | `/api/admin/update/apply`          | 下载并安装更新（成功后自动重启），需 `X-Admin-Token`                                                                    |
+| POST | `/api/admin/update/restart`        | 重启服务器，需 `X-Admin-Token`                                                                                          |
+| GET  | `/api/admin/update/changelog`      | 查看某版本更新日志（`?version=1.2.0`），需 `X-Admin-Token`                                                              |
+
+## 服务器自更新
+
+在 `config.yml` 中开启后，服务器会周期性查询 GitHub 最新 release：
+
+```yaml
+update:
+  enabled: true
+  github_repo: Kimstry/ListenTogether
+  check_interval_minutes: 60
+```
+
+更新流程（全部在管理后台 /admin 的「服务器更新」面板完成）：
+
+1. **检查**：读取 `releases/latest` 的 `tag_name`，与 `SERVER_VERSION` 比较。
+2. **下载并安装**：从该 tag 拉取 `server.py`、`webui.py`、`requirements.txt` 到 `.update-staging/`，
+   逐个校验（非空、Python 语法可编译、`server.py` 内的 `SERVER_VERSION` 与 release 一致、
+   依赖行可识别），全部通过后才把旧文件备份到 `backups/<旧版本>-<时间戳>/` 并替换。
+3. **重启**：替换成功后服务器自动拉起新进程（房间状态不保留，与重启一致）。
+
+- 下载完成但未安装的更新会记录在 `update-state.json`，服务器重启后状态恢复为「待安装」。
+- 任一校验失败都会放弃替换，原文件保持不变，管理后台显示中文错误信息。
+- 依赖变化时需重新 `pip install -r requirements.txt`（服务器不会自动安装 Python 依赖）。
+- 更新源仅支持 GitHub；私有仓库可配置 `github_token`。
 
 ## 同步协议与乐观锁
 

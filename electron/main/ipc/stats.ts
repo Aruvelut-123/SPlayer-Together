@@ -3,6 +3,7 @@ import {
   insertPlayEvent,
   insertFavoriteEvent,
   getStatsSummary,
+  getPlaySourceBreakdown,
   getTopTracks,
   getPlayHistoryDaily,
   getPlayHistoryHourly,
@@ -21,6 +22,7 @@ export const registerStatsIpc = (): void => {
     insertFavoriteEvent(payload);
   });
   ipcMain.handle("stats:getStatsSummary", () => getStatsSummary());
+  ipcMain.handle("stats:getPlaySourceBreakdown", () => getPlaySourceBreakdown());
   ipcMain.handle("stats:getTopTracks", (_event, limit: number) => getTopTracks(limit));
   ipcMain.handle("stats:getLibraryStats", () => getLibraryStats());
   ipcMain.handle("stats:getPlayHistoryDaily", (_event, days: number) => getPlayHistoryDaily(days));

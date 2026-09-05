@@ -1,8 +1,10 @@
 import type { Track } from "@shared/types/player";
+import { ALL_PLATFORMS, isPlatform } from "@shared/types/platform";
 import { useMediaStore } from "@/stores/media";
 import { useStatusStore } from "@/stores/status";
 import { useLicenseStore } from "@/stores/license";
 import { useUserStore } from "@/stores/user";
+import { useDataStore } from "@/stores/data";
 import { queue as queueStore, setQueue } from "@/stores/queue";
 import * as player from "@/core/player";
 import { toast } from "@/composables/useToast";
@@ -15,9 +17,6 @@ import i18n from "@/i18n";
  * 所有成员周期性拉取快照，房主与获权成员可推送状态。通过 lastActor + baseSeq 乐观锁
  * 解决多写者冲突，强制跟随确保无权限成员始终与房主同步。
  */
-
-/** 可跨设备共享的在线平台来源 */
-const SHAREABLE_SOURCES = new Set(["netease", "qqmusic", "kugou"]);
 
 /** 推送 / 拉取间隔（毫秒），更快的间隔让切歌同步更及时 */
 const SYNC_INTERVAL_MS = 500;
@@ -103,9 +102,22 @@ export const useListenTogetherStore = defineStore("listenTogether", () => {
   const status = useStatusStore();
   const license = useLicenseStore();
   const user = useUserStore();
+  const data = useDataStore();
 
-  /** 昵称固定为网易云账号名，不提供编辑（一起听要求登录后才可进入） */
-  const nickname = computed(() => user.profile?.nickname || i18n.global.t("listenTogether.me"));
+  /** 任一平台已登录即可进入房间（网易云优先，其次 QQ 音乐 / 酷狗） */
+  const loggedIn = computed(
+    () => user.isLoggedIn || ALL_PLATFORMS.some((p) => !!data.getPlatformProfile(p)),
+  );
+
+  /** 昵称固定取已登录平台账号名，不提供编辑（一起听要求登录后才可进入） */
+  const nickname = computed(() => {
+    if (user.profile?.nickname) return user.profile.nickname;
+    for (const platform of ALL_PLATFORMS) {
+      const name = data.getPlatformProfile(platform)?.nickname;
+      if (name) return name;
+    }
+    return i18n.global.t("listenTogether.me");
+  });
 
   /** 轮询连接状态 */
   const connection = ref<ListenTogetherConnection>("idle");
@@ -146,9 +158,12 @@ export const useListenTogetherStore = defineStore("listenTogether", () => {
   /** 上次请求心跳时间戳（状态无变化时也定期刷新活跃） */
   let lastHeartbeatAt = 0;
   /** 成员跟随中的曲目（等待加载完成确认） */
-  let pendingFollow:
-    | { trackId: string; expected: number; playing: boolean; trackToken: number }
-    | null = null;
+  let pendingFollow: {
+    trackId: string;
+    expected: number;
+    playing: boolean;
+    trackToken: number;
+  } | null = null;
   /** 本机无法播放的曲目 id + 时间戳，冷却期内不重试 */
   let lastFailedAt = 0;
   let lastFailedTrackId = "";
@@ -286,7 +301,7 @@ export const useListenTogetherStore = defineStore("listenTogether", () => {
     if (!roomActive.value) return;
     if (role.value !== "host" && !permFor("allowGuestControl")) return;
     const track = media.track;
-    const shareable = !!track && SHAREABLE_SOURCES.has(track.source);
+    const shareable = !!track && isPlatform(track.source);
     const state = !shareable
       ? "paused"
       : status.state === "playing"
@@ -391,10 +406,13 @@ export const useListenTogetherStore = defineStore("listenTogether", () => {
     if (!roomActive.value) return;
     const sharedTrack = s.track;
     // 不可共享的曲目（如本地文件）→ 暂停
-    if (!sharedTrack || !SHAREABLE_SOURCES.has(sharedTrack.source)) {
+    if (!sharedTrack || !isPlatform(sharedTrack.source)) {
       if (status.isPlaying) await player.pause();
       return;
     }
+    // 私人 FM 与心动模式的曲目池属于本机，跟随房间时必须退出，否则切歌会各播各的
+    if (status.fmMode) status.fmMode = false;
+    if (status.heartMode) player.exitHeartMode();
     // 同步播放模式（不洗队列不弹 toast）
     player.applyRemotePlayMode(s.repeatMode, s.shuffleMode);
 
@@ -403,7 +421,8 @@ export const useListenTogetherStore = defineStore("listenTogether", () => {
     if (myTrack?.id === sharedTrack.id) {
       if (s.state === "playing") {
         const target = expectedPosition(s);
-        if (Math.abs(status.position - target) > DRIFT_THRESHOLD_MS) await player.seek(target, true);
+        if (Math.abs(status.position - target) > DRIFT_THRESHOLD_MS)
+          await player.seek(target, true);
         if (!status.isPlaying) await player.play();
       } else if (status.isPlaying) {
         await player.pause();
@@ -422,7 +441,12 @@ export const useListenTogetherStore = defineStore("listenTogether", () => {
     // 加载失败冷却期内跳过（但不阻止播放其他歌——如果 host 切到新歌，冷却期应重置）
     if (lastFailedTrackId === sharedTrack.id && Date.now() - lastFailedAt < LOAD_FAIL_COOLDOWN_MS) {
       // 冷却期内 guest 不能播别的歌：如果正在播别的歌，暂停强制等待
-      if (myTrack && myTrack.id !== sharedTrack.id && role.value !== "host" && !permFor("allowGuestControl")) {
+      if (
+        myTrack &&
+        myTrack.id !== sharedTrack.id &&
+        role.value !== "host" &&
+        !permFor("allowGuestControl")
+      ) {
         await player.pause();
       }
       return;
@@ -606,7 +630,9 @@ export const useListenTogetherStore = defineStore("listenTogether", () => {
   };
 
   /** 设置权限（支持 per-member） */
-  const setPermissions = async (next: Partial<ListenTogetherPermissions> & { memberId?: string }): Promise<void> => {
+  const setPermissions = async (
+    next: Partial<ListenTogetherPermissions> & { memberId?: string },
+  ): Promise<void> => {
     if (role.value !== "host" || !roomActive.value) return;
     try {
       const snap = await api<RoomSnapshot>(`/api/rooms/${code.value}/permissions`, {
@@ -644,7 +670,11 @@ export const useListenTogetherStore = defineStore("listenTogether", () => {
   watch(
     () => media.track?.id,
     () => {
-      if (roomActive.value && !isFollowing && (role.value === "host" || permFor("allowGuestControl"))) {
+      if (
+        roomActive.value &&
+        !isFollowing &&
+        (role.value === "host" || permFor("allowGuestControl"))
+      ) {
         void pushState(true);
       }
     },
@@ -652,7 +682,11 @@ export const useListenTogetherStore = defineStore("listenTogether", () => {
   watch(
     () => status.state,
     () => {
-      if (roomActive.value && !isFollowing && (role.value === "host" || permFor("allowGuestControl"))) {
+      if (
+        roomActive.value &&
+        !isFollowing &&
+        (role.value === "host" || permFor("allowGuestControl"))
+      ) {
         void pushState(true);
       }
     },
@@ -673,7 +707,7 @@ export const useListenTogetherStore = defineStore("listenTogether", () => {
     () => media.track,
     (track) => {
       if (!roomActive.value || role.value !== "host") return;
-      if (track && !SHAREABLE_SOURCES.has(track.source)) {
+      if (track && !isPlatform(track.source)) {
         void player.pause();
         toast.warning(i18n.global.t("listenTogether.localNotShareable"), { duration: 4_000 });
       }
@@ -694,6 +728,7 @@ export const useListenTogetherStore = defineStore("listenTogether", () => {
   });
 
   return {
+    loggedIn,
     nickname,
     connection,
     role,

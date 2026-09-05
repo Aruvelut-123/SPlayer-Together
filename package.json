@@ -2,7 +2,7 @@
   "name": "splayer-together",
   "productName": "SPlayer Together",
   "desktopName": "top.imsyy.splayer_together",
-  "version": "1.2.1",
+  "version": "1.3.0",
   "description": "Cross-platform desktop music player with rich lyric support and wide audio format compatibility",
   "type": "module",
   "packageManager": "pnpm@11.5.2",
@@ -75,7 +75,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@applemusic-like-lyrics/core": "^0.5.1",
+    "@applemusic-like-lyrics/core": "^0.5.2",
     "@electron-toolkit/eslint-config-ts": "^3.1.0",
     "@electron-toolkit/tsconfig": "^2.0.0",
     "@electron/rebuild": "^4.2.0",

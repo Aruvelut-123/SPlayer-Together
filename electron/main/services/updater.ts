@@ -109,7 +109,9 @@ export const openDownloadPage = (): void => {
 };
 
 /** 从 GitHub API 获取 release notes 作为更新日志 */
-export const fetchChangelog = async (version: string): Promise<{ version: string; changelog: string } | null> => {
+export const fetchChangelog = async (
+  version: string,
+): Promise<{ version: string; changelog: string } | null> => {
   try {
     const res = await fetch(
       `https://api.github.com/repos/Aruvelut-123/SPlayer-Together/releases/tags/v${version}`,

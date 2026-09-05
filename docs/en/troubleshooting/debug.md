@@ -14,8 +14,8 @@ Open **Developer Tools** from the gear menu in the upper-right corner. In develo
 
 The easiest route is **Settings → About → Open log directory**.
 
-| System  | Path                                                        |
-| ------- | ----------------------------------------------------------- |
+| System  | Path                                                            |
+| ------- | --------------------------------------------------------------- |
 | Windows | `%APPDATA%\SPlayer Together\app-data\logs\`                     |
 | macOS   | `~/Library/Application Support/SPlayer Together/app-data/logs/` |
 | Linux   | `~/.config/SPlayer Together/app-data/logs/`                     |

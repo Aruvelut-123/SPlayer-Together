@@ -35,7 +35,7 @@ impl AudioOutput {
     /// 解析输出设备与配置
     ///
     /// # Arguments
-    /// * `device_name` - 输出设备名，`None` 走系统默认设备
+    /// * `device_id` - 输出设备 ID，`None` 走系统默认设备
     /// * `requested_sample_rate` - 期望输出采样率；设备支持时按此速率打开（音源精确采样率），
     ///   否则回退到设备默认配置。`None` 表示直接用设备默认配置
     /// * `generation` - 输出流单调代次，见 [`AudioOutput`] 字段说明
@@ -45,15 +45,16 @@ impl AudioOutput {
     /// - 找不到指定设备
     /// - 无可用音频设备
     pub fn new(
-        device_name: Option<&str>,
+        device_id: Option<&str>,
         requested_sample_rate: Option<u32>,
         generation: u64,
         on_failure: OutputFailureCallback,
     ) -> Result<Self> {
-        let (device, config) = open_device(device_name, requested_sample_rate)
+        let (device, config) = open_device(device_id, requested_sample_rate)
             .with_audio_kind(AudioErrorKind::Device)?;
         info!(
-            device = %device,
+            id = device_id_string(&device).as_deref().unwrap_or("-"),
+            name = %device,
             sample_rate = config.sample_rate(),
             "打开音频输出配置"
         );
@@ -86,15 +87,8 @@ impl AudioOutput {
         let device = self.device.clone();
         let config = self.config.clone();
         let on_failure = Arc::clone(&self.on_failure);
-        run_in_clean_mta(move || {
-            build_typed_stream_for_format(
-                &device,
-                &config,
-                source,
-                volume,
-                stopped,
-                on_failure,
-            )
+        run_in_mta(move || {
+            build_typed_stream_for_format(&device, &config, source, volume, stopped, on_failure)
         })
         .with_audio_kind(AudioErrorKind::Device)
     }
@@ -106,54 +100,128 @@ impl Drop for AudioOutput {
     }
 }
 
-/// 在干净的 COM MTA 线程环境中运行任务（Windows 特需，防止 Node.js STA 或线程池残留的 COM 冲突）
+/// 常驻 MTA 工作线程，所有 cpal 调用都派给它执行。
+///
+/// cpal 的 `com_initialized()` 会把首次触碰的线程初始化成 STA；cpal 的
+/// `IMMDeviceEnumerator` 又是进程级单例，创建时所处的 apartment 决定它此后能否跨线程
+/// 安全使用。一条永不退出、永不 `CoUninitialize` 的 MTA 线程同时收口这两点，并保证进程
+/// MTA 不会在两次调用之间被拆掉——`AudioOutput` 持有的 `cpal::Device` 里缓存着在该
+/// apartment 里激活的 `IAudioClient`。
 #[cfg(target_os = "windows")]
-fn run_in_clean_mta<T: Send + 'static, F: FnOnce() -> Result<T> + Send + 'static>(f: F) -> Result<T> {
-    use windows::Win32::System::Com::{CoInitializeEx, CoUninitialize, COINIT_MULTITHREADED};
-    std::thread::Builder::new()
-        .name("audio-mta-worker".into())
-        .spawn(move || {
-            let _ = unsafe { CoInitializeEx(None, COINIT_MULTITHREADED) };
-            let result = f();
-            unsafe { CoUninitialize() };
-            result
-        })
-        .map_err(|e| anyhow!("启动 MTA 线程失败: {e}"))?
-        .join()
-        .map_err(|_| anyhow!("MTA 线程发生 panic"))?
+mod mta {
+    use std::panic::{catch_unwind, AssertUnwindSafe};
+    use std::sync::mpsc::{channel, sync_channel, SyncSender};
+    use std::sync::OnceLock;
+    use std::thread;
+
+    use anyhow::{anyhow, Result};
+    use windows::Win32::System::Com::{CoInitializeEx, COINIT_MULTITHREADED};
+
+    type Job = Box<dyn FnOnce() + Send + 'static>;
+
+    static WORKER: OnceLock<Option<SyncSender<Job>>> = OnceLock::new();
+
+    fn worker() -> Result<&'static SyncSender<Job>> {
+        WORKER
+            .get_or_init(|| {
+                let (job_tx, job_rx) = sync_channel::<Job>(1);
+                thread::Builder::new()
+                    .name("audio-mta-worker".into())
+                    .spawn(move || {
+                        let _ = unsafe { CoInitializeEx(None, COINIT_MULTITHREADED) };
+                        for job in job_rx {
+                            // cpal 的设备枚举路径上有 unwrap/expect，单个任务 panic 不能带走整条线程
+                            let _ = catch_unwind(AssertUnwindSafe(job));
+                        }
+                    })
+                    .ok()
+                    .map(|_| job_tx)
+            })
+            .as_ref()
+            .ok_or_else(|| anyhow!("启动 MTA 线程失败"))
+    }
+
+    /// 把 `f` 派给 MTA 线程执行并等待结果。调用按到达顺序串行执行
+    pub(super) fn run<T: Send + 'static>(
+        f: impl FnOnce() -> Result<T> + Send + 'static,
+    ) -> Result<T> {
+        let (result_tx, result_rx) = channel();
+        worker()?
+            .send(Box::new(move || {
+                let _ = result_tx.send(f());
+            }))
+            .map_err(|_| anyhow!("MTA 线程已退出"))?;
+        result_rx.recv().map_err(|_| anyhow!("MTA 线程发生 panic"))?
+    }
 }
 
+#[cfg(target_os = "windows")]
+use mta::run as run_in_mta;
+
 #[cfg(not(target_os = "windows"))]
-fn run_in_clean_mta<T, F: FnOnce() -> Result<T>>(f: F) -> Result<T> {
+fn run_in_mta<T, F: FnOnce() -> Result<T>>(f: F) -> Result<T> {
     f()
 }
 
-/// 设备持久化选择键：cpal 0.18 起 `Device::name()` 并入 `description().name()`，
-/// 沿用该值以避免升级后已有配置失效
+/// 设备显示名：cpal 0.18 起 `Device::name()` 并入 `description().name()`。
+/// 可能重复、可被用户改名，只用于展示和旧配置回退匹配
 fn persisted_device_name(device: &cpal::Device) -> Option<String> {
     device.description().ok().map(|desc| desc.name().to_owned())
 }
 
-/// 枚举所有输出设备，返回 `(name, is_default)` 列表
+/// 设备稳定 ID：WASAPI 端点 ID / CoreAudio UID / PipeWire node.name，跨重启和改名都稳定
+fn device_id_string(device: &cpal::Device) -> Option<String> {
+    device.id().ok().map(|id| id.to_string())
+}
+
+/// cpal 的 PipeWire 后端会合成「跟随系统默认」的哨兵设备，它们不对应真实节点，
+/// 选择系统默认时由 `open_device(None)` 取用，不应混进给用户挑选的设备列表
+fn is_synthetic_default_device(name: &str) -> bool {
+    cfg!(target_os = "linux") && matches!(name, "default_output" | "default_sink")
+}
+
+/// 按选择器查找输出设备，优先按稳定 ID 匹配，失败后回退到显示名。
+///
+/// 回退是为 1.0.0 及更早版本存下的显示名配置准备的：命中后由 JS 侧改写成 ID。
+/// 显示名可能重复，回退路径取首个匹配，因此仅用于迁移，不作为长期身份。
+fn find_device(host: &cpal::Host, selector: &str) -> Option<cpal::Device> {
+    if let Ok(parsed) = selector.parse::<cpal::DeviceId>() {
+        return host.device_by_id(&parsed);
+    }
+    host.output_devices()
+        .ok()?
+        .find(|device| persisted_device_name(device).as_deref() == Some(selector))
+}
+
+/// 枚举所有输出设备，返回 `(id, name, is_default)` 列表
 /// 纯查询，不涉及流状态，调用方任意线程都能用
-pub fn list_output_devices() -> Vec<(String, bool)> {
-    run_in_clean_mta(|| {
+pub fn list_output_devices() -> Vec<(String, String, bool)> {
+    run_in_mta(|| {
         let host = cpal::default_host();
-        let default_name = host
+        let default_id = host
             .default_output_device()
-            .and_then(|device| persisted_device_name(&device));
+            .and_then(|device| device_id_string(&device));
         let list = host
             .output_devices()
             .map(|devices| {
                 devices
                     .filter_map(|device| {
                         let name = persisted_device_name(&device)?;
-                        let is_default = default_name.as_deref() == Some(name.as_str());
-                        Some((name, is_default))
+                        if is_synthetic_default_device(&name) {
+                            return None;
+                        }
+                        let id = device_id_string(&device)?;
+                        let is_default = default_id.as_deref() == Some(id.as_str());
+                        Some((id, name, is_default))
                     })
                     .collect()
             })
             .unwrap_or_default();
+        debug!(
+            default_id = default_id.as_deref().unwrap_or("-"),
+            devices = ?list,
+            "枚举音频输出设备"
+        );
         Ok(list)
     })
     .unwrap_or_default()
@@ -161,7 +229,7 @@ pub fn list_output_devices() -> Vec<(String, bool)> {
 
 /// 取系统默认输出设备名
 pub fn default_device_name() -> Option<String> {
-    run_in_clean_mta(|| {
+    run_in_mta(|| {
         let name = cpal::default_host()
             .default_output_device()
             .and_then(|device| persisted_device_name(&device));
@@ -170,84 +238,103 @@ pub fn default_device_name() -> Option<String> {
     .unwrap_or_default()
 }
 
-/// 按设备名（`None` 为默认设备）解析设备与输出配置。
+/// 取系统默认输出设备稳定 ID，供主进程做切换检测（显示名可重复、可被改名）
+pub fn default_device_id() -> Option<String> {
+    run_in_mta(|| {
+        let id = cpal::default_host()
+            .default_output_device()
+            .and_then(|device| device_id_string(&device));
+        Ok(id)
+    })
+    .unwrap_or_default()
+}
+
+/// 按设备 ID（`None` 为默认设备）解析设备与输出配置。
 /// 设备支持 `requested_sample_rate` 时按该速率打开，否则使用设备默认配置。
 /// 样本格式优先沿用设备默认格式：PipeWire 等后端上报的 supported 列表包含
 /// 全部合成格式（顺序 I8…F64），首个条目不代表设备真实能力，直接采用会导致
 /// 以 i8 打开输出流而严重劣化音质。
 fn open_device_internal(
-    device_name: Option<&str>,
+    device_id: Option<&str>,
     requested_sample_rate: Option<u32>,
 ) -> Result<(cpal::Device, SupportedStreamConfig)> {
     let host = cpal::default_host();
-    let device = match device_name {
-        Some(name) => host
-            .output_devices()
-            .context("枚举输出设备失败")?
-            .find(|device| persisted_device_name(device).as_deref() == Some(name))
-            .with_context(|| format!("输出设备 '{name}' 不存在"))?,
-        None => host.default_output_device().context("没有可用的输出设备")?,
-    };
-    let config = match requested_sample_rate {
-        Some(rate) => {
-            let default_config = device.default_output_config();
-            let default_format = default_config
-                .as_ref()
-                .ok()
-                .map(|config| config.sample_format());
-            let default_channels = default_config.as_ref().ok().map(|config| config.channels());
-            let at_rate = device.supported_output_configs().ok().and_then(|configs| {
-                let configs: Vec<_> = configs.collect();
-                configs
-                    .iter()
-                    .copied()
-                    .find(|range| {
-                        range.min_sample_rate() <= rate
-                            && rate <= range.max_sample_rate()
-                            && Some(range.sample_format()) == default_format
-                            && Some(range.channels()) == default_channels
-                    })
-                    .or_else(|| {
-                        configs.iter().copied().find(|range| {
-                            range.min_sample_rate() <= rate
-                                && rate <= range.max_sample_rate()
-                                && Some(range.sample_format()) == default_format
-                        })
-                    })
-                    .or_else(|| {
-                        configs.iter().copied().find(|range| {
-                            range.min_sample_rate() <= rate
-                                && rate <= range.max_sample_rate()
-                                && Some(range.channels()) == default_channels
-                        })
-                    })
-                    .or_else(|| {
-                        configs.iter().copied().find(|range| {
-                            range.min_sample_rate() <= rate && rate <= range.max_sample_rate()
-                        })
-                    })
-                    .map(|range| range.with_sample_rate(rate))
-            });
-            match at_rate {
-                Some(config) => config,
-                None => default_config.context("读取输出设备配置失败")?,
-            }
+    let device = match device_id {
+        Some(selector) => {
+            find_device(&host, selector).with_context(|| format!("输出设备 '{selector}' 不存在"))?
         }
-        None => device
-            .default_output_config()
-            .context("读取输出设备配置失败")?,
+        None => {
+            let default = host.default_output_device().context("没有可用的输出设备")?;
+            let default_id = device_id_string(&default).context("读取默认输出设备 ID 失败")?;
+            find_device(&host, &default_id).context("解析默认输出设备端点失败")?
+        }
     };
-    Ok((device, config))
+    let default_config = device
+        .default_output_config()
+        .context("读取输出设备配置失败")?;
+    #[cfg(target_os = "windows")]
+    {
+        let _ = requested_sample_rate;
+        Ok((device, default_config))
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        let config = match requested_sample_rate {
+            Some(rate) => {
+                if rate == default_config.sample_rate() {
+                    default_config
+                } else {
+                    let default_format = default_config.sample_format();
+                    let default_channels = default_config.channels();
+                    let at_rate = device.supported_output_configs().ok().and_then(|configs| {
+                        let configs: Vec<_> = configs.collect();
+                        configs
+                            .iter()
+                            .copied()
+                            .find(|range| {
+                                range.min_sample_rate() <= rate
+                                    && rate <= range.max_sample_rate()
+                                    && range.sample_format() == default_format
+                                    && range.channels() == default_channels
+                            })
+                            .or_else(|| {
+                                configs.iter().copied().find(|range| {
+                                    range.min_sample_rate() <= rate
+                                        && rate <= range.max_sample_rate()
+                                        && range.sample_format() == default_format
+                                })
+                            })
+                            .or_else(|| {
+                                configs.iter().copied().find(|range| {
+                                    range.min_sample_rate() <= rate
+                                        && rate <= range.max_sample_rate()
+                                        && range.channels() == default_channels
+                                })
+                            })
+                            .or_else(|| {
+                                configs.iter().copied().find(|range| {
+                                    range.min_sample_rate() <= rate
+                                        && rate <= range.max_sample_rate()
+                                })
+                            })
+                            .map(|range| range.with_sample_rate(rate))
+                    });
+                    at_rate.unwrap_or(default_config)
+                }
+            }
+            None => default_config,
+        };
+        Ok((device, config))
+    }
 }
 
 fn open_device(
-    device_name: Option<&str>,
+    device_id: Option<&str>,
     requested_sample_rate: Option<u32>,
 ) -> Result<(cpal::Device, SupportedStreamConfig)> {
-    let name_owned = device_name.map(String::from);
-    run_in_clean_mta(move || {
-        open_device_internal(name_owned.as_deref(), requested_sample_rate)
-    })
+    let id_owned = device_id.map(String::from);
+    run_in_mta(move || open_device_internal(id_owned.as_deref(), requested_sample_rate))
 }
 
 /// 按样本格式分发到类型化构建
@@ -306,10 +393,57 @@ where
             }
         },
         move |error| {
-            warn!(%error, "音频输出流失败");
+            let err_msg = error.to_string();
+            // 设备失效的两种上报文本：默认设备监听的 "no longer valid"，以及绑定端点被拔出时
+            // GetCurrentPadding 返回 0x88890004 (AUDCLNT_E_DEVICE_INVALIDATED) 的十进制 OS Error。
+            // 均属预期失效，重建即可
+            let invalidated =
+                err_msg.contains("no longer valid") || err_msg.contains("-2004287484");
+            if invalidated {
+                info!("音频输出流因设备切换失效，准备重建");
+            } else {
+                warn!(%error, "音频输出流失败");
+            }
             on_failure();
         },
         None,
     )?;
     Ok(stream)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn hides_synthetic_default_devices_from_the_selectable_list() {
+        assert_eq!(
+            is_synthetic_default_device("default_output"),
+            cfg!(target_os = "linux")
+        );
+        assert_eq!(
+            is_synthetic_default_device("default_sink"),
+            cfg!(target_os = "linux")
+        );
+    }
+
+    #[test]
+    fn keeps_real_devices_in_the_selectable_list() {
+        assert!(!is_synthetic_default_device("Built-in Audio Analog Stereo"));
+        assert!(!is_synthetic_default_device("扬声器 (Realtek(R) Audio)"));
+    }
+
+    /// `find_device` 先按 `DeviceId` 解析、失败才回退显示名，旧配置存的显示名必须落到回退分支
+    #[test]
+    fn legacy_display_names_do_not_parse_as_device_ids() {
+        assert!("扬声器 (Realtek(R) Audio)"
+            .parse::<cpal::DeviceId>()
+            .is_err());
+        assert!("Built-in Audio Analog Stereo"
+            .parse::<cpal::DeviceId>()
+            .is_err());
+        assert!("AppleHDAEngineOutput:1B,0,1,0:0"
+            .parse::<cpal::DeviceId>()
+            .is_err());
+    }
 }

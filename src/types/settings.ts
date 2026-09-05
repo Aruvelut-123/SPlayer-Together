@@ -2,6 +2,7 @@ import type { LyricFormat } from "@shared/types/lyrics";
 import { DEFAULT_LYRIC_FORMAT_ORDER as DEFAULT_LYRIC_FORMAT_ORDER_SHARED } from "@shared/types/lyrics";
 import type { Platform } from "@shared/types/platform";
 import { ALL_PLATFORMS } from "@shared/types/platform";
+import type { CjkTransformMode } from "@shared/types/opencc";
 import type { QualityLevel } from "@/utils/quality";
 
 /** 播放器背景类型 */
@@ -62,6 +63,46 @@ export const DEFAULT_LYRIC_SOURCE_ORDER: LyricSourceOrder = [...ALL_PLATFORMS];
 /** 默认格式优先级 */
 export const DEFAULT_LYRIC_FORMAT_ORDER: LyricFormatOrder = [...DEFAULT_LYRIC_FORMAT_ORDER_SHARED];
 
+/** 侧边栏「我的歌单」分组 key（仅显隐，不参与排序） */
+export const SIDEBAR_GROUP_MY_PLAYLISTS = "group-my-playlists";
+
+/** 侧边栏「收藏的歌单」分组 key（仅显隐，不参与排序） */
+export const SIDEBAR_GROUP_SUBSCRIBED = "group-subscribed";
+
+/** 侧边栏导航分组（匿名分组，可命名；组间以分隔线或分组名区分） */
+export interface SidebarNavGroup {
+  /** 分组名，空字符串为未命名 */
+  name: string;
+  /** 是否在侧栏显示分组名 */
+  showName: boolean;
+  /** 组内导航项 key（路由路径） */
+  keys: string[];
+}
+
+/** 侧边栏歌单显示顺序（key 为歌单路由路径；空数组为自然顺序） */
+export interface SidebarPlaylistOrder {
+  /** 我的歌单 - 本地 */
+  myLocal: string[];
+  /** 我的歌单 - 在线 */
+  myOnline: string[];
+  /** 收藏的歌单 */
+  subscribed: string[];
+}
+
+/** 侧边栏导航项默认分组 */
+export const DEFAULT_SIDEBAR_NAV_GROUPS: SidebarNavGroup[] = [
+  {
+    name: "",
+    showName: false,
+    keys: ["/", "/library", "/artists/local", "/albums/local", "/folders", "/stats"],
+  },
+  {
+    name: "",
+    showName: false,
+    keys: ["/liked", "/favorites", "/cloud", "/download", "/streaming", "/history"],
+  },
+];
+
 /** 歌词设置 */
 export interface LyricSettings {
   /** 歌词来源偏好 */
@@ -72,8 +113,12 @@ export interface LyricSettings {
   lyricFormatOrder: LyricFormatOrder;
   /** 智能选择是否优先在线 */
   smartPreferOnline: boolean;
+  /** 优先使用插件歌词（并发请求，更优格式自动热替换） */
+  preferPluginLyric: boolean;
   /** 自动识别背景歌词 */
   detectBackgroundLyrics: boolean;
+  /** 中文繁简转换模式（基于 OpenCC） */
+  cjkTransform: CjkTransformMode;
   /** 字号自适应窗口大小 */
   adaptiveFontSize: boolean;
   /** 歌词字号（px，自适应关闭时生效） */
@@ -144,6 +189,13 @@ export interface LyricSettings {
   amllScaleSpringDamping: number;
   amllScaleSpringStiffness: number;
   amllScaleSpringSoft: boolean;
+  /** AMLL 歌词优化 */
+  amllCleanUnintentionalOverlaps: boolean;
+  amllTryAdvanceStartTime: boolean;
+  amllConvertExcessiveBackgroundLines: boolean;
+  amllSyncMainAndBackgroundLines: boolean;
+  amllNormalizeSpaces: boolean;
+  amllResetLineTimestamps: boolean;
 }
 
 /** 播放器设置 */
@@ -162,6 +214,8 @@ export interface PlayerSettings {
   playerBgBeat: boolean;
   /** 全屏播放器封面布局 */
   coverLayout: CoverLayout;
+  /** 播放页封面/歌词分栏占比（0-1，封面侧宽度） */
+  coverLyricRatio: number;
   /** 无歌词时自动居中封面并隐藏歌词区域 */
   autoCenterCover: boolean;
   /** 全屏播放器显示当前播放来源 */
@@ -170,7 +224,7 @@ export interface PlayerSettings {
   followCoverColor: boolean;
   /** 全屏播放器自动进入沉浸模式（隐藏顶/底栏与鼠标） */
   autoImmersive: boolean;
-  /** 输出设备名称，null 表示跟随系统默认 */
+  /** 输出设备 ID（cpal DeviceId），null 表示跟随系统默认 */
   outputDevice: string | null;
   /** 切换输出设备时暂停播放 */
   pauseOnDeviceSwitch: boolean;
@@ -208,6 +262,16 @@ export interface AppearanceSettings {
   sidebarCollapsed: boolean;
   /** 侧边栏歌单项显示封面 */
   sidebarPlaylistCover: boolean;
+  /** 侧边栏导航分组（匿名分组，可命名；组间以分隔线或分组名区分） */
+  sidebarNavGroups: SidebarNavGroup[];
+  /** 侧边栏隐藏的导航项与歌单分组 */
+  sidebarHiddenKeys: string[];
+  /** 无可见项的分组是否保留分隔线（留白） */
+  sidebarKeepEmptyDivider: boolean;
+  /** 显示分组名时是否叠加分隔线 */
+  sidebarNameWithDivider: boolean;
+  /** 侧边栏歌单显示顺序 */
+  sidebarPlaylistOrder: SidebarPlaylistOrder;
   /** 侧边栏显示播放统计入口 */
   showStatsInSidebar: boolean;
   /** 播放栏显示快捷音质切换 */

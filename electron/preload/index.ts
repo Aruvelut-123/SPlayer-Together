@@ -1,5 +1,5 @@
 import os from "os";
-import { contextBridge, ipcRenderer } from "electron";
+import { contextBridge, ipcRenderer, webUtils } from "electron";
 import { electronAPI } from "@electron-toolkit/preload";
 import type { ExternalApiStatus, McpStatus, TaskbarLyricSettings } from "@shared/types/settings";
 import type {
@@ -25,6 +25,7 @@ import type {
   PlaylistCreateInput,
   PlaylistUpdateInput,
 } from "@shared/types/playlist";
+import type { CjkTransformMode } from "@shared/types/opencc";
 
 /** 订阅主进程推送的事件 */
 const subscribe = <T>(channel: string, callback: (data: T) => void): (() => void) => {
@@ -113,10 +114,10 @@ const api = {
     getOutputDevices: () => ipcRenderer.invoke("player:getOutputDevices"),
     // 获取系统默认输出设备名称
     getDefaultDeviceName: () => ipcRenderer.invoke("player:getDefaultDeviceName"),
-    // 切换输出设备（传 null 使用系统默认）
-    setOutputDevice: (deviceName: string | null, pauseBeforeSwitch = false) =>
-      ipcRenderer.invoke("player:setOutputDevice", deviceName, pauseBeforeSwitch),
-    // 获取当前选择的输出设备名称
+    // 切换输出设备（传设备 ID，null 使用系统默认）
+    setOutputDevice: (deviceId: string | null, pauseBeforeSwitch = false) =>
+      ipcRenderer.invoke("player:setOutputDevice", deviceId, pauseBeforeSwitch),
+    // 获取当前选择的输出设备 ID
     getSelectedDeviceName: () => ipcRenderer.invoke("player:getSelectedDeviceName"),
     // 获取当前歌曲的原始高清封面（base64 data URL）
     getCoverRaw: () => ipcRenderer.invoke("player:getCoverRaw"),
@@ -179,6 +180,14 @@ const api = {
     // 拉取冷启动暂存的 orpheus 唤起 URL
     consumePendingProtocolUrl: (): Promise<string | null> =>
       ipcRenderer.invoke("system:consumePendingProtocolUrl"),
+    // 订阅主进程下发的外部音频文件打开列表
+    onOpenFiles: (callback: (files: string[]) => void) =>
+      subscribe<string[]>("system:open-files", callback),
+    // 拉取冷启动暂存的外部音频文件列表
+    consumePendingAudioFiles: (): Promise<string[]> =>
+      ipcRenderer.invoke("system:consumePendingAudioFiles"),
+    // 获取 File 对象的本地绝对路径（用于拖拽播放）
+    getPathForFile: (file: File): string => webUtils.getPathForFile(file),
   },
   library: {
     // 开始扫描（默认增量）
@@ -421,6 +430,14 @@ const api = {
     matchLocalTTML: (track: unknown) => ipcRenderer.invoke("lyrics:matchLocalTTML", track),
     // 选择本地 TTML 歌词库目录
     pickLyricRepoDir: () => ipcRenderer.invoke("lyrics:pickLyricRepoDir"),
+  },
+  opencc: {
+    // 转换单个文本
+    convert: (text: string, config: CjkTransformMode): Promise<string> =>
+      ipcRenderer.invoke("opencc:convert", text, config),
+    // 批量转换文本
+    convertBatch: (texts: string[], config: CjkTransformMode): Promise<string[]> =>
+      ipcRenderer.invoke("opencc:convertBatch", texts, config),
   },
   comments: {
     sources: () => ipcRenderer.invoke("comments:sources"),
@@ -701,6 +718,8 @@ const api = {
     recordFavorite: (event: FavoriteEventInput) => ipcRenderer.send("stats:recordFavorite", event),
     // 取播放统计汇总
     getStatsSummary: () => ipcRenderer.invoke("stats:getStatsSummary"),
+    // 按来源取播放量（本地 + 在线 + 流媒体）
+    getPlaySourceBreakdown: () => ipcRenderer.invoke("stats:getPlaySourceBreakdown"),
     // 取最常播放的曲目
     getTopTracks: (limit: number) => ipcRenderer.invoke("stats:getTopTracks", limit),
     // 取音乐库统计概览

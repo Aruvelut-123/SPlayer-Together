@@ -1,7 +1,8 @@
-"""SPlayer Together 中继服务器测试：房间全生命周期"""
+"""SPlayer Together 中继服务器测试：房间全生命周期 + 服务器自更新"""
 
 from __future__ import annotations
 
+import asyncio
 import json
 from typing import Any
 
@@ -281,3 +282,270 @@ class TestRoomLifecycle(AioHTTPTestCase):
         )
         data2 = await get2.json()
         assert len(data2["reports"]) == 0
+
+
+@pytest.fixture
+def update_env(tmp_path, monkeypatch):
+    """将更新路径重定向到临时目录"""
+    for name in relay.UPDATE_FILES:
+        (tmp_path / name).write_text("old " + name, encoding="utf-8")
+    changelogs = tmp_path / "changelogs"
+    changelogs.mkdir()
+    (changelogs / "1.2.0.md").write_text("# 1.2.0\n\n- 自更新\n", encoding="utf-8")
+    monkeypatch.setattr(relay, "BASE_DIR", tmp_path)
+    monkeypatch.setattr(relay, "UPDATE_STAGING_DIR", tmp_path / ".update-staging")
+    monkeypatch.setattr(relay, "BACKUP_DIR", tmp_path / "backups")
+    monkeypatch.setattr(relay, "UPDATE_STATE_FILE", tmp_path / "update-state.json")
+    monkeypatch.setattr(relay, "CHANGELOGS_DIR", changelogs)
+    monkeypatch.setattr(relay, "CONFIG", {**relay.DEFAULT_CONFIG, "update": {**relay.DEFAULT_CONFIG["update"], "enabled": True, "github_repo": "foo/bar"}})
+    monkeypatch.setattr(relay, "UPDATE_STATE", {**relay.UPDATE_STATE, "status": "idle", "latestVersion": "", "tagName": "", "stagedFiles": [], "error": ""})
+    restarts = []
+    monkeypatch.setattr(relay, "schedule_restart", lambda delay_s=1.0: restarts.append(delay_s))
+    return tmp_path, restarts
+
+
+async def _admin_headers(client):
+    resp = await client.post("/api/admin/login", json={"username": "admin", "password": "change-me"})
+    return {"X-Admin-Token": (await resp.json())["token"]}
+
+
+@pytest.mark.asyncio
+async def test_version_endpoint_public(aiohttp_client, update_env):
+    client = await aiohttp_client(relay.build_app())
+    data = await (await client.get("/api/version")).json()
+    assert data["version"] == relay.SERVER_VERSION
+
+
+@pytest.mark.asyncio
+async def test_update_check_and_status(aiohttp_client, update_env, monkeypatch):
+    async def latest():
+        return {"version": "9.9.9", "tagName": "v9.9.9", "releaseUrl": "", "releaseName": "", "releaseNotes": ""}
+    monkeypatch.setattr(relay, "fetch_latest_release", latest)
+    client = await aiohttp_client(relay.build_app())
+    headers = await _admin_headers(client)
+    resp = await client.post("/api/admin/update/check", headers=headers)
+    assert resp.status == 200
+    assert (await resp.json())["status"] == "available"
+
+
+@pytest.mark.asyncio
+async def test_update_apply_validates_and_backs_up(aiohttp_client, update_env, monkeypatch):
+    root, restarts = update_env
+    async def latest():
+        return {"version": "9.9.9", "tagName": "v9.9.9", "releaseUrl": "", "releaseName": "", "releaseNotes": ""}
+    async def raw(name, tag):
+        if name == "server.py": return 'SERVER_VERSION = "9.9.9"\n'
+        if name == "webui.py": return 'PAGE_HTML = "ok"\n'
+        return "aiohttp>=3.9\n"
+    monkeypatch.setattr(relay, "fetch_latest_release", latest)
+    monkeypatch.setattr(relay, "fetch_raw_text", raw)
+    client = await aiohttp_client(relay.build_app())
+    resp = await client.post("/api/admin/update/apply", headers=await _admin_headers(client))
+    assert resp.status == 200, await resp.text()
+    assert (await resp.json())["status"] == "installed"
+    assert '9.9.9' in (root / "server.py").read_text(encoding="utf-8")
+    assert restarts == [1.0]
+    assert list((root / "backups").iterdir())
+
+
+@pytest.mark.asyncio
+async def test_changelog_admin(aiohttp_client, update_env):
+    client = await aiohttp_client(relay.build_app())
+    headers = await _admin_headers(client)
+    resp = await client.get("/api/admin/update/changelog?version=1.2.0", headers=headers)
+    assert resp.status == 200
+    assert "自更新" in (await resp.json())["markdown"]
+
+
+def release_file(name: str, version: str = "9.9.9") -> str:
+    """构造可通过校验的假发布文件"""
+    if name == "server.py":
+        return f'SERVER_VERSION = "{version}"\n\n\ndef handle_create():\n    return None\n'
+    if name == "webui.py":
+        return 'PAGE_HTML = "<html></html>"\n'
+    return "aiohttp>=3.9\npyyaml>=6.0  # 依赖\n"
+
+
+@pytest.mark.asyncio
+async def test_update_status_requires_admin(aiohttp_client, update_env):
+    client = await aiohttp_client(relay.build_app())
+    assert (await client.get("/api/admin/update/status")).status == 401
+    assert (await client.post("/api/admin/update/check")).status == 401
+    assert (await client.post("/api/admin/update/apply")).status == 401
+    assert (await client.post("/api/admin/update/restart")).status == 401
+
+
+@pytest.mark.asyncio
+async def test_apply_update_rejects_invalid_download(aiohttp_client, update_env, monkeypatch):
+    """下载文件校验失败时不替换任何文件，也不重启"""
+    root, restarts = update_env
+
+    async def latest():
+        return {"version": "9.9.9", "tagName": "v9.9.9", "releaseUrl": "", "releaseName": "", "releaseNotes": ""}
+
+    async def raw(name: str, tag: str) -> str:
+        if name == "webui.py":
+            return "def broken(:\n"
+        return release_file(name)
+
+    monkeypatch.setattr(relay, "fetch_latest_release", latest)
+    monkeypatch.setattr(relay, "fetch_raw_text", raw)
+    client = await aiohttp_client(relay.build_app())
+    resp = await client.post("/api/admin/update/apply", headers=await _admin_headers(client))
+    assert resp.status == 400
+    assert "语法校验失败" in (await resp.json())["error"]
+    assert "old webui.py" in (root / "webui.py").read_text(encoding="utf-8")
+    assert not (root / "backups").exists()
+    assert restarts == []
+    assert relay.UPDATE_STATE["status"] == "error"
+
+
+@pytest.mark.asyncio
+async def test_apply_update_requires_enabled(aiohttp_client, update_env, monkeypatch):
+    monkeypatch.setattr(relay, "CONFIG", {**relay.CONFIG, "update": {**relay.CONFIG["update"], "enabled": False}})
+    client = await aiohttp_client(relay.build_app())
+    resp = await client.post("/api/admin/update/apply", headers=await _admin_headers(client))
+    assert resp.status == 400
+    assert "未启用" in (await resp.json())["error"]
+
+
+@pytest.mark.asyncio
+async def test_apply_update_requires_repo(aiohttp_client, update_env, monkeypatch):
+    monkeypatch.setattr(relay, "CONFIG", {**relay.CONFIG, "update": {**relay.CONFIG["update"], "github_repo": ""}})
+    client = await aiohttp_client(relay.build_app())
+    resp = await client.post("/api/admin/update/apply", headers=await _admin_headers(client))
+    assert resp.status == 400
+    assert "github_repo" in (await resp.json())["error"]
+
+
+@pytest.mark.asyncio
+async def test_restart_endpoint_only_schedules(aiohttp_client, update_env):
+    """重启接口先返回响应，再安排重启"""
+    _root, restarts = update_env
+    client = await aiohttp_client(relay.build_app())
+    resp = await client.post("/api/admin/update/restart", headers=await _admin_headers(client))
+    assert resp.status == 200
+    data = await resp.json()
+    assert data["ok"] is True and "重启" in data["message"]
+    assert restarts == [1.0]
+
+
+@pytest.mark.asyncio
+async def test_changelog_rejects_bad_version(aiohttp_client, update_env):
+    client = await aiohttp_client(relay.build_app())
+    headers = await _admin_headers(client)
+    assert (await client.get("/api/admin/update/changelog?version=../../etc/passwd", headers=headers)).status == 400
+
+
+@pytest.mark.asyncio
+async def test_changelog_missing_everywhere(aiohttp_client, update_env, monkeypatch):
+    async def raw(name: str, tag: str) -> str:
+        raise relay.UpdateError("下载 失败：HTTP 404")
+
+    monkeypatch.setattr(relay, "fetch_raw_text", raw)
+    client = await aiohttp_client(relay.build_app())
+    headers = await _admin_headers(client)
+    resp = await client.get("/api/admin/update/changelog?version=8.8.8", headers=headers)
+    assert resp.status == 404
+
+
+def test_version_comparisons():
+    assert relay.version_is_newer("v1.2.1", "1.2.0")
+    assert relay.version_is_newer("1.10", "1.2.0")
+    assert not relay.version_is_newer("1.2.0", "1.2.0")
+    assert not relay.version_is_newer("1.1.9", "1.2.0")
+    assert relay.parse_version("1.2.3-beta.1") == (1, 2, 3)
+    assert relay.parse_version("nightly") is None
+
+
+def test_validate_release_file_rules():
+    for name in relay.UPDATE_FILES:
+        relay.validate_release_file(name, release_file(name), "9.9.9")
+    with pytest.raises(relay.UpdateError):
+        relay.validate_release_file("server.py", "   ", "9.9.9")
+    with pytest.raises(relay.UpdateError):
+        relay.validate_release_file("server.py", "print(1)\n", "9.9.9")
+    with pytest.raises(relay.UpdateError):
+        relay.validate_release_file("requirements.txt", "aiohttp>=3.9\n!!!\n", "9.9.9")
+
+
+def test_update_config_aliases(monkeypatch):
+    """支持 repo / check_interval 简写"""
+    monkeypatch.setattr(relay, "CONFIG", {"update": {"repo": "foo/bar", "check_interval": 15}})
+    assert relay.update_cfg_str("github_repo") == "foo/bar"
+    assert relay.update_cfg_int("check_interval_minutes", 60) == 15
+
+
+def test_staged_path_rejects_unknown_file():
+    assert relay.staged_path("server.py").name == "server.py"
+    for bad in ("../server.py", "config.yml", ""):
+        with pytest.raises(relay.UpdateError):
+            relay.staged_path(bad)
+
+
+def test_save_and_restore_update_state(tmp_path, monkeypatch):
+    """待安装状态可持久化并在重启后恢复"""
+    staging = tmp_path / ".update-staging"
+    staging.mkdir()
+    for name in relay.UPDATE_FILES:
+        (staging / name).write_text(release_file(name), encoding="utf-8")
+    monkeypatch.setattr(relay, "UPDATE_STAGING_DIR", staging)
+    monkeypatch.setattr(relay, "UPDATE_STATE_FILE", tmp_path / "update-state.json")
+    monkeypatch.setattr(
+        relay,
+        "UPDATE_STATE",
+        {
+            **relay.UPDATE_STATE,
+            "status": "ready",
+            "latestVersion": "9.9.9",
+            "tagName": "v9.9.9",
+            "stagedFiles": list(relay.UPDATE_FILES),
+            "checkedAt": 123,
+        },
+    )
+
+    relay.save_update_state()
+    saved = json.loads((tmp_path / "update-state.json").read_text(encoding="utf-8"))
+    assert saved["latestVersion"] == "9.9.9"
+
+    monkeypatch.setattr(
+        relay,
+        "UPDATE_STATE",
+        {**relay.UPDATE_STATE, "status": "idle", "latestVersion": "", "tagName": "", "stagedFiles": []},
+    )
+    relay.restore_update_state()
+    assert relay.UPDATE_STATE["status"] == "ready"
+    assert relay.UPDATE_STATE["latestVersion"] == "9.9.9"
+
+
+def test_restore_update_state_drops_stale_file(tmp_path, monkeypatch):
+    """暂存文件缺失时丢弃待安装状态"""
+    monkeypatch.setattr(relay, "UPDATE_STAGING_DIR", tmp_path / ".update-staging")
+    monkeypatch.setattr(relay, "UPDATE_STATE_FILE", tmp_path / "update-state.json")
+    (tmp_path / "update-state.json").write_text(
+        json.dumps({"latestVersion": "9.9.9", "tagName": "v9.9.9", "stagedFiles": list(relay.UPDATE_FILES)}),
+        encoding="utf-8",
+    )
+    relay.restore_update_state()
+    assert relay.UPDATE_STATE["status"] == "idle"
+    assert not (tmp_path / "update-state.json").exists()
+
+
+def test_update_check_loop_keeps_running(update_env, monkeypatch):
+    """后台检查任务出错后继续按间隔重试"""
+    calls: list[int] = []
+
+    async def fake_check():
+        calls.append(1)
+        raise relay.UpdateError("模拟检查失败")
+
+    async def fake_sleep(seconds):
+        if calls:
+            raise asyncio.CancelledError
+
+    monkeypatch.setattr(relay, "check_for_update", fake_check)
+    monkeypatch.setattr(relay, "UPDATE_STARTUP_CHECK_DELAY_S", 0)
+    monkeypatch.setattr(asyncio, "sleep", fake_sleep)
+    with pytest.raises(asyncio.CancelledError):
+        asyncio.run(relay.update_check_loop())
+    assert calls == [1]

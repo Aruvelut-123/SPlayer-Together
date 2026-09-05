@@ -1,5 +1,16 @@
 import type { Configuration } from "electron-builder";
 import { readFileSync } from "node:fs";
+import { SUPPORTED_AUDIO_EXTENSIONS } from "./shared/utils/audioFile";
+
+/** 音频后缀注册为文件关联 */
+const fileAssociations = [...SUPPORTED_AUDIO_EXTENSIONS].map((extension) => {
+  const ext = extension.slice(1);
+  return {
+    ext,
+    description: `${ext.toUpperCase()} Audio File`,
+    role: "Viewer" as const,
+  };
+});
 
 const packageVersion = JSON.parse(readFileSync("package.json", "utf8")).version as string;
 const prereleaseChannel = /-(alpha|dev)(?:\.|$)/.exec(packageVersion)?.[1];
@@ -21,6 +32,7 @@ const config: Configuration = {
   productName: "SPlayer Together",
   copyright: "Copyright © 2026 imsyy",
   directories: { buildResources: "public" },
+  fileAssociations,
   afterPack: "./scripts/after-pack.ts",
   compression: "maximum",
   generateUpdatesFilesForAllChannels: true,
@@ -75,6 +87,11 @@ const config: Configuration = {
     },
     {
       from: "native/taskbar-thumbnail",
+      to: "native",
+      filter: ["*.node"],
+    },
+    {
+      from: "native/opencc",
       to: "native",
       filter: ["*.node"],
     },

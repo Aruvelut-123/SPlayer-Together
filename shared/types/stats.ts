@@ -4,7 +4,7 @@
  * 渲染端构造、主进程写入 SQLite。直接带完整 Track,行即自包含、可还原重播。
  */
 
-import type { Artist, Track } from "./player";
+import type { Artist, Track, TrackSource } from "./player";
 
 /** 一次播放的统计事件,写入 play_history */
 export interface PlayEventInput {
@@ -38,10 +38,22 @@ export interface PlayStatsSummary {
   weekPlayCount: number;
   /** 累计播放次数 */
   totalPlayCount: number;
+  /** 累计听过的歌曲数（按来源 + 曲目 id 去重，含本地与在线） */
+  totalPlayedTracks: number;
   /** 本周新增收藏数 */
   weekFavoriteAdds: number;
   /** 连续收听天数 */
   streakDays: number;
+}
+
+/** 某一来源（本地 / 在线平台 / 流媒体）的播放量 */
+export interface SourcePlayStats {
+  /** 曲目来源 */
+  source: TrackSource;
+  /** 该来源播放次数 */
+  playCount: number;
+  /** 该来源收听时长（毫秒） */
+  listenedMs: number;
 }
 
 /** 一首高频曲目及其播放次数 */
@@ -110,6 +122,8 @@ export interface StatsApi {
   recordFavorite: (event: FavoriteEventInput) => void;
   /** 取播放统计汇总 */
   getStatsSummary: () => Promise<PlayStatsSummary>;
+  /** 按来源（本地 / 在线平台 / 流媒体）取播放量 */
+  getPlaySourceBreakdown: () => Promise<SourcePlayStats[]>;
   /** 取最常播放的曲目（按次数倒序） */
   getTopTracks: (limit: number) => Promise<TopTrack[]>;
   /** 取音乐库统计概览 */

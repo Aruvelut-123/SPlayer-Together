@@ -9,13 +9,51 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { setActivePinia, createPinia } from "pinia";
 import { useListenTogetherStore } from "@/stores/listenTogether";
 
+// 可被用例改写的登录态（vi.mock 工厂被提升，需用 vi.hoisted 承载）
+const loginState = vi.hoisted(() => ({
+  neteaseLoggedIn: true,
+  neteaseProfile: { nickname: "TestUser" } as { nickname: string } | null,
+  platformProfiles: {} as Record<string, { nickname: string } | null>,
+}));
+
 // 模拟重度依赖的模块
 vi.mock("@/stores/media", () => ({ useMediaStore: () => ({ track: null }) }));
-vi.mock("@/stores/status", () => ({ useStatusStore: () => ({ state: "stopped", position: 0, isPlaying: false, playIndex: -1, currentSource: "", currentPlaybackContext: null }) }));
+vi.mock("@/stores/status", () => ({
+  useStatusStore: () => ({
+    state: "stopped",
+    position: 0,
+    isPlaying: false,
+    playIndex: -1,
+    currentSource: "",
+    currentPlaybackContext: null,
+    fmMode: false,
+    heartMode: false,
+    repeatMode: "list",
+    shuffleMode: "off",
+  }),
+}));
 vi.mock("@/stores/license", () => ({ useLicenseStore: () => ({ serverUrl: "http://test:8000" }) }));
-vi.mock("@/stores/user", () => ({ useUserStore: () => ({ profile: { nickname: "TestUser" } }) }));
+vi.mock("@/stores/user", () => ({
+  useUserStore: () => ({
+    isLoggedIn: loginState.neteaseLoggedIn,
+    profile: loginState.neteaseProfile,
+  }),
+}));
+vi.mock("@/stores/data", () => ({
+  useDataStore: () => ({
+    getPlatformProfile: (platform: string) => loginState.platformProfiles[platform] ?? null,
+  }),
+}));
 vi.mock("@/stores/queue", () => ({ queue: { value: [] }, setQueue: vi.fn() }));
-vi.mock("@/core/player", () => ({ loadTrack: vi.fn(), play: vi.fn(), pause: vi.fn(), seek: vi.fn(), advanceTrackToken: () => 1, applyRemotePlayMode: vi.fn() }));
+vi.mock("@/core/player", () => ({
+  loadTrack: vi.fn(),
+  play: vi.fn(),
+  pause: vi.fn(),
+  seek: vi.fn(),
+  advanceTrackToken: () => 1,
+  applyRemotePlayMode: vi.fn(),
+  exitHeartMode: vi.fn(),
+}));
 vi.mock("@/composables/useToast", () => ({ toast: { warning: vi.fn() } }));
 vi.mock("@/i18n", () => ({ default: { global: { t: (k: string) => k } } }));
 
@@ -86,7 +124,8 @@ describe("expectedPosition 漂移计算", () => {
     const s = { positionMs: 10000, at: serverNow - 3000, state: "playing" } as any;
 
     // 复制 expectedPosition 的逻辑
-    const expected = s.state === "playing" ? s.positionMs + (Date.now() + serverOffset - s.at) : s.positionMs;
+    const expected =
+      s.state === "playing" ? s.positionMs + (Date.now() + serverOffset - s.at) : s.positionMs;
     expect(expected).toBe(13000); // 10000 + (Date.now() + (serverNow - Date.now()) - (serverNow - 3000))
   });
 
@@ -95,7 +134,8 @@ describe("expectedPosition 漂移计算", () => {
     const serverOffset = serverNow - Date.now();
     const s = { positionMs: 15000, at: serverNow - 2000, state: "paused" } as any;
 
-    const expected = s.state === "playing" ? s.positionMs + (Date.now() + serverOffset - s.at) : s.positionMs;
+    const expected =
+      s.state === "playing" ? s.positionMs + (Date.now() + serverOffset - s.at) : s.positionMs;
     expect(expected).toBe(15000);
   });
 });
@@ -107,16 +147,55 @@ describe("permFor 权限判断", () => {
     const memberId = "guest-1";
     const key = "allowGuestControl";
     const memberOverride = permissions.members?.[memberId];
-    const result = memberOverride && key in memberOverride ? memberOverride[key]! : permissions[key];
+    const result =
+      memberOverride && key in memberOverride ? memberOverride[key]! : permissions[key];
     expect(result).toBe(true);
   });
 
   it("per-member 覆盖优先于全局", () => {
-    const permissions = { allowGuestControl: true, allowGuestEditPlaylist: true, members: { "guest-1": { allowGuestControl: false } } };
+    const permissions = {
+      allowGuestControl: true,
+      allowGuestEditPlaylist: true,
+      members: { "guest-1": { allowGuestControl: false } },
+    };
     const memberId = "guest-1";
     const key = "allowGuestControl";
     const memberOverride = permissions.members?.[memberId];
-    const result = memberOverride && key in memberOverride ? memberOverride[key]! : permissions[key];
+    const result =
+      memberOverride && key in memberOverride ? memberOverride[key]! : permissions[key];
     expect(result).toBe(false);
+  });
+});
+
+describe("多平台登录与昵称", () => {
+  beforeEach(() => {
+    loginState.neteaseLoggedIn = true;
+    loginState.neteaseProfile = { nickname: "TestUser" };
+    loginState.platformProfiles = {};
+  });
+
+  it("网易云已登录时昵称取网易云账号名", () => {
+    loginState.platformProfiles.kugou = { nickname: "酷狗用户" };
+    const store = useListenTogetherStore();
+    expect(store.loggedIn).toBe(true);
+    expect(store.nickname).toBe("TestUser");
+  });
+
+  it("仅登录 QQ 音乐 / 酷狗也可进入房间并沿用其昵称", () => {
+    loginState.neteaseLoggedIn = false;
+    loginState.neteaseProfile = null;
+    loginState.platformProfiles = { qqmusic: { nickname: "QM用户" } };
+    const store = useListenTogetherStore();
+    expect(store.loggedIn).toBe(true);
+    expect(store.nickname).toBe("QM用户");
+  });
+
+  it("全部平台未登录时不可进入房间", () => {
+    loginState.neteaseLoggedIn = false;
+    loginState.neteaseProfile = null;
+    loginState.platformProfiles = {};
+    const store = useListenTogetherStore();
+    expect(store.loggedIn).toBe(false);
+    expect(store.nickname).toBe("listenTogether.me");
   });
 });

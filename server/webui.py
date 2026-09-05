@@ -86,6 +86,21 @@ PAGE_HTML = """<!DOCTYPE html>
     .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
     .empty { color: var(--muted); font-size: 13px; text-align: center; padding: 16px 0; }
     .hidden { display: none !important; }
+    .changelog {
+      white-space: pre-wrap;
+      background: #0f0f0f;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 12px;
+      line-height: 1.7;
+      color: var(--muted);
+      max-height: 260px;
+      overflow: auto;
+      margin-top: 12px;
+    }
+    .bar { height: 4px; background: #0f0f0f; border-radius: 2px; overflow: hidden; margin-top: 10px; }
+    .bar > i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .3s; }
   </style>
 </head>
 <body>
@@ -115,6 +130,25 @@ PAGE_HTML = """<!DOCTYPE html>
     <div id="adminView" class="hidden">
       <h2>进行中的房间</h2>
       <div id="roomsList" class="list"></div>
+
+      <h2>服务器更新</h2>
+      <div id="updatePanel">
+        <div class="item">
+          <span class="grow">
+            <span id="updateStatusText">加载中…</span>
+            <span class="tag" id="updateVersionInfo"></span>
+          </span>
+        </div>
+        <div class="bar" id="updateBar" style="display:none;"><i id="updateBarFill"></i></div>
+        <div class="row" style="margin-top: 10px;">
+          <button id="checkUpdateBtn" class="ghost">检查更新</button>
+          <button id="applyUpdateBtn" class="hidden">下载并安装</button>
+          <button id="restartBtn" class="danger hidden">重启服务器</button>
+          <button id="changelogBtn" class="ghost hidden">查看更新日志</button>
+        </div>
+        <div id="updateError" class="error"></div>
+        <pre id="changelogView" class="changelog hidden"></pre>
+      </div>
     </div>
   </div>
 
@@ -150,6 +184,7 @@ PAGE_HTML = """<!DOCTYPE html>
       logoutBtn.classList.remove("hidden");
       reloadBtn.classList.remove("hidden");
       refreshRooms();
+      refreshUpdate();
     };
 
     const showLogin = () => {
@@ -202,6 +237,98 @@ PAGE_HTML = """<!DOCTYPE html>
 
     reloadBtn.addEventListener("click", reloadConfig);
 
+    // ---------------- 服务器自更新 ----------------
+    const STATUS_TEXT = {
+      idle: "尚未检查更新",
+      checking: "正在检查更新…",
+      up_to_date: "已是最新版本",
+      available: "发现新版本",
+      downloading: "正在下载更新文件…",
+      ready: "更新已下载，可安装",
+      installing: "正在安装更新…",
+      installed: "更新已安装，服务器即将重启…",
+      error: "更新失败",
+    };
+
+    let updateInfo = null;
+
+    const renderUpdate = (data) => {
+      if (!data || !data.status) return;
+      updateInfo = data;
+      $("updateStatusText").textContent = STATUS_TEXT[data.status] || data.status;
+      const parts = ["当前 v" + data.currentVersion];
+      if (data.latestVersion) parts.push("最新 v" + data.latestVersion);
+      if (!data.enabled) parts.push("自更新未启用");
+      $("updateVersionInfo").textContent = " · " + parts.join(" · ");
+      $("updateError").textContent = data.status === "error" ? (data.error || "") : "";
+      const busy = ["checking", "downloading", "installing"].indexOf(data.status) >= 0;
+      $("updateBar").style.display = busy ? "" : "none";
+      $("updateBarFill").style.width = data.status === "downloading" ? "60%" : busy ? "100%" : "0";
+      $("checkUpdateBtn").disabled = busy;
+      $("applyUpdateBtn").classList.toggle("hidden", !(data.updateAvailable && data.enabled));
+      $("changelogBtn").classList.toggle("hidden", !data.latestVersion);
+      $("restartBtn").classList.toggle("hidden", ["ready", "installed"].indexOf(data.status) < 0);
+      if (data.status === "installed") $("changelogView").classList.add("hidden");
+    };
+
+    const refreshUpdate = async () => {
+      try {
+        const res = await api("/api/admin/update/status");
+        if (res.ok) renderUpdate(await res.json());
+      } catch (e) { /* 忽略 */ }
+    };
+
+    const runUpdateAction = async (path, btn) => {
+      if (btn) btn.disabled = true;
+      $("updateError").textContent = "";
+      try {
+        const res = await api(path, { method: "POST" });
+        const data = await res.json();
+        if (!res.ok) {
+          $("updateError").textContent = data.error || "操作失败";
+        } else if (data.status) {
+          renderUpdate(data);
+        } else if (data.message) {
+          $("updateStatusText").textContent = data.message;
+        }
+      } catch (e) {
+        $("updateError").textContent = "无法连接服务器";
+      } finally {
+        if (btn) btn.disabled = false;
+        refreshUpdate();
+      }
+    };
+
+    $("checkUpdateBtn").addEventListener("click", () => runUpdateAction("/api/admin/update/check", $("checkUpdateBtn")));
+
+    $("applyUpdateBtn").addEventListener("click", () => {
+      const v = updateInfo && updateInfo.latestVersion ? updateInfo.latestVersion : "";
+      if (!confirm("确定下载并安装 v" + v + " 吗？安装后服务器会自动重启。")) return;
+      runUpdateAction("/api/admin/update/apply", $("applyUpdateBtn"));
+    });
+
+    $("restartBtn").addEventListener("click", () => {
+      if (!confirm("确定重启服务器吗？房间状态将全部丢失。")) return;
+      runUpdateAction("/api/admin/update/restart", $("restartBtn"));
+    });
+
+    $("changelogBtn").addEventListener("click", async () => {
+      const view = $("changelogView");
+      if (!view.classList.contains("hidden")) {
+        view.classList.add("hidden");
+        return;
+      }
+      const version = updateInfo && updateInfo.latestVersion ? updateInfo.latestVersion : "";
+      try {
+        const res = await api("/api/admin/update/changelog" + (version ? "?version=" + encodeURIComponent(version) : ""));
+        const data = await res.json();
+        view.textContent = data.markdown || data.error || "暂无更新日志";
+      } catch (e) {
+        view.textContent = "无法连接服务器";
+      }
+      view.classList.remove("hidden");
+    });
+
     $("loginBtn").addEventListener("click", async () => {
       const username = $("username").value.trim();
       const password = $("password").value;
@@ -240,7 +367,7 @@ PAGE_HTML = """<!DOCTYPE html>
       } catch (e) { showLogin(); }
     })();
 
-    setInterval(() => { if (loggedIn) { refreshRooms(); } }, 10000);
+    setInterval(() => { if (loggedIn) { refreshRooms(); refreshUpdate(); } }, 10000);
   </script>
 </body>
 </html>
