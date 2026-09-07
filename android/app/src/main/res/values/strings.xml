@@ -1,0 +1,17 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">SPlayer for Android</string>
+    <string name="title_activity_main">SPlayer for Android</string>
+    <string name="package_name">top.imsyy.splayer.android</string>
+    <string name="custom_url_scheme">top.imsyy.splayer.android</string>
+    <string name="playback_notification_channel_name">Playback</string>
+    <string name="playback_notification_channel_description">SPlayer background playback controls</string>
+    <string name="playback_notification_play_pause">Play or pause</string>
+    <string name="playback_notification_previous">Previous</string>
+    <string name="playback_notification_next">Next</string>
+    <string name="playback_notification_favorite">Favorite</string>
+    <string name="playback_notification_desktop_lyric">Desktop lyric</string>
+    <string name="playback_notification_collapse">Collapse</string>
+    <string name="attribution_playback">Background music playback</string>
+    <string name="attribution_cache">Local media cache</string>
+</resources>
