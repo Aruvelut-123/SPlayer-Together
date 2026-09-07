@@ -1,5 +1,7 @@
 import "virtual:uno.css";
 import "@/styles/global.css";
+// Capacitor Android 环境先注入 window.api 兼容垫片，再加载其余模块
+import "@/platform/capacitor/boot";
 
 import piniaPersistedstate from "pinia-plugin-persistedstate";
 import App from "./App.vue";

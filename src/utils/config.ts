@@ -6,9 +6,7 @@ export const isElectron = typeof window !== "undefined" && typeof window.api !==
 
 /** 是否运行在 Capacitor Android WebView */
 export const isAndroid =
-  typeof window !== "undefined" &&
-  /Android/i.test(window.navigator.userAgent) &&
-  !isElectron;
+  typeof window !== "undefined" && /Android/i.test(window.navigator.userAgent) && !isElectron;
 
 /** 操作系统平台 */
 const platform = isElectron ? window.api.system.platform : "android";
