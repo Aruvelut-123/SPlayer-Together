@@ -1,8 +1,17 @@
 /** 是否为开发环境 */
 export const isDev = import.meta.env.MODE === "development" || import.meta.env.DEV;
 
+/** 是否运行在 Electron 渲染进程 */
+export const isElectron = typeof window !== "undefined" && typeof window.api !== "undefined";
+
+/** 是否运行在 Capacitor Android WebView */
+export const isAndroid =
+  typeof window !== "undefined" &&
+  /Android/i.test(window.navigator.userAgent) &&
+  !isElectron;
+
 /** 操作系统平台 */
-const platform = window.api.system.platform;
+const platform = isElectron ? window.api.system.platform : "android";
 /** 是否为 Windows 系统 */
 export const isWin = platform === "win32";
 /** 是否为 macOS 系统 */
@@ -14,7 +23,7 @@ export const isLinux = platform === "linux";
 export const APP_VERSION = __APP_VERSION__;
 
 /** 安装类型 */
-export const INSTALL_TYPE = window.api.system.installType;
+export const INSTALL_TYPE = isElectron ? window.api.system.installType : "android";
 /** 是否为 AppX 安装 */
 export const IS_APPX = INSTALL_TYPE === "appx";
 /** 仓库地址 */
